@@ -25,6 +25,12 @@ class LangHem:
         self.language_code = language_code
         self.finder = get_code_finder(language_code)
         self.manipulator = get_code_manipulator(language_code)
+        from ast_handler import ASTHandler
+        self.ast_handler = ASTHandler(language_code)
+        from formatting import get_formatter
+        self.formatter = get_formatter(language_code)
+        from strategies import get_strategy
+        self.strategy = get_strategy(language_code)
 
     @classmethod
     def from_file_path(cls, file_path: str) -> 'LangHem':
@@ -90,7 +96,7 @@ class LangHem:
     def content_looks_like_class_definition(self, content: str) -> bool:
         """
         Check if the provided content appears to be a class definition.
-        Delegates to the language-specific finder.
+        Delegates to the language-specific strategy.
 
         Args:
             content: The code content to check
@@ -98,12 +104,24 @@ class LangHem:
         Returns:
             bool: True if content looks like a class definition, False otherwise
         """
+        if not content or not content.strip():
+            return False
+            
+        # Use the strategy if available
+        if self.strategy:
+            lines = content.strip().splitlines()
+            # Check the first non-empty line
+            for line in lines:
+                if line.strip():
+                    return self.strategy.is_class_definition(line)
+        
+        # Fall back to the finder if strategy not available
         return self.finder.content_looks_like_class_definition(content)
 
     def fix_special_characters(self, content: str, xpath: str) -> tuple[str, str]:
         """
         Fix special characters in method names and xpaths.
-        Delegates to the language-specific manipulator.
+        Delegates to the language-specific strategy.
 
         Args:
             content: The code content
@@ -112,11 +130,13 @@ class LangHem:
         Returns:
             Tuple of (updated_content, updated_xpath)
         """
-        if self.manipulator:
+        if self.strategy:
+            return self.strategy.fix_special_characters(content, xpath)
+        elif self.manipulator:
             return self.manipulator.fix_special_characters(content, xpath)
-        return content, xpath
+        return (content, xpath)
 
-    def fix_class_method_xpath(self, content: str, xpath: str, file_path: str = None) -> tuple[str, dict]:
+    def fix_class_method_xpath(self, content: str, xpath: str, file_path: str=None) -> tuple[str, dict]:
         """
         Fix xpath for class methods when only class name is provided in xpath.
         Delegates to the language-specific manipulator.
@@ -131,4 +151,103 @@ class LangHem:
         """
         if self.manipulator:
             return self.manipulator.fix_class_method_xpath(content, xpath, file_path)
-        return xpath, {}
+        return (xpath, {})
+        
+    def format_code(self, code: str) -> str:
+        """
+        Format code according to language-specific rules.
+        
+        Args:
+            code: Code to format
+            
+        Returns:
+            Formatted code
+        """
+        return self.formatter.format_code(code)
+    
+    def format_class(self, class_code: str) -> str:
+        """
+        Format a class definition according to language-specific rules.
+        
+        Args:
+            class_code: Class code to format
+            
+        Returns:
+            Formatted class code
+        """
+        return self.formatter.format_class(class_code)
+    
+    def format_method(self, method_code: str) -> str:
+        """
+        Format a method definition according to language-specific rules.
+        
+        Args:
+            method_code: Method code to format
+            
+        Returns:
+            Formatted method code
+        """
+        return self.formatter.format_method(method_code)
+    
+    def format_function(self, function_code: str) -> str:
+        """
+        Format a function definition according to language-specific rules.
+        
+        Args:
+            function_code: Function code to format
+            
+        Returns:
+            Formatted function code
+        """
+        return self.formatter.format_function(function_code)
+    
+    def extract_code_elements(self, code: str) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Extract code elements (classes, methods, functions) from code.
+        
+        Args:
+            code: Source code to analyze
+            
+        Returns:
+            Dictionary with 'classes', 'methods', and 'functions' keys,
+            each containing a list of dictionaries with element information
+        """
+        if not self.strategy:
+            return {'classes': [], 'methods': [], 'functions': []}
+            
+        lines = code.splitlines()
+        classes = []
+        methods = []
+        functions = []
+        
+        for i, line in enumerate(lines):
+            if self.strategy.is_class_definition(line):
+                class_name = self.strategy.extract_class_name(line)
+                if class_name:
+                    classes.append({
+                        'name': class_name,
+                        'line': i + 1,
+                        'content': line
+                    })
+            elif self.strategy.is_method_definition(line):
+                method_name = self.strategy.extract_method_name(line)
+                if method_name:
+                    methods.append({
+                        'name': method_name,
+                        'line': i + 1,
+                        'content': line
+                    })
+            elif self.strategy.is_function_definition(line):
+                function_name = self.strategy.extract_function_name(line)
+                if function_name:
+                    functions.append({
+                        'name': function_name,
+                        'line': i + 1,
+                        'content': line
+                    })
+                    
+        return {
+            'classes': classes,
+            'methods': methods,
+            'functions': functions
+        }

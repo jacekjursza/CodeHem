@@ -10,6 +10,7 @@ classes, methods, and properties across multiple programming languages, includin
 - **Powerful Code Manipulation**: Replace, add, or remove functions, methods, classes, properties, or entire code sections with minimal effort.
 - **Syntax-aware Operations**: Ensures accurate manipulation preserving syntax integrity through the `tree-sitter` parser.
 - **Language Detection**: Automatically identifies the programming language based on file extensions or code analysis.
+- **Extensible Architecture**: Easily add support for new programming languages through the strategy pattern.
 
 ## Supported Languages
 
@@ -20,33 +21,52 @@ classes, methods, and properties across multiple programming languages, includin
 
 ```
 CodeHem/
-├── finder/
-│   ├── base.py                   # Abstract base class for querying code elements
-│   ├── factory.py               # Factory for creating code finders
+├── ast_handler.py            # Unified interface for AST operations
+├── caching/                  # Performance optimization through caching
+│   ├── __init__.py
+│   └── cache_manager.py
+│
+├── finder/                   # Code element location
+│   ├── base.py               # Abstract base class for querying code elements
+│   ├── factory.py            # Factory for creating code finders
 │   └── lang/
 │       ├── python_code_finder.py
 │       └── typescript_code_finder.py
 │
-├── manipulator/
-│   ├── abstract.py               # Abstract interface for code manipulators
-│   ├── base.py                   # Base implementation
-│   ├── factory.py                # Factory for manipulators
+├── formatting/               # Code formatting system
+│   ├── __init__.py
+│   ├── formatter.py          # Base formatter class
+│   ├── python_formatter.py   # Python-specific formatter
+│   └── typescript_formatter.py # TypeScript-specific formatter
+│
+├── language_handler.py       # High-level language handling interface (LangHem)
+├── languages.py              # Language definitions and parsers
+│
+├── manipulator/              # Code manipulation
+│   ├── abstract.py           # Abstract interface for code manipulators
+│   ├── base.py               # Base implementation
+│   ├── factory.py            # Factory for manipulators
 │   └── lang/
 │       ├── python_manipulator.py
 │       └── typescript_manipulator.py
 │
-├── language_handler.py           # High-level language handling interface (LangHem)
-├── languages.py                  # Language definitions and parsers
+├── query_builder.py          # Unified query construction
+│
+├── strategies/               # Strategy pattern for language-specific operations
+│   ├── __init__.py
+│   ├── language_strategy.py  # Abstract strategy interface
+│   ├── python_strategy.py    # Python-specific strategy
+│   └── typescript_strategy.py # TypeScript-specific strategy
+│
+├── templates/                # Templates for adding new languages
+│   └── new_language_template.py
+│
 └── utils/
-    └── logs.py                   # Logging utilities
-```
-
+    └── logs.py               # Logging utilities
 ## Installation
 
 Ensure Python 3.7 or later is installed, then:
 
-```bash
-pip install -r requirements.txt
 ```
 
 Dependencies include `tree-sitter` and language-specific parsers.
@@ -55,10 +75,10 @@ Dependencies include `tree-sitter` and language-specific parsers.
 
 ### Querying Code
 
-```python
-from finder.factory import get_code_finder
 
-finder = get_code_finder('python')
+# Create a handler for Python code
+handler = LangHem('python')
+
 code = '''
 class Example:
     def greet(self):
@@ -66,16 +86,14 @@ class Example:
 '''
 
 # Find method location
-start, end = finder.find_method(code, 'ExampleClass', 'my_method')
-print(f'Method found from line {start} to {end_line}')
+start, end = handler.finder.find_method(code, 'Example', 'greet')
+print(f'Method found from line {start} to {end}')
 ```
 
 ### Manipulating Code
 
-```python
-from manipulator.factory import get_code_manipulator
 
-manipulator = get_code_manipulator('python')
+handler = LangHem('python')
 
 original_code = '''
 def greet():
@@ -87,8 +105,13 @@ def greet():
     print("Hello, World!")
 '''
 
-modified_code = manipulator.replace_function(original_code, 'greet', new_function)
+modified_code = handler.manipulator.replace_function(original_code, 'greet', new_function)
 ```
+
+## Adding Support for New Languages
+
+CodeHem is designed to be extensible to support multiple programming languages. 
+See the [Adding a New Language](docs/adding_new_language.md) guide for detailed instructions.
 
 ## Contributing
 

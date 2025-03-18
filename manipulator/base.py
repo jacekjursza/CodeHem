@@ -1,73 +1,78 @@
 from finder.factory import get_code_finder
 from manipulator.abstract import AbstractCodeManipulator
-
+from formatting import get_formatter
 
 class BaseCodeManipulator(AbstractCodeManipulator):
 
     def __init__(self, language: str='python'):
         self.language = language
         self.finder = get_code_finder(language)
+        self.formatter = get_formatter(language)
 
     def replace_function(self, original_code: str, function_name: str, new_function: str) -> str:
         """Replace a function definition with new content."""
-        # Get the function boundaries including decorators
         (start_line, end_line) = self.finder.find_function(original_code, function_name)
         if start_line == 0 and end_line == 0:
             return original_code
-
-        # Look for decorators that should be included in the replacement
         orig_lines = original_code.splitlines()
         adjusted_start = start_line
-
-        # Check for decorators above the function
         for i in range(start_line - 2, -1, -1):
             if i < 0 or i >= len(orig_lines):
                 continue
             line = orig_lines[i].strip()
             if line.startswith('@'):
                 adjusted_start = i + 1
-            elif line and not line.startswith('#'):
+            elif line and (not line.startswith('#')):
                 break
-
-        # Normalize the new function content - remove leading/trailing whitespace
-        # and ensure it doesn't contain the original function signature
-        new_function_clean = new_function.strip()
-
-        # Use our fixed replace_lines method for the actual replacement
+        new_function_clean = self.formatter.format_function(new_function.strip())
         return self.replace_lines(original_code, adjusted_start, end_line, new_function_clean)
 
     def replace_class(self, original_code: str, class_name: str, new_class_content: str) -> str:
         """Replace a class definition with new content."""
-        # Get the class boundaries including decorators
         (start_line, end_line) = self.finder.find_class(original_code, class_name)
         if start_line == 0 and end_line == 0:
             return original_code
-
-        # Look for decorators that should be included in the replacement
         orig_lines = original_code.splitlines()
         adjusted_start = start_line
-
-        # Check for decorators above the class
         for i in range(start_line - 2, -1, -1):
             if i < 0 or i >= len(orig_lines):
                 continue
             line = orig_lines[i].strip()
             if line.startswith('@'):
                 adjusted_start = i + 1
-            elif line and not line.startswith('#'):
+            elif line and (not line.startswith('#')):
                 break
-
-        # Normalize the new class content
-        new_class_clean = new_class_content.strip()
-
-        # Use our fixed replace_lines method for the actual replacement
+        new_class_clean = self.formatter.format_class(new_class_content.strip())
         return self.replace_lines(original_code, adjusted_start, end_line, new_class_clean)
 
     def replace_method(self, original_code: str, class_name: str, method_name: str, new_method: str) -> str:
         (start_line, end_line) = self.finder.find_method(original_code, class_name, method_name)
         if start_line == 0 and end_line == 0:
             return original_code
-        return self.replace_lines(original_code, start_line, end_line, new_method)
+        orig_lines = original_code.splitlines()
+        adjusted_start = start_line
+        for i in range(start_line - 2, -1, -1):
+            if i < 0 or i >= len(orig_lines):
+                continue
+            line = orig_lines[i].strip()
+            if line.startswith('@'):
+                adjusted_start = i + 1
+            elif line and (not line.startswith('#')):
+                break
+        
+        # Get indentation from the class definition
+        class_indent = ''
+        for line in orig_lines:
+            if line.strip().startswith(f'class {class_name}'):
+                class_indent = self.formatter.get_indentation(line)
+                break
+        
+        # Format the method with proper indentation
+        method_indent = class_indent + self.formatter.indent_string
+        new_method_clean = self.formatter.format_method(new_method.strip())
+        indented_method = self.formatter.apply_indentation(new_method_clean, method_indent)
+        
+        return self.replace_lines(original_code, adjusted_start, end_line, indented_method)
 
     def replace_property(self, original_code: str, class_name: str, property_name: str, new_property: str) -> str:
         (start_line, end_line) = self.finder.find_property(original_code, class_name, property_name)
@@ -80,7 +85,26 @@ class BaseCodeManipulator(AbstractCodeManipulator):
         if start_line == 0 and end_line == 0:
             return original_code
         lines = original_code.splitlines()
-        modified_lines = lines[:end_line] + [method_code] + lines[end_line:]
+        class_indent = self.formatter.get_indentation(lines[start_line - 1]) if start_line <= len(lines) else ''
+        method_indent = class_indent + self.formatter.indent_string
+        
+        # Format the method with proper indentation
+        formatted_method = self.formatter.format_method(method_code.strip())
+        indented_method = self.formatter.apply_indentation(formatted_method, method_indent)
+        
+        # Find the appropriate insertion point
+        # We want to add the method at the end of the class body before the closing line
+        insertion_point = end_line
+        for i in range(end_line - 1, start_line - 1, -1):
+            if i < len(lines) and lines[i].strip() and not lines[i].strip().startswith('#'):
+                insertion_point = i + 1
+                break
+        
+        # Add a blank line if needed
+        if insertion_point > 0 and insertion_point < len(lines) and lines[insertion_point - 1].strip():
+            indented_method = f"\n{indented_method}"
+        
+        modified_lines = lines[:insertion_point] + [indented_method] + lines[insertion_point:]
         return '\n'.join(modified_lines)
 
     def remove_method_from_class(self, original_code: str, class_name: str, method_name: str) -> str:
@@ -88,60 +112,128 @@ class BaseCodeManipulator(AbstractCodeManipulator):
         if start_line == 0 and end_line == 0:
             return original_code
         lines = original_code.splitlines()
-        modified_lines = lines[:start_line - 1] + lines[end_line:]
-        return '\n'.join(modified_lines)
+        
+        # Find the starting point of the method, including decorators
+        decorator_start = start_line
+        for i in range(start_line - 2, -1, -1):
+            if i < 0 or i >= len(lines):
+                continue
+            line = lines[i].strip()
+            if line.startswith('@'):
+                decorator_start = i + 1
+            elif line and (not line.startswith('#')):
+                break
+        
+        # Remove the method and clean up any trailing blank lines
+        modified_lines = lines[:decorator_start - 1] + lines[end_line:]
+        result = '\n'.join(modified_lines)
+        
+        # Remove excessive blank lines
+        while '\n\n\n' in result:
+            result = result.replace('\n\n\n', '\n\n')
+            
+        return result
 
     def replace_entire_file(self, original_code: str, new_content: str) -> str:
-        return new_content
+        return new_content.strip()
 
     def replace_properties_section(self, original_code: str, class_name: str, new_properties: str) -> str:
         """Replace properties section in a class with new content."""
-        # Get the properties section boundaries
         (start_line, end_line) = self.finder.find_properties_section(original_code, class_name)
         if start_line == 0 and end_line == 0:
-            return original_code
-
-        # Find class indentation for proper formatting
+            # No properties section found, need to add it to the class
+            (class_start, class_end) = self.finder.find_class(original_code, class_name)
+            if class_start == 0:
+                return original_code
+                
+            lines = original_code.splitlines()
+            class_indent = self.formatter.get_indentation(lines[class_start - 1]) if class_start <= len(lines) else ''
+            property_indent = class_indent + self.formatter.indent_string
+            
+            # Format the properties
+            formatted_properties = self.formatter.apply_indentation(new_properties.strip(), property_indent)
+            
+            # Find insertion point (after class declaration line)
+            insertion_point = class_start
+            for i in range(class_start, min(class_start + 5, len(lines))):
+                if '{' in lines[i]:
+                    insertion_point = i + 1
+                    break
+            
+            # Add a blank line after if needed
+            if insertion_point < len(lines) and lines[insertion_point].strip():
+                formatted_properties += '\n'
+                
+            modified_lines = lines[:insertion_point] + [formatted_properties] + lines[insertion_point:]
+            return '\n'.join(modified_lines)
+            
+        # Properties section found, replace it
+        formatted_properties = new_properties.strip()
+        orig_lines = original_code.splitlines()
+        
+        # Get class indentation
         class_indent = ''
-        for line in original_code.splitlines():
-            if line.strip().startswith(f"class {class_name}"):
-                class_indent = line[:len(line) - len(line.lstrip())]
+        for line in orig_lines:
+            if line.strip().startswith(f'class {class_name}'):
+                class_indent = self.formatter.get_indentation(line)
                 break
-
-        # Format properties with proper indentation
-        property_indent = class_indent + '    '  # Standard Python indentation
+        
+        # Format with correct indentation
+        property_indent = class_indent + self.formatter.indent_string
         formatted_lines = []
-
-        for line in new_properties.strip().splitlines():
-            if not line.strip():
+        for line in formatted_properties.splitlines():
+            if line.strip():
+                formatted_lines.append(f"{property_indent}{line.strip()}")
+            else:
                 formatted_lines.append('')
-                continue
-            formatted_lines.append(property_indent + line.strip())
-
+                
         formatted_properties = '\n'.join(formatted_lines)
-
-        # Use our fixed replace_lines method
+        
+        # Add a blank line after properties if next line is a method
+        if end_line < len(orig_lines) and orig_lines[end_line].strip().startswith('def '):
+            formatted_properties += '\n'
+            
         return self.replace_lines(original_code, start_line, end_line, formatted_properties)
 
     def replace_imports_section(self, original_code: str, new_imports: str) -> str:
         """Replace imports section with new content."""
         (start_line, end_line) = self.finder.find_imports_section(original_code)
         if start_line == 0 and end_line == 0:
-            # No imports found, add at the beginning
-            # Add a blank line after imports for readability
-            if not new_imports.endswith('\n\n'):
-                new_imports = new_imports.rstrip() + '\n\n'
-            return new_imports + original_code
-
-        # Format the new imports
+            # No imports section found, add at the beginning
+            formatted_imports = new_imports.strip()
+            
+            # Check if there's a docstring at the beginning
+            lines = original_code.splitlines()
+            if len(lines) > 0 and (lines[0].strip().startswith('"""') or lines[0].strip().startswith("'''")):
+                # Find end of docstring
+                in_docstring = True
+                docstring_end = 0
+                for i, line in enumerate(lines):
+                    if i == 0:
+                        continue
+                    if '"""' in line or "'''" in line:
+                        docstring_end = i
+                        in_docstring = False
+                        break
+                
+                if not in_docstring:
+                    # Add imports after docstring
+                    return '\n'.join(lines[:docstring_end + 1]) + '\n\n' + formatted_imports + '\n\n' + '\n'.join(lines[docstring_end + 1:])
+            
+            # No docstring or couldn't find end, add at top
+            if not formatted_imports.endswith('\n\n'):
+                formatted_imports += '\n\n'
+                
+            return formatted_imports + original_code.lstrip()
+            
+        # Imports section found, replace it
         formatted_imports = new_imports.strip()
-
-        # Ensure there's a blank line after imports
         orig_lines = original_code.splitlines()
+        
+        # Add blank line after imports if next section isn't blank
         if end_line < len(orig_lines) and orig_lines[end_line].strip() and not formatted_imports.endswith('\n'):
             formatted_imports += '\n'
-
-        # Use our fixed replace_lines method
+            
         return self.replace_lines(original_code, start_line, end_line, formatted_imports)
 
     def replace_lines(self, original_code: str, start_line: int, end_line: int, new_lines: str) -> str:
@@ -157,35 +249,19 @@ class BaseCodeManipulator(AbstractCodeManipulator):
         Returns:
         The modified code with the lines replaced
         """
-        # Normalize inputs by stripping leading/trailing whitespace
         orig_code = original_code.rstrip()
         new_content = new_lines.rstrip()
-
-        # Handle edge cases
         if start_line <= 0 or end_line < start_line:
             return original_code
-
-        # Split into lines for processing
         orig_lines = orig_code.splitlines()
-
-        # Check bounds
         if not orig_lines or start_line > len(orig_lines):
             return original_code
-
-        # Convert to 0-indexed for array operations
         start_idx = start_line - 1
         end_idx = min(end_line - 1, len(orig_lines) - 1)
-
-        # Perform the replacement
         result_lines = orig_lines[:start_idx] + new_content.splitlines() + orig_lines[end_idx + 1:]
-
-        # Join back to a string
         result = '\n'.join(result_lines)
-
-        # Preserve original trailing newline if it existed
         if original_code.endswith('\n'):
             result += '\n'
-
         return result
 
     def replace_lines_range(self, original_code: str, start_line: int, end_line: int, new_content: str, preserve_formatting: bool=False) -> str:
@@ -204,32 +280,21 @@ class BaseCodeManipulator(AbstractCodeManipulator):
         """
         if not original_code:
             return new_content
-
-        # Split the original and new content into lines
         orig_lines = original_code.splitlines()
         new_lines = new_content.splitlines()
-
-        # Normalize line ranges
         if start_line <= 0:
             start_line = 1
-
         total_lines = len(orig_lines)
         start_line = min(start_line, total_lines)
         end_line = min(max(end_line, start_line), total_lines)
-
-        # Convert to 0-indexed for internal use
         start_idx = start_line - 1
         end_idx = end_line - 1
-
+        
         if not preserve_formatting:
-            # Simple replacement - reuse base method for consistency
             return self.replace_lines(original_code, start_line, end_line, new_content)
         else:
-            # Preserve formatting with special handling for line endings
             result = orig_lines[:start_idx]
-
-            if new_lines and end_idx + 1 < len(orig_lines) and not new_content.endswith('\n'):
-                # Handle special case for joining with next line
+            if new_lines and end_idx + 1 < len(orig_lines) and (not new_content.endswith('\n')):
                 result.extend(new_lines[:-1])
                 if new_lines[-1]:
                     result.append(new_lines[-1] + orig_lines[end_idx + 1])
@@ -239,9 +304,8 @@ class BaseCodeManipulator(AbstractCodeManipulator):
             else:
                 result.extend(new_lines)
                 result.extend(orig_lines[end_idx + 1:])
-
             return '\n'.join(result)
-            
+
     def _get_indentation(self, line: str) -> str:
         """
         Extract the whitespace indentation from the beginning of a line.
@@ -252,10 +316,8 @@ class BaseCodeManipulator(AbstractCodeManipulator):
         Returns:
             The indentation string (spaces, tabs, etc.)
         """
-        import re
-        match = re.match(r'^(\s*)', line)
-        return match.group(1) if match else ''
-        
+        return self.formatter.get_indentation(line)
+
     def _apply_indentation(self, content: str, base_indent: str) -> str:
         """
         Apply consistent indentation to a block of content.
@@ -267,13 +329,33 @@ class BaseCodeManipulator(AbstractCodeManipulator):
         Returns:
             The indented content
         """
-        lines = content.splitlines()
-        result = []
-        
-        for line in lines:
-            if line.strip():  # Non-empty line
-                result.append(base_indent + line.lstrip())
-            else:  # Empty line
-                result.append('')
-                
-        return '\n'.join(result)
+        return self.formatter.apply_indentation(content, base_indent)
+
+    def fix_special_characters(self, content: str, xpath: str) -> tuple[str, str]:
+        """
+        Fix special characters in method names and xpaths.
+        Default implementation, can be overridden by language-specific manipulators.
+
+        Args:
+            content: The code content
+            xpath: The xpath string
+
+        Returns:
+            Tuple of (updated_content, updated_xpath)
+        """
+        return (content, xpath)
+
+    def fix_class_method_xpath(self, content: str, xpath: str, file_path: str=None) -> tuple[str, dict]:
+        """
+        Fix xpath for class methods when only class name is provided in xpath.
+        Default implementation, should be overridden by language-specific manipulators.
+
+        Args:
+            content: The code content
+            xpath: The xpath string
+            file_path: Optional path to the file
+
+        Returns:
+            Tuple of (updated_xpath, attributes_dict)
+        """
+        return (xpath, {})
