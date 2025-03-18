@@ -76,13 +76,12 @@ class PythonCodeManipulator(BaseCodeManipulator):
         return self.replace_lines(original_code, adjusted_start, end_line, formatted_content)
 
     def replace_method(self, original_code: str, class_name: str, method_name: str, new_method: str) -> str:
-        from utils.format_utils import format_python_method_content
-
+        """Replace a method in a class with new content."""
         (start_line, end_line) = self.finder.find_method(original_code, class_name, method_name)
         if start_line == 0 and end_line == 0:
             return original_code
 
-        # Handle decorators by looking backward
+        # Find decorators before the method
         lines = original_code.splitlines()
         adjusted_start = start_line
         for i in range(start_line - 2, -1, -1):
@@ -94,14 +93,31 @@ class PythonCodeManipulator(BaseCodeManipulator):
             elif line and (not line.startswith('#')):
                 break
 
-        # Format the method content for a class method (add indentation)
-        method_lines = []
-        for line in format_python_method_content(new_method).splitlines():
-            method_lines.append("    " + line)  # Add class-level indentation
+        # Find the class line to determine the base indentation
+        class_indent = ""
+        for i in range(len(lines)):
+            if i < len(lines) and class_name in lines[i] and "class" in lines[i]:
+                class_indent = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
+                break
 
-        formatted_method = "\n".join(method_lines)
+        # Process the new method content
+        import textwrap
+        dedented = textwrap.dedent(new_method).strip()
+        formatted_lines = []
+        method_indent = class_indent + "    "
 
-        # Replace the method in the original code
+        # Process each line of the new method
+        for line in dedented.splitlines():
+            if not line.strip():
+                formatted_lines.append("")
+            elif line.strip().startswith('@'):
+                formatted_lines.append(method_indent + line.strip())
+            elif line.strip().startswith('def '):
+                formatted_lines.append(method_indent + line.strip())
+            else:
+                formatted_lines.append(method_indent + "    " + line.strip())
+
+        formatted_method = '\n'.join(formatted_lines)
         return self.replace_lines(original_code, adjusted_start, end_line, formatted_method)
 
     def replace_property(self, original_code: str, class_name: str, property_name: str, new_property: str) -> str:

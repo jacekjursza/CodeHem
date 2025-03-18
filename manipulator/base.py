@@ -132,25 +132,25 @@ class BaseCodeManipulator(AbstractCodeManipulator):
 
     def replace_lines(self, original_code: str, start_line: int, end_line: int, new_lines: str) -> str:
         """Replace lines from start_line to end_line (inclusive) with new_lines."""
-        from utils.format_utils import process_lines
-
         if start_line <= 0 or end_line <= 0:
             return original_code
 
-        # Split by lines but preserve empty lines and indentation
+        # Split the original code into lines
         orig_lines = original_code.splitlines()
+
+        # Check if the code is empty or start_line is beyond the available lines
         if not orig_lines or start_line > len(orig_lines):
             return original_code
 
-        # Convert 1-based line numbers to 0-based indices
+        # Adjust line indices (convert from 1-based to 0-based)
         start_idx = start_line - 1
-        end_idx = end_line - 1
+        end_idx = min(end_line - 1, len(orig_lines) - 1)
 
-        # Process the new lines
+        # Split new content into lines
         new_content_lines = new_lines.splitlines()
 
-        # Use our utility to handle line replacement with proper index handling
-        result_lines = process_lines(orig_lines, start_idx, end_idx, new_content_lines)
+        # Create the result by replacing the specified lines
+        result_lines = orig_lines[:start_idx] + new_content_lines + orig_lines[end_idx + 1:]
 
         return '\n'.join(result_lines)
 
