@@ -24,7 +24,24 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         (start_line, end_line) = self.finder.find_class(original_code, class_name)
         if start_line == 0 and end_line == 0:
             return original_code
-        return self._replace_element(original_code, start_line, end_line, new_class_content)
+
+        # Check for decorators before the class
+        lines = original_code.splitlines()
+        adjusted_start = start_line
+        for i in range(start_line - 2, -1, -1):
+            if i < 0 or i >= len(lines):
+                continue
+            line = lines[i].strip()
+            if line.startswith('@'):
+                adjusted_start = i + 1
+            elif line and (not line.startswith('//')):
+                break
+
+        # Format the new class content
+        class_indent = self._get_indentation(lines[adjusted_start - 1]) if adjusted_start <= len(lines) else ''
+        formatted_class = self._format_typescript_code_block(new_class_content, class_indent)
+
+        return self.replace_lines(original_code, adjusted_start, end_line, formatted_class)
 
     def replace_method(self, original_code: str, class_name: str, method_name: str, new_method: str) -> str:
         (start_line, end_line) = self.finder.find_method(original_code, class_name, method_name)

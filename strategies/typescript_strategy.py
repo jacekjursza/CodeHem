@@ -171,25 +171,19 @@ class TypeScriptStrategy(LanguageStrategy):
     def is_method_of_class(self, method_node: Node, class_name: str, code_bytes: bytes) -> bool:
         """
         Check if a method belongs to a specific TypeScript class.
-        
+
         Args:
-            method_node: Method node
-            class_name: Class name to check
-            code_bytes: Source code as bytes
-            
+        method_node: Method node
+        class_name: Class name to check
+        code_bytes: Source code as bytes
+
         Returns:
-            True if the method belongs to the class, False otherwise
+        True if the method belongs to the class, False otherwise
         """
-        # For TypeScript, we need to find 'this' references in the method body
-        method_body = None
-        for child in method_node.children:
-            if child.type == 'statement_block':
-                method_body = child
-                break
-                
-        if not method_body:
+        # For TypeScript, we need to check if the method is inside the class body
+        if method_node is None:
             return False
-            
+
         # Find the parent class
         current = method_node
         while current:
@@ -198,6 +192,14 @@ class TypeScriptStrategy(LanguageStrategy):
                     if child.type == 'identifier':
                         class_node_name = code_bytes[child.start_byte:child.end_byte].decode('utf8')
                         return class_node_name == class_name
+            elif current.type == 'class_body':
+                # If we're in a class body, check if it belongs to the right class
+                parent_class = current.parent
+                if parent_class and parent_class.type == 'class_declaration':
+                    for child in parent_class.children:
+                        if child.type == 'identifier':
+                            class_node_name = code_bytes[child.start_byte:child.end_byte].decode('utf8')
+                            return class_node_name == class_name
             current = current.parent
-            
+
         return False

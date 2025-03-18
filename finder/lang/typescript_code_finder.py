@@ -350,14 +350,28 @@ class TypeScriptCodeFinder(CodeFinder):
         return (0, 0)
 
     def find_property_and_setter(self, code: str, class_name: str, property_name: str) -> Tuple[int, int]:
+        """
+        Find both a property getter and setter in a TypeScript class.
+
+        Args:
+        code: Source code as string
+        class_name: Name of the class containing the property
+        property_name: Name of the property to find
+
+        Returns:
+        Tuple of (start_line, end_line) covering both getter and setter
+        """
         (getter_start, getter_end) = self.find_property(code, class_name, property_name)
         (setter_start, setter_end) = self.find_property_setter(code, class_name, property_name)
+
         if getter_start == 0 or getter_end == 0:
             if setter_start == 0 or setter_end == 0:
                 return (0, 0)
             return (setter_start, setter_end)
+
         if setter_start == 0 or setter_end == 0:
             return (getter_start, getter_end)
+
         start = min(getter_start, setter_start)
         end = max(getter_end, setter_end)
         return (start, end)
@@ -470,29 +484,34 @@ class TypeScriptCodeFinder(CodeFinder):
     def get_class_decorators(self, code: str, class_name: str) -> List[str]:
         """
         Get decorators for a class.
-        
+
         Args:
-            code: Source code as string
-            class_name: Class name
-            
+        code: Source code as string
+        class_name: Class name
+
         Returns:
-            List of decorator strings
+        List of decorator strings
         """
         (root, code_bytes) = self._get_tree(code)
-        
+
         query_str = f'(class_declaration name: (identifier) @class_name (#eq? @class_name "{class_name}"))'
         query = Query(TS_LANGUAGE, query_str)
-        raw_captures = query.captures(root, lambda n: code_bytes[n.start_byte:n.end_byte].decode('utf8'))
-        
+        raw_captures = query.captures(root, lambda n: self._get_node_text(n, code_bytes))
+
         for node, _ in raw_captures:
             class_node = node.parent
-            
-            # Find decorators
             decorators = []
-            for child in class_node.children:
-                if child.type == 'decorator':
-                    decorators.append(self._get_node_text(child, code_bytes))
-            
+
+            # Look for decorators before class declaration
+            if class_node.prev_sibling and class_node.prev_sibling.type == 'decorator':
+                decorators.append(self._get_node_text(class_node.prev_sibling, code_bytes))
+
+            # Look through all children of parent for decorators
+            if class_node.parent:
+                for child in class_node.parent.children:
+                    if child.type == 'decorator' and child.next_sibling == class_node:
+                        decorators.append(self._get_node_text(child, code_bytes))
+
             return decorators
-        
+
         return []
