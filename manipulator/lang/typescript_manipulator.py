@@ -1,5 +1,6 @@
 import os
 import re
+from typing import Optional
 
 from finder.lang.typescript_code_finder import TypeScriptCodeFinder
 from manipulator.base import BaseCodeManipulator
@@ -13,20 +14,83 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         self.finder = TypeScriptCodeFinder()
 
     def replace_function(self, original_code: str, function_name: str, new_function: str) -> str:
-        """Replace the specified function with new content, preserving TypeScript syntax."""
+        """
+        Replace a function definition with new content, maintaining TypeScript syntax.
+        """
         (start_line, end_line) = self.finder.find_function(original_code, function_name)
         if start_line == 0 and end_line == 0:
             return original_code
-        return self._replace_element(original_code, start_line, end_line, new_function)
+        lines = original_code.splitlines()
+        adjusted_start = start_line
+        for i in range(start_line - 2, -1, -1):
+            if i < 0 or i >= len(lines):
+                continue
+            line = lines[i].strip()
+            if line.startswith('//') or line.startswith('/*') or line.startswith('*') or line.startswith('@'):
+                adjusted_start = i + 1
+            elif line:
+                break
+
+        func_indent = self._get_indentation(lines[adjusted_start - 1]) if adjusted_start <= len(lines) else ''
+        function_body_indent = func_indent + '    '
+
+        # Process JSDoc comments and function body with correct indentation
+        new_func_lines = new_function.strip().splitlines()
+        formatted_lines = []
+        in_jsdoc = False
+        in_func_body = False
+
+        for line in new_func_lines:
+            stripped = line.strip()
+            if not stripped:
+                formatted_lines.append('')
+                continue
+
+            # JSDoc comments handling
+            if stripped.startswith('/**'):
+                in_jsdoc = True
+                formatted_lines.append(f'{func_indent}{stripped}')
+            elif in_jsdoc and stripped == '*/':
+                in_jsdoc = False
+                formatted_lines.append(f'{func_indent} {stripped}')
+            elif in_jsdoc and stripped.startswith('*'):
+                # Ensure proper spacing after asterisk in JSDoc
+                if stripped == '*':
+                    formatted_lines.append(f'{func_indent} *')
+                else:
+                    formatted_lines.append(f'{func_indent} {stripped}')
+            # Function definition
+            elif stripped.startswith('function') or stripped.startswith('async function'):
+                formatted_lines.append(f'{func_indent}{stripped}')
+                if '{' in stripped:
+                    in_func_body = True
+            # Opening brace
+            elif stripped == '{':
+                formatted_lines.append(f'{func_indent}{stripped}')
+                in_func_body = True
+            # Closing brace
+            elif stripped == '}' or stripped == '};':
+                in_func_body = False
+                formatted_lines.append(f'{func_indent}{stripped}')
+            # Function body
+            elif in_func_body:
+                formatted_lines.append(f'{function_body_indent}{stripped}')
+            # Other content
+            else:
+                formatted_lines.append(f'{func_indent}{stripped}')
+
+        return '\n'.join(lines[:adjusted_start - 1] + formatted_lines + lines[end_line:])
 
     def replace_class(self, original_code: str, class_name: str, new_class_content: str) -> str:
-        """Replace the specified class with new content, preserving TypeScript syntax."""
+        """
+        Replace the specified class with new content, preserving TypeScript syntax.
+        """
         (start_line, end_line) = self.finder.find_class(original_code, class_name)
         if start_line == 0 and end_line == 0:
             return original_code
-
-        # Check for decorators before the class
         lines = original_code.splitlines()
+
+        # Find the start line, considering decorators
         adjusted_start = start_line
         for i in range(start_line - 2, -1, -1):
             if i < 0 or i >= len(lines):
@@ -37,24 +101,75 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
             elif line and (not line.startswith('//')):
                 break
 
-        # Format the new class content
+        # Get indentation from original class
         class_indent = self._get_indentation(lines[adjusted_start - 1]) if adjusted_start <= len(lines) else ''
-        formatted_class = self._format_typescript_code_block(new_class_content, class_indent)
 
-        return self.replace_lines(original_code, adjusted_start, end_line, formatted_class)
+        # Process the new class content with proper indentation
+        new_class_lines = new_class_content.strip().splitlines()
+        formatted_lines = []
+
+        for i, line in enumerate(new_class_lines):
+            stripped = line.strip()
+            if not stripped:
+                formatted_lines.append('')
+                continue
+
+            # Handle class definition line and decorators
+            if i == 0 and (stripped.startswith('class') or stripped.startswith('@')):
+                formatted_lines.append(f'{class_indent}{stripped}')
+            # Handle closing brace
+            elif stripped == '}':
+                formatted_lines.append(f'{class_indent}{stripped}')
+            # Handle method definitions
+            elif '(' in stripped and ')' in stripped and '{' in stripped:
+                formatted_lines.append(f'{class_indent}    {stripped}')
+            # Handle method body lines
+            elif i > 0 and len(new_class_lines) > i-1 and '(' in new_class_lines[i-1]:
+                formatted_lines.append(f'{class_indent}        {stripped}')
+            # Handle other class content
+            else:
+                formatted_lines.append(f'{class_indent}    {stripped}')
+
+        # Replace in the original code
+        result = '\n'.join(lines[:adjusted_start - 1] + formatted_lines + lines[end_line:])
+        return result
 
     def replace_method(self, original_code: str, class_name: str, method_name: str, new_method: str) -> str:
+        """Replace a method in a class with new content."""
         (start_line, end_line) = self.finder.find_method(original_code, class_name, method_name)
         if start_line == 0 and end_line == 0:
             return original_code
+
         (class_start, _) = self.finder.find_class(original_code, class_name)
         if class_start == 0:
             return original_code
+
         lines = original_code.splitlines()
         class_indent = self._get_indentation(lines[class_start - 1]) if class_start <= len(lines) else ''
-        method_indent = class_indent + '  '
-        formatted_method = self._format_typescript_code_block(new_method, method_indent)
-        return self.replace_lines(original_code, start_line, end_line, formatted_method)
+        method_indent = class_indent + '    '  # 4 spaces for class members
+
+        # Format the method with proper indentation
+        new_method_lines = new_method.strip().splitlines()
+        formatted_lines = []
+
+        for i, line in enumerate(new_method_lines):
+            stripped = line.strip()
+            if not stripped:
+                formatted_lines.append('')
+                continue
+
+            if i == 0:  # Method signature
+                formatted_lines.append(f"{method_indent}{stripped}")
+            elif stripped == '}' or stripped == '};':
+                formatted_lines.append(f"{method_indent}{stripped}")
+            else:
+                # Method body gets another level of indentation (8 spaces from class level)
+                formatted_lines.append(f"{method_indent}    {stripped}")
+
+        formatted_method = '\n'.join(formatted_lines)
+
+        # Replace the method in the original code
+        return '\n'.join(lines[:start_line - 1] + formatted_lines + lines[end_line:])
 
     def replace_property(self, original_code: str, class_name: str, property_name: str, new_property: str) -> str:
         """Replace the specified property within a class, preserving TypeScript syntax."""
@@ -71,58 +186,92 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         return original_code
 
     def add_method_to_class(self, original_code: str, class_name: str, method_code: str) -> str:
-        """Add a new method to the specified class, with proper TypeScript indentation."""
+        """
+        Add a new method to the specified class, with proper TypeScript indentation.
+        """
         (start_line, end_line) = self.finder.find_class(original_code, class_name)
         if start_line == 0 and end_line == 0:
             return original_code
         lines = original_code.splitlines()
         class_indent = self._get_indentation(lines[start_line - 1]) if start_line <= len(lines) else ''
-        method_indent = class_indent + '  '
-        formatted_method = self._format_typescript_code_block(method_code, method_indent)
-        class_end_brace = -1
-        for i in range(end_line - 1, start_line - 1, -1):
-            if i < len(lines) and lines[i].strip() == '}':
-                class_end_brace = i
-                break
-        if class_end_brace > 0:
-            is_empty_class = True
-            for i in range(start_line, class_end_brace):
-                if i < len(lines) and lines[i].strip() and (not (lines[i].strip().startswith('class') or lines[i].strip() == '{')):
-                    is_empty_class = False
-                    break
-            if is_empty_class:
-                insertion_point = start_line + 1
-                if insertion_point < len(lines) and lines[insertion_point - 1].strip() == '{':
-                    modified_lines = lines[:insertion_point] + [formatted_method] + lines[insertion_point:]
-                else:
-                    modified_lines = lines[:start_line] + [class_indent + '{', formatted_method] + lines[start_line:]
+        method_indent = class_indent + '    '
+        method_lines = method_code.strip().splitlines()
+        formatted_method_lines = []
+        for (i, line) in enumerate(method_lines):
+            stripped = line.strip()
+            if not stripped:
+                formatted_method_lines.append('')
+                continue
+            if i == 0:
+                formatted_method_lines.append(f'{method_indent}{stripped}')
+            elif stripped == '}' or stripped == '};':
+                formatted_method_lines.append(f'{method_indent}{stripped}')
             else:
-                if class_end_brace > 1 and lines[class_end_brace - 1].strip():
-                    formatted_method = f'\n{formatted_method}'
-                modified_lines = lines[:class_end_brace] + [formatted_method] + lines[class_end_brace:]
-            return '\n'.join(modified_lines)
-        modified_lines = lines[:end_line] + [formatted_method] + lines[end_line:]
+                formatted_method_lines.append(f'{method_indent}    {stripped}')
+        formatted_method = '\n'.join(formatted_method_lines)
+        is_empty_class = True
+        for i in range(start_line, min(end_line, len(lines))):
+            if lines[i].strip() and (not (lines[i].strip() == '{' or lines[i].strip() == '}')):
+                is_empty_class = False
+                break
+        if is_empty_class:
+            opening_brace_line = -1
+            for i in range(start_line - 1, min(start_line + 3, len(lines))):
+                if i < len(lines) and '{' in lines[i] and ('}' not in lines[i]):
+                    opening_brace_line = i
+                    break
+            if opening_brace_line >= 0:
+                modified_lines = lines[:opening_brace_line + 1] + formatted_method_lines + lines[opening_brace_line + 1:]
+            else:
+                modified_lines = lines[:start_line] + [class_indent + '{', formatted_method, class_indent + '}'] + lines[start_line:]
+        else:
+            closing_brace_line = -1
+            for i in range(end_line - 1, start_line - 1, -1):
+                if i < len(lines) and '}' in lines[i]:
+                    closing_brace_line = i
+                    break
+            if closing_brace_line > 0:
+                if closing_brace_line > 0 and lines[closing_brace_line - 1].strip():
+                    modified_lines = lines[:closing_brace_line] + [''] + formatted_method_lines + lines[closing_brace_line:]
+                else:
+                    modified_lines = lines[:closing_brace_line] + formatted_method_lines + lines[closing_brace_line:]
+            else:
+                modified_lines = lines[:end_line] + formatted_method_lines + lines[end_line:]
         return '\n'.join(modified_lines)
 
     def remove_method_from_class(self, original_code: str, class_name: str, method_name: str) -> str:
-        """Remove the specified method from a class, maintaining TypeScript syntax."""
+        """
+        Remove the specified method from a class, maintaining TypeScript syntax.
+        """
         (start_line, end_line) = self.finder.find_method(original_code, class_name, method_name)
         if start_line == 0 and end_line == 0:
             return original_code
         lines = original_code.splitlines()
-        i = start_line - 2
         decorator_start = start_line
-        while i >= 0 and i < len(lines):
+        for i in range(start_line - 2, -1, -1):
+            if i < 0 or i >= len(lines):
+                continue
             line = lines[i].strip()
             if line.startswith('@'):
                 decorator_start = i + 1
-                i -= 1
-            else:
+            elif line and (not line.startswith('//')):
                 break
-        modified_lines = lines[:decorator_start - 1] + lines[end_line:]
+
+        # Find previous blank lines that should be removed with the method
+        while decorator_start > 1 and not lines[decorator_start - 2].strip():
+            decorator_start -= 1
+
+        # Combine lines, excluding the method and any trailing blank lines
+        modified_lines = lines[:decorator_start - 1]
+        trailing_lines = lines[end_line:]
+
+        # Remove any leading blank lines from trailing part
+        while trailing_lines and not trailing_lines[0].strip():
+            trailing_lines.pop(0)
+
+        modified_lines.extend(trailing_lines)
+
         result = '\n'.join(modified_lines)
-        while '\n\n\n' in result:
-            result = result.replace('\n\n\n', '\n\n')
         return result
 
     def replace_properties_section(self, original_code: str, class_name: str, new_properties: str) -> str:
@@ -143,11 +292,36 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         return self._replace_element(original_code, start_line, end_line, new_properties)
 
     def replace_imports_section(self, original_code: str, new_imports: str) -> str:
-        """Replace the imports section of a file, preserving TypeScript syntax."""
+        """
+        Replace the imports section of a file, preserving TypeScript syntax.
+        """
         (start_line, end_line) = self.finder.find_imports_section(original_code)
         if start_line == 0 and end_line == 0:
-            return new_imports + '\n\n' + original_code
-        return self._replace_element(original_code, start_line, end_line, new_imports)
+            formatted_imports = new_imports.strip()
+            return f'{formatted_imports}\n\n{original_code.lstrip()}'
+
+        lines = original_code.splitlines()
+
+        # Find all comments before imports to exclude them
+        comment_lines = []
+        for i in range(0, start_line - 1):
+            if i < len(lines) and lines[i].strip().startswith('//'):
+                comment_lines.append(i)
+
+        # Format new imports
+        new_import_lines = new_imports.strip().splitlines()
+        import_indent = self._get_indentation(lines[start_line - 1]) if start_line <= len(lines) else ''
+
+        formatted_imports = []
+        for line in new_import_lines:
+            if line.strip():
+                formatted_imports.append(f'{import_indent}{line.lstrip()}')
+            else:
+                formatted_imports.append(line)
+
+        # Replace old imports with new ones, skipping old comments
+        modified_lines = lines[:start_line - 1 - len(comment_lines)] + formatted_imports + lines[end_line:]
+        return '\n'.join(modified_lines)
 
     def _replace_element(self, original_code: str, start_line: int, end_line: int, new_content: str) -> str:
         """Helper method to replace code elements with proper indentation."""
@@ -175,7 +349,7 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
     def _format_typescript_code_block(self, code: str, base_indent: str) -> str:
         """
         Format a TypeScript code block (function/method) with correct indentation.
-        This handles the TypeScript-specific indentation rules (typically 2 spaces).
+        This handles the TypeScript-specific indentation rules (typically 4 spaces).
         """
         lines = code.splitlines()
         if not lines:
@@ -192,42 +366,30 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
             return '\n'.join([f'{base_indent}{dec}' for dec in decorators])
         formatted_lines = [f'{base_indent}{dec}' for dec in decorators]
         signature_line = None
-        opening_brace_index = -1
+        body_start_index = start_index
         for i in range(start_index, len(lines)):
             line = lines[i].strip()
             if not signature_line and (line.startswith('function') or line.startswith('async function') or '(' in line):
                 signature_line = line
-                if '{' in line:
-                    opening_brace_index = i
-                    break
-            elif signature_line and '{' in line:
-                opening_brace_index = i
+                body_start_index = i + 1 if '{' in line else i + 2
+                if not '{' in line:
+                    for j in range(i + 1, len(lines)):
+                        if '{' in lines[j].strip():
+                            body_start_index = j + 1
+                            break
                 break
         if not signature_line:
             return self._format_code_with_indentation(code, base_indent)
         formatted_lines.append(f'{base_indent}{signature_line}')
-        body_indent = base_indent + '  '
-        if opening_brace_index > start_index and '{' in lines[opening_brace_index].strip():
-            if opening_brace_index != start_index:
-                formatted_lines.append(f'{base_indent}{lines[opening_brace_index].strip()}')
-            for i in range(opening_brace_index + 1, len(lines)):
-                line = lines[i].strip()
-                if line == '}':
-                    formatted_lines.append(f'{base_indent}{line}')
-                elif line:
-                    formatted_lines.append(f'{body_indent}{line}')
-                else:
-                    formatted_lines.append('')
-        else:
-            in_body = True
-            for i in range(start_index + 1, len(lines)):
-                line = lines[i].strip()
-                if line == '}':
-                    formatted_lines.append(f'{base_indent}{line}')
-                elif line:
-                    formatted_lines.append(f'{body_indent}{line}')
-                else:
-                    formatted_lines.append('')
+        body_indent = base_indent + '    '  # Use 4 spaces rather than 2
+        for i in range(body_start_index, len(lines)):
+            line = lines[i].strip()
+            if line == '}':
+                formatted_lines.append(f'{base_indent}{line}')
+            elif line:
+                formatted_lines.append(f'{body_indent}{line}')
+            else:
+                formatted_lines.append('')
         return '\n'.join(formatted_lines)
 
     def _format_property_lines(self, properties: str, indent: str) -> str:
@@ -272,7 +434,8 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
                     current_indent = len(line) - len(line.lstrip())
                     if current_indent >= min_indent:
                         relative_indent = current_indent - min_indent
-                        formatted_lines.append(f"{base_indent}{' ' * relative_indent}{line.lstrip()}")
+                        # Double the indent to match 4-space indentation
+                        formatted_lines.append(f"{base_indent}{' ' * (2 * relative_indent)}{line.lstrip()}")
                     else:
                         formatted_lines.append(f'{base_indent}{line.lstrip()}')
                 else:
@@ -284,27 +447,35 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         Fix special characters in method names and xpaths for TypeScript/JavaScript code.
 
         Args:
-            content: The code content
-            xpath: The xpath string
+        content: The code content
+        xpath: The xpath string
 
         Returns:
-            Tuple of (updated_content, updated_xpath)
+        Tuple of (updated_content, updated_xpath)
         """
         updated_content = content
         updated_xpath = xpath
 
-        # Fix special characters in content
         if content:
-            pattern = r'function\s+\*+(\w+)\*+\s*\('
-            replacement = r'function \1('
+            # Fix generator method with asterisks
+            pattern = r'(\s*)\*+(\w+)\*+\s*\('
             if re.search(pattern, content):
-                updated_content = re.sub(pattern, replacement, content)
+                updated_content = re.sub(pattern, r'\1\2(', content)
 
-        # Fix special characters in xpath
+            # Fix other types of method patterns
+            method_pattern = r'(public|private|protected|static|async)?\s*\*+(\w+)\*+\s*\('
+            if re.search(method_pattern, updated_content):
+                updated_content = re.sub(method_pattern, r'\1 \2(', updated_content)
+
+            # Fix class formatting if needed
+            if re.search(r'class\s+\w+\s*{\s*\w+', updated_content):
+                updated_content = re.sub(r'class\s+(\w+)\s*{\s*(\w+)', r'class \1 {\n    \2', updated_content)
+
         if xpath:
+            # Fix xpath with asterisks
             method_pattern = r'\*+(\w+)\*+'
             if '.' in xpath:
-                class_name, method_name = xpath.split('.')
+                (class_name, method_name) = xpath.split('.')
                 if '*' in method_name:
                     clean_method_name = re.sub(method_pattern, r'\1', method_name)
                     updated_xpath = f'{class_name}.{clean_method_name}'
@@ -312,7 +483,210 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
                 clean_name = re.sub(method_pattern, r'\1', xpath)
                 updated_xpath = clean_name
 
-        return updated_content, updated_xpath
+        return (updated_content, updated_xpath)
+
+    def replace_interface(self, original_code: str, interface_name: str, new_interface: str) -> str:
+        """
+        Replace an interface definition with new content, maintaining TypeScript syntax.
+        """
+        (start_line, end_line) = self.finder.find_interface(original_code, interface_name)
+        if start_line == 0 and end_line == 0:
+            return original_code
+
+        lines = original_code.splitlines()
+        interface_indent = self._get_indentation(lines[start_line - 1]) if start_line <= len(lines) else ''
+
+        # Process the new interface with correct indentation
+        new_interface_lines = new_interface.strip().splitlines()
+        formatted_lines = []
+        brace_count = 0
+
+        for i, line in enumerate(new_interface_lines):
+            stripped = line.strip()
+            if not stripped:
+                formatted_lines.append('')
+                continue
+
+            # Track braces to handle nesting
+            if '{' in stripped:
+                brace_count += 1
+            if '}' in stripped:
+                brace_count -= 1
+
+            # Apply indentation based on line type
+            if i == 0 or stripped == '}':
+                formatted_lines.append(f'{interface_indent}{stripped}')
+            else:
+                formatted_lines.append(f'{interface_indent}  {stripped}')
+
+        # Replace old interface with new one
+        result = '\n'.join(lines[:start_line - 1] + formatted_lines + lines[end_line:])
+
+        # Remove any duplicate closing braces
+        result = result.replace('}\n}', '}')
+
+        return result
+
+    def replace_type_alias(self, original_code: str, type_name: str, new_type_alias: str) -> str:
+        """
+        Replace a type alias definition with new content.
+
+        Args:
+        original_code: The original code content
+        type_name: Name of the type alias to replace
+        new_type_alias: New type alias code
+
+        Returns:
+        Modified code with the type alias replaced
+        """
+        (start_line, end_line) = self.finder.find_type_alias(original_code, type_name)
+        if start_line == 0 and end_line == 0:
+            return original_code
+
+        lines = original_code.splitlines()
+        type_indent = self._get_indentation(lines[start_line - 1]) if start_line <= len(lines) else ''
+
+        # Format the type alias with proper indentation
+        new_type_lines = new_type_alias.strip().splitlines()
+        formatted_lines = []
+
+        for i, line in enumerate(new_type_lines):
+            stripped = line.strip()
+            if i == 0:  # Type declaration line
+                formatted_lines.append(f"{type_indent}{stripped}")
+            elif stripped == '};' or stripped == '}':
+                formatted_lines.append(f"{type_indent}{stripped}")
+            elif stripped:
+                formatted_lines.append(f"{type_indent}  {stripped}")
+            else:
+                formatted_lines.append("")
+
+        # Replace the type alias in the original code
+        modified_lines = lines[:start_line - 1] + formatted_lines + lines[end_line:]
+        return '\n'.join(modified_lines)
+
+    def replace_jsx_component(self, original_code: str, component_name: str, new_component: str) -> str:
+        """
+        Replace a JSX/TSX component with new content.
+        """
+        (start_line, end_line) = self.finder.find_jsx_component(original_code, component_name)
+        if start_line == 0 and end_line == 0:
+            return original_code
+
+        lines = original_code.splitlines()
+
+        # Get the component definition line
+        component_def_line = -1
+        for i in range(start_line - 1, end_line):
+            if i < len(lines) and component_name in lines[i] and ('=' in lines[i] or 'class' in lines[i]):
+                component_def_line = i
+                break
+
+        if component_def_line == -1:
+            return original_code
+
+        component_indent = self._get_indentation(lines[component_def_line]) if component_def_line < len(lines) else ''
+
+        # Process the new component, preserving indentation
+        new_component_lines = new_component.strip().splitlines()
+        formatted_lines = []
+
+        # Find start of actual component in new code
+        new_def_line = -1
+        for i, line in enumerate(new_component_lines):
+            if component_name in line and ('=' in line or 'class' in line):
+                new_def_line = i
+                break
+
+        if new_def_line == -1:
+            new_def_line = 0
+
+        # Format each line with proper indentation
+        for i, line in enumerate(new_component_lines):
+            if not line.strip():
+                formatted_lines.append('')
+                continue
+
+            # Apply original indentation to the component
+            formatted_lines.append(f'{component_indent}{line.strip()}')
+
+        # Replace the component
+        result = '\n'.join(lines[:start_line - 1] + formatted_lines + lines[end_line:])
+        return result
+
+    def build_interface_query(self, interface_name: Optional[str] = None) -> str:
+        """
+        Build a query to find an interface, optionally with a specific name.
+
+        Args:
+            interface_name: Optional name of the interface to find
+
+        Returns:
+            Query string
+        """
+        if self.language != "typescript":
+            raise ValueError(
+                f"Interface queries not supported for language: {self.language}"
+            )
+
+        if interface_name:
+            return f'(interface_declaration name: (type_identifier) @interface_name (#eq? @interface_name "{interface_name}"))'
+        return "(interface_declaration name: (type_identifier) @interface_name)"
+
+    def build_type_alias_query(self, type_name: Optional[str] = None) -> str:
+        """
+        Build a query to find a type alias, optionally with a specific name.
+
+        Args:
+            type_name: Optional name of the type alias to find
+
+        Returns:
+            Query string
+        """
+        if self.language != "typescript":
+            raise ValueError(
+                f"Type alias queries not supported for language: {self.language}"
+            )
+
+        if type_name:
+            return f'(type_alias_declaration name: (type_identifier) @type_name (#eq? @type_name "{type_name}"))'
+        return "(type_alias_declaration name: (type_identifier) @type_name)"
+
+    def build_jsx_component_query(self, component_name: Optional[str] = None) -> str:
+        """
+        Build a query to find a JSX/TSX component, optionally with a specific name.
+
+        Args:
+            component_name: Optional name of the component to find
+
+        Returns:
+            Query string
+        """
+        if self.language not in ["typescript", "javascript"]:
+            raise ValueError(
+                f"JSX component queries not supported for language: {self.language}"
+            )
+
+        # Functional component query
+        functional_query = f"""
+            (lexical_declaration
+              (variable_declarator
+                name: (identifier) @component_name {f'(#eq? @component_name "{component_name}")' if component_name else ""}
+                value: (arrow_function
+                        body: (jsx_element))))
+        """
+
+        # Class component query
+        class_query = f'''
+            (class_declaration
+              name: (identifier) @component_name {f'(#eq? @component_name "{component_name}")' if component_name else ''}
+              body: (class_body
+                     (method_definition
+                       name: (property_identifier) @method_name (#eq? @method_name "render")
+                       body: (statement_block (return_statement (jsx_element))))))
+        '''
+
+        return f'{functional_query}\n{class_query}'
 
     def fix_class_method_xpath(self, content: str, xpath: str, file_path: str = None) -> tuple[str, dict]:
         """
