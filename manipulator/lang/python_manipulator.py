@@ -106,24 +106,74 @@ class PythonCodeManipulator(BaseCodeManipulator):
         # Method indentation is one level deeper than class
         method_indent = class_indent + '    '  # Standard 4-space Python indentation
 
-        # Format the new method content with proper indentation
+        # Process the new method to preserve indentation structure
+        new_method_lines = new_method.strip().splitlines()
+
+        # Find the base indentation level in the provided method
+        # (typically lines after the method signature)
+        base_indent_level = None
+        method_def_idx = -1
+
+        for i, line in enumerate(new_method_lines):
+            if line.strip().startswith('def '):
+                method_def_idx = i
+                continue
+
+            # Skip empty lines
+            if not line.strip():
+                continue
+
+            # First non-empty line after method definition gives us base indent
+            if method_def_idx >= 0 and i > method_def_idx:
+                base_indent_level = len(line) - len(line.lstrip())
+                break
+
+        # If no indentation found, default to 4 spaces
+        if base_indent_level is None:
+            base_indent_level = 4
+
+        # Now format all lines with proper indentation
         formatted_lines = []
-        for line in new_method.strip().splitlines():
+        in_method_body = False
+
+        for line in new_method_lines:
             stripped = line.strip()
+
+            # Skip empty lines but preserve them
             if not stripped:
                 formatted_lines.append('')
                 continue
 
-            # Handle different line types
+            # Handle different types of lines
             if stripped.startswith('@'):
                 # Decorator
                 formatted_lines.append(method_indent + stripped)
+
             elif stripped.startswith('def '):
                 # Method signature
                 formatted_lines.append(method_indent + stripped)
+                in_method_body = True
+
+            elif in_method_body:
+                # Method body - preserve relative indentation
+                if line.startswith(' ') or line.startswith('\t'):
+                    # This is an indented line, preserve its relative indentation
+                    current_indent = len(line) - len(line.lstrip())
+                    # Calculate relative indentation to the base level
+                    if current_indent >= base_indent_level:
+                        # This is at least the base level or more indented
+                        relative_indent = current_indent - base_indent_level
+                        # Apply class and method indentation plus relative indent
+                        formatted_lines.append(method_indent + '    ' + ' ' * relative_indent + line.lstrip())
+                    else:
+                        # Fallback if indentation is less than expected
+                        formatted_lines.append(method_indent + '    ' + line.lstrip())
+                else:
+                    # Non-indented line within method body (unusual, but possible)
+                    formatted_lines.append(method_indent + '    ' + stripped)
             else:
-                # Method body - add one more level of indentation
-                formatted_lines.append(method_indent + '    ' + stripped)
+                # Any other line (shouldn't normally occur in well-formed methods)
+                formatted_lines.append(method_indent + stripped)
 
         formatted_method = '\n'.join(formatted_lines)
 
