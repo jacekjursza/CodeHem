@@ -77,47 +77,57 @@ class PythonCodeManipulator(BaseCodeManipulator):
 
     def replace_method(self, original_code: str, class_name: str, method_name: str, new_method: str) -> str:
         """Replace a method in a class with new content."""
+        # Get the method boundaries
         (start_line, end_line) = self.finder.find_method(original_code, class_name, method_name)
         if start_line == 0 and end_line == 0:
             return original_code
 
-        # Find decorators before the method
-        lines = original_code.splitlines()
+        # Find method decorators to include in replacement range
+        orig_lines = original_code.splitlines()
         adjusted_start = start_line
+
+        # Check for decorators above the method
         for i in range(start_line - 2, -1, -1):
-            if i < 0 or i >= len(lines):
+            if i < 0 or i >= len(orig_lines):
                 continue
-            line = lines[i].strip()
+            line = orig_lines[i].strip()
             if line.startswith('@'):
                 adjusted_start = i + 1
-            elif line and (not line.startswith('#')):
+            elif line and not line.startswith('#'):
                 break
 
-        # Find the class line to determine the base indentation
-        class_indent = ""
-        for i in range(len(lines)):
-            if i < len(lines) and class_name in lines[i] and "class" in lines[i]:
-                class_indent = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
+        # Find the class indentation to properly format the new method
+        class_indent = ''
+        for line in orig_lines:
+            if line.strip().startswith(f"class {class_name}"):
+                class_indent = line[:len(line) - len(line.lstrip())]
                 break
 
-        # Process the new method content
-        import textwrap
-        dedented = textwrap.dedent(new_method).strip()
+        # Method indentation is one level deeper than class
+        method_indent = class_indent + '    '  # Standard 4-space Python indentation
+
+        # Format the new method content with proper indentation
         formatted_lines = []
-        method_indent = class_indent + "    "
+        for line in new_method.strip().splitlines():
+            stripped = line.strip()
+            if not stripped:
+                formatted_lines.append('')
+                continue
 
-        # Process each line of the new method
-        for line in dedented.splitlines():
-            if not line.strip():
-                formatted_lines.append("")
-            elif line.strip().startswith('@'):
-                formatted_lines.append(method_indent + line.strip())
-            elif line.strip().startswith('def '):
-                formatted_lines.append(method_indent + line.strip())
+            # Handle different line types
+            if stripped.startswith('@'):
+                # Decorator
+                formatted_lines.append(method_indent + stripped)
+            elif stripped.startswith('def '):
+                # Method signature
+                formatted_lines.append(method_indent + stripped)
             else:
-                formatted_lines.append(method_indent + "    " + line.strip())
+                # Method body - add one more level of indentation
+                formatted_lines.append(method_indent + '    ' + stripped)
 
         formatted_method = '\n'.join(formatted_lines)
+
+        # Use our fixed replace_lines method for the actual replacement
         return self.replace_lines(original_code, adjusted_start, end_line, formatted_method)
 
     def replace_property(self, original_code: str, class_name: str, property_name: str, new_property: str) -> str:

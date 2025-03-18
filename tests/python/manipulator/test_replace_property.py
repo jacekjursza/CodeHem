@@ -1,9 +1,5 @@
-
-# test_replace_method.py
 import pytest
-
 from manipulator.factory import get_code_manipulator
-
 
 @pytest.fixture
 def python_manipulator():
@@ -37,7 +33,6 @@ class MyClass:
 def my_method(self):
     print("Hello, World!")
 """
-    # Should not change if method not found
     result = python_manipulator.replace_method(original_code, 'MyClass', 'my_method', new_method)
     assert result.strip() == original_code.strip()
 
