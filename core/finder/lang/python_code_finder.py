@@ -451,7 +451,7 @@ class PythonCodeFinder(CodeFinder):
                 methods.append((method_names[node_id], node))
         return methods
 
-    def get_decorators(self, code: str, name: str, class_name: Optional[str] = None) -> List[str]:
+    def get_decorators(self, code: str, name: str, class_name: Optional[str]=None) -> List[str]:
         """
         Get decorators for a function or method.
 
@@ -464,71 +464,52 @@ class PythonCodeFinder(CodeFinder):
         List of decorator strings
         """
         (root, code_bytes) = self._get_tree(code)
-
         if class_name:
-            # Get method decorators
             method_node = None
             methods = self.get_methods_from_class(code, class_name)
-            for method_name, node in methods:
+            for (method_name, node) in methods:
                 if method_name == name:
                     method_node = node
                     break
-
             if not method_node:
                 return []
-
-            # Check if the function has decorators
             decorators = []
-
-            # First check if the function is inside a decorated_definition
             if method_node.parent and method_node.parent.type == 'decorated_definition':
                 for child in method_node.parent.children:
                     if child.type == 'decorator':
-                        decorators.append(self._get_node_text(child, code_bytes))
-
-            # Also check for decorators directly under the function (some tree-sitter parsers structure it this way)
+                        decorator_text = self._get_node_text(child, code_bytes)
+                        decorators.append(decorator_text)
             for child in method_node.children:
                 if child.type == 'decorator':
                     decorator_text = self._get_node_text(child, code_bytes)
                     if decorator_text not in decorators:
                         decorators.append(decorator_text)
-
             return decorators
         else:
-            # Get function decorators
             query_str = '(function_definition name: (identifier) @func_name)'
             query = Query(PY_LANGUAGE, query_str)
             raw_captures = query.captures(root, lambda n: code_bytes[n.start_byte:n.end_byte].decode('utf8'))
             captures = self._process_captures(raw_captures)
-
             func_node = None
-            for node, cap_name in captures:
+            for (node, cap_name) in captures:
                 if cap_name == 'func_name' and self._get_node_text(node, code_bytes) == name:
                     func_node = node
                     while func_node is not None and func_node.type != 'function_definition':
                         func_node = func_node.parent
                     break
-
             if not func_node:
                 return []
-
-            # Check for decorators
             decorators = []
-
-            # Check if function is inside a decorated_definition
             decorated_parent = func_node.parent
             if decorated_parent and decorated_parent.type == 'decorated_definition':
                 for child in decorated_parent.children:
                     if child.type == 'decorator':
                         decorators.append(self._get_node_text(child, code_bytes))
-
-            # Also check for decorators directly under the function
             for child in func_node.children:
                 if child.type == 'decorator':
                     decorator_text = self._get_node_text(child, code_bytes)
                     if decorator_text not in decorators:
                         decorators.append(decorator_text)
-
             return decorators
 
     def get_class_decorators(self, code: str, class_name: str) -> List[str]:

@@ -192,24 +192,32 @@ class PythonStrategy(LanguageStrategy):
             current = current.parent
         return False
 
-    def determine_element_type(self, decorators: List[str], is_method: bool = False) -> str:
+    def determine_element_type(self, decorators: List[str], is_method: bool=False) -> str:
         """
         Determine the Python element type based on decorators and context.
 
         Args:
-            decorators: List of decorator strings
-            is_method: Whether the element is a method
+        decorators: List of decorator strings
+        is_method: Whether the element is a method
 
         Returns:
-            Element type name from CodeElementType
+        Element type name from CodeElementType
         """
         if is_method:
-            # Check for property decorator
+            # Only pure @property decorators (no setter/deleter) indicate a property
+            has_property = False
+            has_setter_deleter = False
+
             for decorator in decorators:
                 if decorator.startswith('@property'):
-                    return "PROPERTY"
-            return "METHOD"
-        return "FUNCTION"
+                    has_property = True
+                if '.setter' in decorator or '.deleter' in decorator:
+                    has_setter_deleter = True
+
+            if has_property and not has_setter_deleter:
+                return 'PROPERTY'
+            return 'METHOD'
+        return 'FUNCTION'
 
     def _extract_decorator_name(self, decorator: str) -> str:
         """

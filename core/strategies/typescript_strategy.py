@@ -189,36 +189,46 @@ class TypeScriptStrategy(LanguageStrategy):
             current = current.parent
         return False
 
-    def determine_element_type(self, decorators: List[str], is_method: bool = False) -> str:
+    def determine_element_type(self, decorators: List[str], is_method: bool=False) -> str:
         """
         Determine the TypeScript element type based on decorators and context.
 
         Args:
-            decorators: List of decorator strings
-            is_method: Whether the element is a method
+        decorators: List of decorator strings
+        is_method: Whether the element is a method
 
         Returns:
-            Element type name from CodeElementType
+        Element type name from CodeElementType
         """
         if is_method:
-            # Check for getter/setter
-            for decorator in decorators:
-                if '@get ' in decorator or decorator.startswith('@get '):
-                    return "PROPERTY"
-            return "METHOD"
-        return "FUNCTION"
+            # Check if decorators is a list of strings
+            if isinstance(decorators, list) and all(isinstance(d, str) for d in decorators):
+                for decorator in decorators:
+                    if '@get ' in decorator or decorator.startswith('@get '):
+                        return 'PROPERTY'
+            # Handle Node decorators
+            elif decorators and not isinstance(decorators, list):
+                # Handle a single Node object
+                return 'METHOD'
+            return 'METHOD'
+        return 'FUNCTION'
 
-    def _extract_decorator_name(self, decorator: str) -> str:
+    def _extract_decorator_name(self, decorator) -> str:
         """
         Extract decorator name from TypeScript decorator string.
 
         Args:
-            decorator: Decorator string
+        decorator: Decorator string or Node
 
         Returns:
-            Decorator name
+        Decorator name
         """
-        decorator = decorator.strip()
-        if decorator.startswith('@'):
-            decorator = decorator[1:]
-        return decorator.split('(')[0].strip()
+        # Handle different types of decorator objects
+        if isinstance(decorator, str):
+            decorator_text = decorator.strip()
+            if decorator_text.startswith('@'):
+                decorator_text = decorator_text[1:]
+            return decorator_text.split('(')[0].strip()
+        else:
+            # Return a placeholder name for non-string decorators
+            return "decorator"

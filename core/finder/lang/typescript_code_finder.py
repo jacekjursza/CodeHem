@@ -219,10 +219,11 @@ class TypeScriptCodeFinder(CodeFinder):
         query_str = '\n            (function_declaration name: (identifier) @func_name) @function\n            (method_definition name: (property_identifier) @method_name) @method\n        '
         query = Query(TS_LANGUAGE, query_str)
         raw_captures = query.captures(root, lambda n: code_bytes[n.start_byte:n.end_byte].decode('utf8'))
+        captures = self._process_captures(raw_captures)
         methods = []
         method_nodes = {}
         method_names = {}
-        for (node, cap_type) in raw_captures:
+        for (node, cap_type) in captures:
             if cap_type in ['function', 'method']:
                 method_nodes[node.id] = node
             elif cap_type in ['func_name', 'method_name']:
