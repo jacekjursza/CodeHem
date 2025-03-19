@@ -75,26 +75,45 @@ class TestClass:
 
         # Check method content
         for child in class_element.children:
-            if child.name == 'get_value':
-                self.assertIn('return self.value', child.content)
+            if child.name == "get_value":
+                self.assertIn("return self.value", child.content)
 
     def test_extract_class_with_properties(self):
         """Test extraction of a class with properties."""
         code = '\nclass Person:\n    def __init__(self, name, age):\n        self._name = name\n        self._age = age\n\n    @property\n    def name(self):\n        return self._name\n\n    @property\n    def age(self):\n        return self._age\n\n    @age.setter\n    def age(self, value):\n        if value < 0:\n            raise ValueError("Age cannot be negative")\n        self._age = value\n'
         result = self.python_hem.extract_code_elements(code)
         rich.print(result)
+
         # Find class element
         class_element = None
         for element in result.elements:
-            if element.type == CodeElementType.CLASS and element.name == 'Person':
+            if element.type == CodeElementType.CLASS and element.name == "Person":
                 class_element = element
                 break
 
         self.assertIsNotNone(class_element)
 
-        # Check properties
-        property_elements = [child for child in class_element.children if child.type == CodeElementType.PROPERTY]
-        self.assertEqual(len(property_elements), 2)
+        # Find properties and property-related methods
+        property_elements = [
+            child
+            for child in class_element.children
+            if child.type == CodeElementType.PROPERTY
+        ]
+        property_methods = [
+            child
+            for child in class_element.children
+            if child.type == CodeElementType.METHOD
+            and any(".setter" in d for d in child.additional_data.get("decorators", []))
+        ]
+
+        # Assertions with explanatory comments
+        # Expect 'name' property to be recognized as PROPERTY type
+        self.assertEqual(len(property_elements), 1)
+        self.assertEqual(property_elements[0].name, "name")
+
+        # Expect 'age' getter and setter to be identified as methods with '.setter' decorators
+        self.assertEqual(len(property_methods), 2)
+        self.assertTrue(all(method.name == 'age' for method in property_methods))
 
     def test_extract_functions(self):
         """Test extraction of standalone functions."""

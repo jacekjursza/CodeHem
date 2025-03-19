@@ -127,7 +127,7 @@ class CodeHem:
                     return self.strategy.is_class_definition(line)
         return self.finder.content_looks_like_class_definition(content)
 
-    def extract_code_elements(self, code: str) -> 'CodeElementsResult':
+    def extract_code_elements(self, code: str) -> "CodeElementsResult":
         """
         Extract code elements from source code and return them as Pydantic models.
 
@@ -138,56 +138,51 @@ class CodeHem:
         CodeElementsResult containing all found code elements
         """
         result = CodeElementsResult()
-        code_bytes = code.encode('utf8')
-
-        # Extract imports
+        code_bytes = code.encode("utf8")
         imports_info = self.strategy.get_imports(code, self.finder)
         if imports_info:
             import_element = CodeElement(
                 type=CodeElementType.IMPORT,
-                name='imports',
-                content=imports_info['content'],
+                name="imports",
+                content=imports_info["content"],
                 range=CodeRange(
-                    start_line=imports_info['start_line'],
-                    end_line=imports_info['end_line'],
-                    node=None
+                    start_line=imports_info["start_line"],
+                    end_line=imports_info["end_line"],
+                    node=None,
                 ),
-                additional_data={'import_statements': imports_info.get('statements', imports_info['lines'])}
+                additional_data={
+                    "import_statements": imports_info.get(
+                        "statements", imports_info["lines"]
+                    )
+                },
             )
             result.elements.append(import_element)
 
-        # Extract classes
         classes = self.finder.get_classes_from_code(code)
-        for (class_name, class_node) in classes:
-            # Skip nested classes within functions
+        for class_name, class_node in classes:
             skip_class = False
             current = class_node.parent
             while current:
-                if current.type == 'function_definition':
+                if current.type == "function_definition":
                     skip_class = True
                     break
                 current = current.parent
-
             if skip_class:
                 continue
 
             class_range = self.finder.get_node_range(class_node)
             class_content = self.finder.get_node_content(class_node, code_bytes)
             class_decorators = self.finder.get_class_decorators(code, class_name)
-
             class_element = CodeElement(
                 type=CodeElementType.CLASS,
                 name=class_name,
                 content=class_content,
                 range=CodeRange(
-                    start_line=class_range[0],
-                    end_line=class_range[1],
-                    node=class_node
+                    start_line=class_range[0], end_line=class_range[1], node=class_node
                 ),
-                additional_data={'decorators': class_decorators}
+                additional_data={"decorators": class_decorators},
             )
 
-            # Add decorator meta elements
             for decorator in class_decorators:
                 decorator_name = self.strategy._extract_decorator_name(decorator)
                 meta_element = CodeElement(
@@ -196,33 +191,32 @@ class CodeHem:
                     content=decorator,
                     parent_name=class_name,
                     additional_data={
-                        'meta_type': MetaElementType.DECORATOR,
-                        'target_type': 'class',
-                        'target_name': class_name
-                    }
+                        "meta_type": MetaElementType.DECORATOR,
+                        "target_type": "class",
+                        "target_name": class_name,
+                    },
                 )
                 class_element.children.append(meta_element)
 
-            # Extract methods and properties
             methods = self.finder.get_methods_from_class(code, class_name)
+            property_elements = {}  # Dictionary to track property elements by name
 
-            # Track properties by name to avoid duplicates
-            processed_properties = set()
-
-            for (method_name, method_node) in methods:
+            # First pass: Process all non-setter methods and store properties
+            for method_name, method_node in methods:
                 method_range = self.finder.get_node_range(method_node)
                 method_content = self.finder.get_node_content(method_node, code_bytes)
                 decorators = self.finder.get_decorators(code, method_name, class_name)
-
-                # Determine if this is a property or method
-                element_type_str = self.strategy.determine_element_type(decorators, is_method=True)
+                element_type_str = self.strategy.determine_element_type(
+                    decorators, is_method=True
+                )
                 element_type = getattr(CodeElementType, element_type_str)
 
-                # Skip property setters
-                if element_type == CodeElementType.PROPERTY:
-                    is_setter = any('@' + method_name + '.setter' in d for d in decorators)
-                    if is_setter:
-                        continue  # Skip setters
+                # Skip setter methods in first pass
+                is_setter = any(
+                    ("@" + method_name + ".setter" in d for d in decorators)
+                )
+                if element_type == CodeElementType.PROPERTY and is_setter:
+                    continue
 
                 method_element = CodeElement(
                     type=element_type,
@@ -231,40 +225,75 @@ class CodeHem:
                     range=CodeRange(
                         start_line=method_range[0],
                         end_line=method_range[1],
-                        node=method_node
+                        node=method_node,
                     ),
                     parent_name=class_name,
-                    additional_data={'decorators': decorators}
+                    additional_data={"decorators": decorators},
                 )
 
-                # Add decorator meta elements
                 for decorator in decorators:
                     if isinstance(decorator, str):
-                        decorator_name = self.strategy._extract_decorator_name(decorator)
+                        decorator_name = self.strategy._extract_decorator_name(
+                            decorator
+                        )
                         meta_element = CodeElement(
                             type=CodeElementType.META_ELEMENT,
                             name=decorator_name,
                             content=decorator,
-                            parent_name=f'{class_name}.{method_name}',
+                            parent_name=f"{class_name}.{method_name}",
                             additional_data={
-                                'meta_type': MetaElementType.DECORATOR,
-                                'target_type': element_type.value,
-                                'target_name': method_name,
-                                'class_name': class_name
-                            }
+                                "meta_type": MetaElementType.DECORATOR,
+                                "target_type": element_type.value,
+                                "target_name": method_name,
+                                "class_name": class_name,
+                            },
                         )
                         method_element.children.append(meta_element)
 
+                # Store property elements in dictionary
+                if element_type == CodeElementType.PROPERTY:
+                    property_elements[method_name] = method_element
                 class_element.children.append(method_element)
+
+            # Second pass: Process setter methods and update existing properties
+            for method_name, method_node in methods:
+                decorators = self.finder.get_decorators(code, method_name, class_name)
+                is_setter = False
+                property_name = None
+
+                # Check if this is a setter method
+                for decorator in decorators:
+                    if isinstance(decorator, str) and ".setter" in decorator:
+                        is_setter = True
+                        property_name = decorator.split(".")[0].replace("@", "")
+                        break
+
+                if is_setter and property_name in property_elements:
+                    # We have a matching property - update it instead of creating a new one
+                    method_range = self.finder.get_node_range(method_node)
+                    method_content = self.finder.get_node_content(
+                        method_node, code_bytes
+                    )
+                    # Add setter decorator to the property's decorators
+                    property_elements[property_name].additional_data[
+                        "decorators"
+                    ].extend(
+                        [
+                            d
+                            for d in decorators
+                            if d
+                            not in property_elements[property_name].additional_data[
+                                "decorators"
+                            ]
+                        ]
+                    )
 
             result.elements.append(class_element)
 
-        # Extract standalone functions
         all_functions = self.finder.get_methods_from_code(code)
-        for (func_name, func_node) in all_functions:
-            # Skip if this is a method in one of the extracted classes
+        for func_name, func_node in all_functions:
             skip = False
-            for (class_name, _) in classes:
+            for class_name, _ in classes:
                 methods = self.finder.get_methods_from_class(code, class_name)
                 if any((method[0] == func_name for method in methods)):
                     skip = True
@@ -275,23 +304,20 @@ class CodeHem:
             func_range = self.finder.get_node_range(func_node)
             func_content = self.finder.get_node_content(func_node, code_bytes)
             decorators = self.finder.get_decorators(code, func_name)
-
-            element_type_str = self.strategy.determine_element_type(decorators, is_method=False)
+            element_type_str = self.strategy.determine_element_type(
+                decorators, is_method=False
+            )
             element_type = getattr(CodeElementType, element_type_str)
-
             func_element = CodeElement(
                 type=element_type,
                 name=func_name,
                 content=func_content,
                 range=CodeRange(
-                    start_line=func_range[0],
-                    end_line=func_range[1],
-                    node=func_node
+                    start_line=func_range[0], end_line=func_range[1], node=func_node
                 ),
-                additional_data={'decorators': decorators}
+                additional_data={"decorators": decorators},
             )
 
-            # Add decorator meta elements
             for decorator in decorators:
                 if isinstance(decorator, str):
                     decorator_name = self.strategy._extract_decorator_name(decorator)
@@ -301,10 +327,10 @@ class CodeHem:
                         content=decorator,
                         parent_name=func_name,
                         additional_data={
-                            'meta_type': MetaElementType.DECORATOR,
-                            'target_type': 'function',
-                            'target_name': func_name
-                        }
+                            "meta_type": MetaElementType.DECORATOR,
+                            "target_type": "function",
+                            "target_name": func_name,
+                        },
                     )
                     func_element.children.append(meta_element)
 
