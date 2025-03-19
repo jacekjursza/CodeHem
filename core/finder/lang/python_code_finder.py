@@ -7,7 +7,84 @@ from core.finder.base import CodeFinder
 from core.languages import PY_LANGUAGE
 
 class PythonCodeFinder(CodeFinder):
-    language = 'python'
+    language = "python"
+
+    def can_handle(self, code: str) -> bool:
+        """
+        Check if this finder can handle Python code.
+
+        Args:
+        code: Source code as string
+
+        Returns:
+        True if this is Python code, False otherwise
+        """
+        # Check for distinctive Python syntax
+        python_indicators = {
+            # Strong Python indicators (highly distinctive)
+            'strong': [
+                # Python-style function definitions with colon and indented body
+                re.search(r'def\s+\w+\s*\([^)]*\)\s*:', code) is not None,
+                # Class definitions with colon
+                re.search(r'class\s+\w+(\s*\([^)]*\))?\s*:', code) is not None,
+                # Python-style indentation (function body indented without braces)
+                re.search(r'def\s+\w+\s*\([^)]*\)\s*:\s*\n\s+', code) is not None,
+                # Python's self parameter in methods
+                re.search(r'def\s+\w+\s*\(\s*self', code) is not None,
+            ],
+            # Medium strength indicators (characteristic but not exclusive)
+            'medium': [
+                # Python-style imports
+                re.search(r'^import\s+\w+', code, re.MULTILINE) is not None,
+                re.search(r'^from\s+[\w.]+\s+import', code, re.MULTILINE) is not None,
+                # Python decorators
+                re.search(r'@\w+', code) is not None,
+                # Python-style return type annotations
+                re.search(r'def\s+\w+\s*\([^)]*\)\s*->\s*\w+', code) is not None,
+            ],
+            # Weak indicators (supportive but common across languages)
+            'weak': [
+                # Significant whitespace/indentation patterns
+                re.search(r'\n\s+\S', code) is not None,
+                # Python-style comments
+                re.search(r'#.*$', code, re.MULTILINE) is not None,
+                # Python-style type hints in variables
+                re.search(r':\s*\w+(\s*\[\w+\])?\s*=', code) is not None,
+            ]
+        }
+
+        # Negative indicators (strong evidence against Python)
+        negative_indicators = [
+            # JavaScript/TypeScript-style blocks with braces
+            re.search(r'function\s+\w+\s*\([^)]*\)\s*{', code) is not None,
+            # Heavy use of semicolons (rare in Python)
+            code.count(';') > code.count('\n') / 2,
+            # JavaScript/TypeScript variable declarations
+            re.search(r'(const|let|var)\s+\w+\s*=', code) is not None,
+            # TypeScript-style interfaces
+            re.search(r'interface\s+\w+\s*{', code) is not None,
+            # JavaScript-style imports
+            re.search(r'import\s+{\s*[^}]+\s*}\s+from', code) is not None,
+        ]
+
+        # Calculate confidence score for Python
+        confidence = 0
+        # Strong indicators carry more weight
+        confidence += sum(python_indicators['strong']) * 3
+        confidence += sum(python_indicators['medium']) * 2
+        confidence += sum(python_indicators['weak']) * 1
+        # Negative indicators reduce confidence significantly
+        confidence -= sum(negative_indicators) * 4
+
+        # Threshold for Python detection (tuned value)
+        confidence_threshold = 2
+
+        # Highly confident if we have any strong indicators and no negative indicators
+        if sum(python_indicators['strong']) > 0 and sum(negative_indicators) == 0:
+            return True
+
+        # Otherwise, use confidence threshold
+        return confidence >= confidence_threshold
 
     def find_function(self, code: str, function_name: str) -> Tuple[int, int]:
         (root, code_bytes) = self._get_tree(code)

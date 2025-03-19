@@ -5,7 +5,87 @@ from core.finder.base import CodeFinder
 from core.languages import TS_LANGUAGE
 
 class TypeScriptCodeFinder(CodeFinder):
-    language = 'typescript'
+    language = "typescript"
+
+    def can_handle(self, code: str) -> bool:
+        """
+        Check if this finder can handle TypeScript/JavaScript code.
+
+        Args:
+        code: Source code as string
+
+        Returns:
+        True if this is TypeScript/JavaScript code, False otherwise
+        """
+        # Check for distinctive TypeScript/JavaScript syntax
+        ts_js_indicators = {
+            # Strong TypeScript/JavaScript indicators (highly distinctive)
+            'strong': [
+                # Function definitions with braces
+                re.search(r'function\s+\w+\s*\([^)]*\)\s*{', code) is not None,
+                # Class definitions with braces
+                re.search(r'class\s+\w+\s*{', code) is not None,
+                # Arrow functions with block
+                re.search(r'=>\s*{', code) is not None,
+                # TypeScript-specific syntax
+                re.search(r'interface\s+\w+\s*{', code) is not None,
+                re.search(r'enum\s+\w+\s*{', code) is not None,
+                # JavaScript/TypeScript module imports
+                re.search(r'import\s+{\s*[^}]+\s*}\s+from', code) is not None,
+            ],
+            # Medium strength indicators
+            'medium': [
+                # Variable declarations
+                re.search(r'(const|let|var)\s+\w+', code) is not None,
+                # Arrow functions
+                re.search(r'=>', code) is not None,
+                # React/JSX tags
+                re.search(r'<\w+[^>]*>', code) is not None and re.search(r'</\w+>', code) is not None,
+                # Export statements
+                re.search(r'export\s+(class|const|function|interface)', code) is not None,
+            ],
+            # Weak indicators (common but not exclusively TypeScript/JavaScript)
+            'weak': [
+                # Semicolons (significant but not decisive)
+                ';' in code and code.count(';') > code.count('\n') / 5,
+                # TypeScript/JavaScript style comments
+                re.search(r'//.*$', code, re.MULTILINE) is not None,
+                # Object literals
+                re.search(r'{\s*[\w]+\s*:', code) is not None,
+            ]
+        }
+
+        # Negative indicators (strong evidence against TypeScript/JavaScript)
+        negative_indicators = [
+            # Python-style function definitions with colon
+            re.search(r'def\s+\w+\s*\([^)]*\)\s*:', code) is not None,
+            # Python-style indentation patterns without braces
+            re.search(r'def\s+\w+\s*\([^)]*\)\s*:\s*\n\s+', code) is not None,
+            # Python's self parameter in methods
+            re.search(r'def\s+\w+\s*\(\s*self', code) is not None,
+            # Python decorators
+            re.search(r'@\w+', code) is not None and not re.search(r'@\w+\(', code) is not None,
+            # Python-style imports
+            re.search(r'^from\s+[\w.]+\s+import', code, re.MULTILINE) is not None,
+        ]
+
+        # Calculate confidence score for TypeScript/JavaScript
+        confidence = 0
+        confidence += sum(ts_js_indicators['strong']) * 3
+        confidence += sum(ts_js_indicators['medium']) * 2
+        confidence += sum(ts_js_indicators['weak']) * 1
+        # Negative indicators reduce confidence significantly
+        confidence -= sum(negative_indicators) * 4
+
+        # Threshold for TypeScript/JavaScript detection
+        confidence_threshold = 3
+
+        # Highly confident if we have any strong indicators and no negative indicators
+        if sum(ts_js_indicators['strong']) > 0 and sum(negative_indicators) == 0:
+            return True
+
+        # Otherwise, use confidence threshold
+        return confidence >= confidence_threshold
 
     def find_function(self, code: str, function_name: str) -> Tuple[int, int]:
         (root, code_bytes) = self._get_tree(code)

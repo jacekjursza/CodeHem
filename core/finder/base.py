@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Any, List, Optional
 from core.ast_handler import ASTHandler
-from query_builder import QueryBuilder
+from core.query_builder import QueryBuilder
 from tree_sitter import Node
 
 from core.languages import get_parser
@@ -15,6 +15,19 @@ class CodeFinder(ABC):
         self.ast_handler = ASTHandler(self.language)
         self.query_builder = QueryBuilder(self.language)
         self.parser = get_parser(self.language)
+
+    @abstractmethod
+    def can_handle(self, code: str) -> bool:
+        """
+        Check if this finder can handle the given code.
+        
+        Args:
+            code: Source code as string
+            
+        Returns:
+            True if this finder can handle the code, False otherwise
+        """
+        pass
 
     @abstractmethod
     def find_function(self, code: str, function_name: str) -> Tuple[int, int]:
@@ -78,75 +91,43 @@ class CodeFinder(ABC):
             List of decorator strings
         """
         (root, code_bytes) = self.ast_handler.parse(code)
-        
         if class_name:
-            # Look for method decorators
-            query_string = f"""
-            (class_definition
-              name: (identifier) @class_name (#eq? @class_name "{class_name}")
-              body: (_) @class_body)
-            """
-            
+            query_string = f'\n            (class_definition\n              name: (identifier) @class_name (#eq? @class_name "{class_name}")\n              body: (_) @class_body)\n            '
             captures = self.ast_handler.execute_query(query_string, root, code_bytes)
             class_body = None
-            
-            for node, capture_name in captures:
+            for (node, capture_name) in captures:
                 if capture_name == 'class_body':
                     class_body = node
-            
             if not class_body:
                 return []
-                
-            # Find the method and its decorators
-            method_query = f"""
-            (function_definition
-              name: (identifier) @method_name (#eq? @method_name "{name}"))
-            """
-            
+            method_query = f'\n            (function_definition\n              name: (identifier) @method_name (#eq? @method_name "{name}"))\n            '
             method_captures = self.ast_handler.execute_query(method_query, class_body, code_bytes)
             method_node = None
-            
-            for node, capture_name in method_captures:
+            for (node, capture_name) in method_captures:
                 if capture_name == 'method_name':
-                    method_node = self.ast_handler.find_parent_of_type(node, "function_definition")
-            
+                    method_node = self.ast_handler.find_parent_of_type(node, 'function_definition')
             if not method_node:
                 return []
-                
-            # Check if the method is decorated
             decorators = []
-            
             if method_node.parent and method_node.parent.type == 'decorated_definition':
                 for child in method_node.parent.children:
                     if child.type == 'decorator':
                         decorators.append(self.ast_handler.get_node_text(child, code_bytes))
-            
             return decorators
         else:
-            # Look for function decorators
-            query_string = f"""
-            (function_definition
-              name: (identifier) @func_name (#eq? @func_name "{name}"))
-            """
-            
+            query_string = f'\n            (function_definition\n              name: (identifier) @func_name (#eq? @func_name "{name}"))\n            '
             captures = self.ast_handler.execute_query(query_string, root, code_bytes)
             func_node = None
-            
-            for node, capture_name in captures:
+            for (node, capture_name) in captures:
                 if capture_name == 'func_name':
-                    func_node = self.ast_handler.find_parent_of_type(node, "function_definition")
-            
+                    func_node = self.ast_handler.find_parent_of_type(node, 'function_definition')
             if not func_node:
                 return []
-                
-            # Check if the function is decorated
             decorators = []
-            
             if func_node.parent and func_node.parent.type == 'decorated_definition':
                 for child in func_node.parent.children:
                     if child.type == 'decorator':
                         decorators.append(self.ast_handler.get_node_text(child, code_bytes))
-            
             return decorators
 
     def get_class_decorators(self, code: str, class_name: str) -> List[str]:
@@ -161,30 +142,19 @@ class CodeFinder(ABC):
             List of decorator strings
         """
         (root, code_bytes) = self.ast_handler.parse(code)
-        
-        query_string = f"""
-        (class_definition
-          name: (identifier) @class_name (#eq? @class_name "{class_name}"))
-        """
-        
+        query_string = f'\n        (class_definition\n          name: (identifier) @class_name (#eq? @class_name "{class_name}"))\n        '
         captures = self.ast_handler.execute_query(query_string, root, code_bytes)
         class_node = None
-        
-        for node, capture_name in captures:
+        for (node, capture_name) in captures:
             if capture_name == 'class_name':
-                class_node = self.ast_handler.find_parent_of_type(node, "class_definition")
-        
+                class_node = self.ast_handler.find_parent_of_type(node, 'class_definition')
         if not class_node:
             return []
-            
-        # Check if the class is decorated
         decorators = []
-        
         if class_node.parent and class_node.parent.type == 'decorated_definition':
             for child in class_node.parent.children:
                 if child.type == 'decorator':
                     decorators.append(self.ast_handler.get_node_text(child, code_bytes))
-        
         return decorators
 
     def is_correct_syntax(self, plain_text: str) -> bool:

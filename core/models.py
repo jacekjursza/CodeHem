@@ -4,15 +4,24 @@ from pydantic import BaseModel, Field
 
 class CodeElementType(str, Enum):
     """Types of code elements that can be identified and manipulated"""
-    CLASS = "class"
-    METHOD = "method"
-    FUNCTION = "function"
-    PROPERTY = "property"
-    IMPORT = "import"
-    MODULE = "module"
-    VARIABLE = "variable"
-    PARAMETER = "parameter"
-    RETURN_VALUE = "return_value"
+    CLASS = 'class'
+    METHOD = 'method'
+    FUNCTION = 'function'
+    PROPERTY = 'property'
+    IMPORT = 'import'
+    MODULE = 'module'
+    VARIABLE = 'variable'
+    PARAMETER = 'parameter'
+    RETURN_VALUE = 'return_value'
+    META_ELEMENT = 'meta_element'
+
+class MetaElementType(str, Enum):
+    """Types of meta-elements that provide information about or modify code elements"""
+    DECORATOR = 'decorator'
+    ANNOTATION = 'annotation'
+    ATTRIBUTE = 'attribute'
+    DOC_COMMENT = 'doc_comment'
+    TYPE_HINT = 'type_hint'
 
 class CodeRange(BaseModel):
     """Represents a range in source code (line numbers)"""
@@ -29,45 +38,60 @@ class CodeElement(BaseModel):
     name: str
     content: str
     range: Optional[CodeRange] = None
-    parent_name: Optional[str] = None  # For methods, properties (class name)
-    value_type: Optional[str] = None  # For variables, parameters, return values
+    parent_name: Optional[str] = None
+    value_type: Optional[str] = None
     additional_data: Dict[str, Any] = Field(default_factory=dict)
-    children: List["CodeElement"] = Field(default_factory=list)
-    
+    children: List['CodeElement'] = Field(default_factory=list)
+
     @property
     def is_class(self) -> bool:
         return self.type == CodeElementType.CLASS
-        
+
     @property
     def is_method(self) -> bool:
         return self.type == CodeElementType.METHOD
-        
+
     @property
     def is_function(self) -> bool:
         return self.type == CodeElementType.FUNCTION
-        
+
     @property
     def is_property(self) -> bool:
         return self.type == CodeElementType.PROPERTY
-        
+
     @property
     def is_parameter(self) -> bool:
         return self.type == CodeElementType.PARAMETER
-        
+
     @property
     def is_return_value(self) -> bool:
         return self.type == CodeElementType.RETURN_VALUE
-        
+
     @property
-    def parameters(self) -> List["CodeElement"]:
+    def is_meta_element(self) -> bool:
+        return self.type == CodeElementType.META_ELEMENT
+
+    @property
+    def parameters(self) -> List['CodeElement']:
         """Get all parameter children"""
         return [child for child in self.children if child.is_parameter]
-        
+
     @property
-    def return_value(self) -> Optional["CodeElement"]:
+    def return_value(self) -> Optional['CodeElement']:
         """Get the return value element if it exists"""
         return_vals = [child for child in self.children if child.is_return_value]
         return return_vals[0] if return_vals else None
+
+    @property
+    def meta_elements(self) -> List['CodeElement']:
+        """Get all metaelement children"""
+        return [child for child in self.children if child.is_meta_element]
+
+    @property
+    def decorators(self) -> List['CodeElement']:
+        """Get all decorator metaelements"""
+        return [child for child in self.meta_elements
+                if child.additional_data.get('meta_type') == MetaElementType.DECORATOR]
 
 class CodeElementsResult(BaseModel):
     """Collection of extracted code elements"""
