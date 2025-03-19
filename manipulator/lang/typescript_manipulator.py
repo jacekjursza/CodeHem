@@ -88,9 +88,10 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         (start_line, end_line) = self.finder.find_class(original_code, class_name)
         if start_line == 0 and end_line == 0:
             return original_code
+
         lines = original_code.splitlines()
 
-        # Find the start line, considering decorators
+        # Find the real start of the class, including any decorators
         adjusted_start = start_line
         for i in range(start_line - 2, -1, -1):
             if i < 0 or i >= len(lines):
@@ -101,36 +102,80 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
             elif line and (not line.startswith('//')):
                 break
 
-        # Get indentation from original class
-        class_indent = self._get_indentation(lines[adjusted_start - 1]) if adjusted_start <= len(lines) else ''
+        # Get the indentation of the original class
+        class_indent = self._get_indentation(lines[start_line - 1]) if start_line <= len(lines) else ''
 
-        # Process the new class content with proper indentation
+        # Process new class content with proper indentation
         new_class_lines = new_class_content.strip().splitlines()
         formatted_lines = []
 
+        # Extract decorators from the new class
+        new_decorators = []
+        class_line_index = -1
         for i, line in enumerate(new_class_lines):
+            if line.strip().startswith('@'):
+                new_decorators.append(line.strip())
+            elif line.strip().startswith('class '):
+                class_line_index = i
+                break
+
+        # If we didn't find the class line, default to first non-empty line
+        if class_line_index == -1:
+            for i, line in enumerate(new_class_lines):
+                if line.strip():
+                    class_line_index = i
+                    break
+
+        # Process the class, handling indentation correctly
+        is_method_body = False
+        current_indent = ''
+        brace_stack = []
+
+        # First add any decorators from the new content (skipping old decorators)
+        for decorator in new_decorators:
+            formatted_lines.append(f"{class_indent}{decorator}")
+
+        # Then process the rest of the class
+        for i in range(class_line_index, len(new_class_lines)):
+            line = new_class_lines[i]
             stripped = line.strip()
+
             if not stripped:
                 formatted_lines.append('')
                 continue
 
-            # Handle class definition line and decorators
-            if i == 0 and (stripped.startswith('class') or stripped.startswith('@')):
-                formatted_lines.append(f'{class_indent}{stripped}')
-            # Handle closing brace
-            elif stripped == '}':
-                formatted_lines.append(f'{class_indent}{stripped}')
-            # Handle method definitions
-            elif '(' in stripped and ')' in stripped and '{' in stripped:
-                formatted_lines.append(f'{class_indent}    {stripped}')
-            # Handle method body lines
-            elif i > 0 and len(new_class_lines) > i-1 and '(' in new_class_lines[i-1]:
-                formatted_lines.append(f'{class_indent}        {stripped}')
-            # Handle other class content
-            else:
-                formatted_lines.append(f'{class_indent}    {stripped}')
+            # Track braces to determine context
+            if '{' in stripped:
+                brace_stack.append('{')
+            if '}' in stripped:
+                if brace_stack:
+                    brace_stack.pop()
 
-        # Replace in the original code
+            # Class declaration
+            if stripped.startswith('class '):
+                formatted_lines.append(f"{class_indent}{stripped}")
+                current_indent = class_indent
+            # Method declaration
+            elif '(' in stripped and i > class_line_index:
+                is_method_body = True
+                formatted_lines.append(f"{class_indent}    {stripped}")
+                current_indent = f"{class_indent}    "
+            # Closing brace at method level
+            elif stripped == '}' and is_method_body and len(brace_stack) == 1:
+                formatted_lines.append(f"{class_indent}    {stripped}")
+                is_method_body = False
+                current_indent = class_indent
+            # Closing brace at class level
+            elif stripped == '}' and not is_method_body and len(brace_stack) == 0:
+                formatted_lines.append(f"{class_indent}{stripped}")
+            # Method body content
+            elif is_method_body:
+                formatted_lines.append(f"{class_indent}        {stripped}")
+            # Class-level content (properties, etc.)
+            else:
+                formatted_lines.append(f"{class_indent}    {stripped}")
+
+        # Replace the entire class with the formatted content
         result = '\n'.join(lines[:adjusted_start - 1] + formatted_lines + lines[end_line:])
         return result
 
@@ -246,7 +291,10 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         (start_line, end_line) = self.finder.find_method(original_code, class_name, method_name)
         if start_line == 0 and end_line == 0:
             return original_code
+
         lines = original_code.splitlines()
+
+        # Find the start line considering decorators
         decorator_start = start_line
         for i in range(start_line - 2, -1, -1):
             if i < 0 or i >= len(lines):
@@ -257,22 +305,45 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
             elif line and (not line.startswith('//')):
                 break
 
-        # Find previous blank lines that should be removed with the method
-        while decorator_start > 1 and not lines[decorator_start - 2].strip():
-            decorator_start -= 1
+        # Count blank lines before this method to potentially preserve one
+        blank_lines_before = 0
+        for i in range(decorator_start - 2, 0, -1):
+            if i < len(lines) and not lines[i].strip():
+                blank_lines_before += 1
+            else:
+                break
 
-        # Combine lines, excluding the method and any trailing blank lines
+        # Count blank lines after this method
+        blank_lines_after = 0
+        for i in range(end_line, len(lines)):
+            if i < len(lines) and not lines[i].strip():
+                blank_lines_after += 1
+            else:
+                break
+
+        # Extract the method that follows (if any)
+        has_next_method = False
+        for i in range(end_line + blank_lines_after, len(lines)):
+            if i < len(lines) and (lines[i].strip().startswith('private') or 
+                                    lines[i].strip().startswith('public') or 
+                                    lines[i].strip().startswith('protected') or
+                                    lines[i].strip().startswith('static') or
+                                    '(' in lines[i]):
+                has_next_method = True
+                break
+
+        # Create modified code with correct spacing
         modified_lines = lines[:decorator_start - 1]
-        trailing_lines = lines[end_line:]
 
-        # Remove any leading blank lines from trailing part
-        while trailing_lines and not trailing_lines[0].strip():
-            trailing_lines.pop(0)
+        # Add the appropriate lines after this method was removed
+        if has_next_method and blank_lines_before > 0:
+            # Preserve a single blank line before the next method
+            modified_lines.append('')
 
-        modified_lines.extend(trailing_lines)
+        # Add the remaining lines after the removed method
+        modified_lines.extend(lines[end_line + blank_lines_after:])
 
-        result = '\n'.join(modified_lines)
-        return result
+        return '\n'.join(modified_lines)
 
     def replace_properties_section(self, original_code: str, class_name: str, new_properties: str) -> str:
         (start_line, end_line) = self.finder.find_properties_section(original_code, class_name)
@@ -573,45 +644,29 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         if start_line == 0 and end_line == 0:
             return original_code
 
-        lines = original_code.splitlines()
+        # Use the entire range from the original code
+        original_lines = original_code.splitlines()
+        original_component = '\n'.join(original_lines[start_line-1:end_line])
 
-        # Get the component definition line
-        component_def_line = -1
-        for i in range(start_line - 1, end_line):
-            if i < len(lines) and component_name in lines[i] and ('=' in lines[i] or 'class' in lines[i]):
-                component_def_line = i
-                break
+        # Get the base indentation
+        indent = self._get_indentation(original_lines[start_line-1]) if start_line <= len(original_lines) else ''
 
-        if component_def_line == -1:
-            return original_code
-
-        component_indent = self._get_indentation(lines[component_def_line]) if component_def_line < len(lines) else ''
-
-        # Process the new component, preserving indentation
+        # Take the new component content and apply the same indentation
         new_component_lines = new_component.strip().splitlines()
-        formatted_lines = []
+        formatted_new_component = []
 
-        # Find start of actual component in new code
-        new_def_line = -1
-        for i, line in enumerate(new_component_lines):
-            if component_name in line and ('=' in line or 'class' in line):
-                new_def_line = i
-                break
-
-        if new_def_line == -1:
-            new_def_line = 0
-
-        # Format each line with proper indentation
-        for i, line in enumerate(new_component_lines):
+        for line in new_component_lines:
             if not line.strip():
-                formatted_lines.append('')
-                continue
+                formatted_new_component.append('')
+            else:
+                formatted_new_component.append(f"{indent}{line.strip()}")
 
-            # Apply original indentation to the component
-            formatted_lines.append(f'{component_indent}{line.strip()}')
+        formatted_component = '\n'.join(formatted_new_component)
 
-        # Replace the component
-        result = '\n'.join(lines[:start_line - 1] + formatted_lines + lines[end_line:])
+        # Replace the old component with the new one, preserving leading/trailing parts
+        result_lines = original_lines[:start_line-1] + formatted_new_component + original_lines[end_line:]
+        result = '\n'.join(result_lines)
+
         return result
 
     def build_interface_query(self, interface_name: Optional[str] = None) -> str:
