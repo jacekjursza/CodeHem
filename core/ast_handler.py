@@ -1,11 +1,14 @@
 """
 AST Handler for CodeHem providing a unified interface for tree-sitter operations.
 """
-from typing import Tuple, List, Any, Optional, Callable, Dict
+from typing import Tuple, List, Any, Optional, Dict
+
 from rich.console import Console
-from tree_sitter import Node, Parser, Query
-from languages import get_parser
-from caching import cached
+from tree_sitter import Node, Query
+
+from core.caching import cached
+from core.languages import get_parser, LANGUAGES
+
 
 class ASTHandler:
     """
@@ -71,7 +74,7 @@ class ASTHandler:
         Returns:
             List of (node, capture_name) tuples
         """
-        from languages import LANGUAGES
+
         try:
             query = Query(LANGUAGES[self.language], query_string)
             raw_captures = query.captures(root, lambda n: self.get_node_text(n, code_bytes))

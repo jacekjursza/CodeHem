@@ -2,8 +2,8 @@ import os
 import re
 from typing import Optional
 
-from finder.lang.typescript_code_finder import TypeScriptCodeFinder
-from manipulator.base import BaseCodeManipulator
+from core.finder.lang.typescript_code_finder import TypeScriptCodeFinder
+from core.manipulator.base import BaseCodeManipulator
 
 
 class TypeScriptCodeManipulator(BaseCodeManipulator):

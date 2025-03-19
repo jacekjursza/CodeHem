@@ -3,8 +3,8 @@ from typing import Tuple, List, Optional
 
 from rich.console import Console
 from tree_sitter import Query, Node
-from finder.base import CodeFinder
-from languages import PY_LANGUAGE
+from core.finder.base import CodeFinder
+from core.languages import PY_LANGUAGE
 
 class PythonCodeFinder(CodeFinder):
     language = 'python'

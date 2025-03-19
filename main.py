@@ -2,14 +2,19 @@
 Language handler for PatchCommander.
 Provides a unified interface for language-specific operations.
 """
-from typing import Optional
 
-from finder.factory import get_code_finder
-from languages import get_language_for_file, FILE_EXTENSIONS, LANGUAGES
-from manipulator.factory import get_code_manipulator
-from utils.logs import logger
+from typing import Optional, Dict, List, Any
 
-class LangHem:
+from core.ast_handler import ASTHandler
+from core.finder.factory import get_code_finder
+from core.formatting import get_formatter
+from core.strategies import get_strategy
+from core.manipulator.factory import get_code_manipulator
+from core.utils.logs import logger
+from core.languages import get_language_for_file, FILE_EXTENSIONS, LANGUAGES
+
+
+class CodeHem:
     """
     Central handler for language-specific operations.
     Provides access to appropriate finder and manipulator for a given language.
@@ -25,15 +30,12 @@ class LangHem:
         self.language_code = language_code
         self.finder = get_code_finder(language_code)
         self.manipulator = get_code_manipulator(language_code)
-        from ast_handler import ASTHandler
         self.ast_handler = ASTHandler(language_code)
-        from formatting import get_formatter
         self.formatter = get_formatter(language_code)
-        from strategies import get_strategy
         self.strategy = get_strategy(language_code)
 
     @classmethod
-    def from_file_path(cls, file_path: str) -> 'LangHem':
+    def from_file_path(cls, file_path: str) -> 'CodeHem':
         """
         Create a language handler based on file path.
 
@@ -47,7 +49,7 @@ class LangHem:
         return cls(language_code)
 
     @classmethod
-    def from_file_extension(cls, file_ext: str) -> 'LangHem':
+    def from_file_extension(cls, file_ext: str) -> 'CodeHem':
         """
         Create a language handler based on file extension.
 
@@ -69,7 +71,7 @@ class LangHem:
         raise ValueError(f'Unsupported file extension: {file_ext}')
 
     @classmethod
-    def from_raw_code(cls, text: str) -> Optional['LangHem']:
+    def from_raw_code(cls, text: str) -> Optional['CodeHem']:
         """
         Try to determine the language from raw code.
         Iterates through registered finders and checks syntax.
@@ -118,89 +120,6 @@ class LangHem:
         # Fall back to the finder if strategy not available
         return self.finder.content_looks_like_class_definition(content)
 
-    def fix_special_characters(self, content: str, xpath: str) -> tuple[str, str]:
-        """
-        Fix special characters in method names and xpaths.
-        Delegates to the language-specific strategy.
-
-        Args:
-            content: The code content
-            xpath: The xpath string
-
-        Returns:
-            Tuple of (updated_content, updated_xpath)
-        """
-        if self.strategy:
-            return self.strategy.fix_special_characters(content, xpath)
-        elif self.manipulator:
-            return self.manipulator.fix_special_characters(content, xpath)
-        return (content, xpath)
-
-    def fix_class_method_xpath(self, content: str, xpath: str, file_path: str=None) -> tuple[str, dict]:
-        """
-        Fix xpath for class methods when only class name is provided in xpath.
-        Delegates to the language-specific manipulator.
-
-        Args:
-            content: The code content
-            xpath: The xpath string
-            file_path: Optional path to the file
-
-        Returns:
-            Tuple of (updated_xpath, attributes_dict)
-        """
-        if self.manipulator:
-            return self.manipulator.fix_class_method_xpath(content, xpath, file_path)
-        return (xpath, {})
-        
-    def format_code(self, code: str) -> str:
-        """
-        Format code according to language-specific rules.
-        
-        Args:
-            code: Code to format
-            
-        Returns:
-            Formatted code
-        """
-        return self.formatter.format_code(code)
-    
-    def format_class(self, class_code: str) -> str:
-        """
-        Format a class definition according to language-specific rules.
-        
-        Args:
-            class_code: Class code to format
-            
-        Returns:
-            Formatted class code
-        """
-        return self.formatter.format_class(class_code)
-    
-    def format_method(self, method_code: str) -> str:
-        """
-        Format a method definition according to language-specific rules.
-        
-        Args:
-            method_code: Method code to format
-            
-        Returns:
-            Formatted method code
-        """
-        return self.formatter.format_method(method_code)
-    
-    def format_function(self, function_code: str) -> str:
-        """
-        Format a function definition according to language-specific rules.
-        
-        Args:
-            function_code: Function code to format
-            
-        Returns:
-            Formatted function code
-        """
-        return self.formatter.format_function(function_code)
-    
     def extract_code_elements(self, code: str) -> Dict[str, List[Dict[str, Any]]]:
         """
         Extract code elements (classes, methods, functions) from code.

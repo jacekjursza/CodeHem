@@ -1,8 +1,8 @@
 import re
 from typing import Tuple, List, Optional
 from tree_sitter import Query, Node
-from finder.base import CodeFinder
-from languages import TS_LANGUAGE
+from core.finder.base import CodeFinder
+from core.languages import TS_LANGUAGE
 
 class TypeScriptCodeFinder(CodeFinder):
     language = 'typescript'
@@ -442,8 +442,8 @@ class TypeScriptCodeFinder(CodeFinder):
         Parse code into an AST, automatically selecting between TS and TSX parsers
         based on content.
         """
-        from languages import get_parser, TSX_LANGUAGE
-        
+        from core.languages import get_parser
+
         code_bytes = code.encode('utf8')
         
         # Check if this looks like JSX/TSX content by looking for JSX tags

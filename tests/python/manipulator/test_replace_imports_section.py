@@ -2,7 +2,7 @@
 # test_replace_imports_section.py
 import pytest
 
-from manipulator.factory import get_code_manipulator
+from core.manipulator.factory import get_code_manipulator
 
 
 @pytest.fixture

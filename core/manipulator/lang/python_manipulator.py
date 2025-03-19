@@ -1,8 +1,8 @@
 import os
 import re
 
-from finder.lang.python_code_finder import PythonCodeFinder
-from manipulator.base import BaseCodeManipulator
+from core.finder.lang.python_code_finder import PythonCodeFinder
+from core.manipulator.base import BaseCodeManipulator
 
 
 class PythonCodeManipulator(BaseCodeManipulator):
@@ -51,7 +51,7 @@ class PythonCodeManipulator(BaseCodeManipulator):
         return self.replace_lines(original_code, adjusted_start, end_line, '\n'.join(formatted_function))
 
     def replace_class(self, original_code: str, class_name: str, new_class_content: str) -> str:
-        from utils.format_utils import format_python_class_content
+        from core.utils.format_utils import format_python_class_content
 
         (start_line, end_line) = self.finder.find_class(original_code, class_name)
         if start_line == 0 and end_line == 0:

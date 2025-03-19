@@ -1,5 +1,5 @@
 import pytest
-from manipulator.factory import get_code_manipulator
+from core.manipulator import get_code_manipulator
 
 @pytest.fixture
 def typescript_manipulator():

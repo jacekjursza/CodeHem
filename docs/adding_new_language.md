@@ -90,8 +90,9 @@ Create a new file in the `finder/lang` directory for your language. Use the foll
 ```python
 from typing import Tuple, List, Optional
 from tree_sitter import Query, Node
-from finder.base import CodeFinder
-from languages import YOUR_LANGUAGE  # Add this to languages.py
+from core.finder.base import CodeFinder
+from core.languages import YOUR_LANGUAGE  # Add this to languages.py
+
 
 class YourLanguageCodeFinder(CodeFinder):
     language = 'yourlanguage'
@@ -137,7 +138,11 @@ class YourLanguageCodeFinder(CodeFinder):
         pass
 
     # Optional overrides for additional functionality
-Register your finder in `finder/factory.py`:
+
+
+Register
+your
+finder in `finder / factory.py`:
 
 
 # Update get_code_finder function

@@ -2,7 +2,7 @@
 # test_remove_method_from_class.py
 import pytest
 
-from manipulator.factory import get_code_manipulator
+from core.manipulator.factory import get_code_manipulator
 
 
 @pytest.fixture

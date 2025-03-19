@@ -1,5 +1,4 @@
-import pytest
-from utils.format_utils import (
+from core.utils.format_utils import (
     normalize_indentation,
     format_python_class_content,
     format_python_method_content,

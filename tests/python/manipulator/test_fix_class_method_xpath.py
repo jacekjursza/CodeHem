@@ -2,7 +2,7 @@ import pytest
 import os
 import tempfile
 
-from manipulator.factory import get_code_manipulator
+from core.manipulator.factory import get_code_manipulator
 
 
 @pytest.fixture

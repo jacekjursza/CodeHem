@@ -1,6 +1,9 @@
 import pytest
-from finder.factory import get_code_finder
+
 from tree_sitter import Node
+
+from core.finder.factory import get_code_finder
+
 
 @pytest.fixture
 def python_finder():

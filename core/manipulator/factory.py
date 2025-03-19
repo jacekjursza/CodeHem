@@ -3,8 +3,8 @@ Factory for creating code manipulators for different languages.
 """
 from typing import Optional
 from .abstract import AbstractCodeManipulator
-from manipulator.lang.python_manipulator import PythonCodeManipulator
-from manipulator.lang.typescript_manipulator import TypeScriptCodeManipulator
+from core.manipulator.lang.python_manipulator import PythonCodeManipulator
+from core.manipulator.lang.typescript_manipulator import TypeScriptCodeManipulator
 
 def get_code_manipulator(language: str) -> Optional[AbstractCodeManipulator]:
     """

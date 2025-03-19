@@ -1,5 +1,5 @@
 import pytest
-from finder.factory import get_code_finder
+from core.finder import get_code_finder
 
 @pytest.fixture
 def typescript_finder():
@@ -52,7 +52,7 @@ def test_find_tsx_element(typescript_finder):
 
     for pattern in patterns:
         try:
-            from languages import TSX_LANGUAGE
+            from core.languages import TSX_LANGUAGE
             from tree_sitter import Query
 
             query = Query(TSX_LANGUAGE, pattern)

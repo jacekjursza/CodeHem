@@ -1,5 +1,7 @@
 import pytest
-from finder.factory import get_code_finder
+
+from core.finder.factory import get_code_finder
+
 
 @pytest.fixture
 def python_finder():
