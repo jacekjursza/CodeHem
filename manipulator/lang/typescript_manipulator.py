@@ -89,70 +89,38 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         if start_line == 0 and end_line == 0:
             return original_code
 
-        # Instead of complex parsing, let's use a direct approach for tests
-        # We'll use the new class content exactly as it is, with proper indentation
-
         lines = original_code.splitlines()
-        new_lines = new_class_content.strip().splitlines()
 
-        # Analyze indentation in original code to preserve it
-        class_indentation = ""
-        if start_line <= len(lines):
-            # Get indentation from the first line of the class
-            class_line = lines[start_line - 1]
-            class_indentation = re.match(r'^(\s*)', class_line).group(1)
-
-        # Find if we have any decorators in the original code
+        # Find decorators in the original code
         decorator_lines = []
+        decorator_start = start_line - 1
         for i in range(start_line - 2, -1, -1):
             if i < 0:
                 break
             line = lines[i].strip()
             if line.startswith('@'):
                 decorator_lines.insert(0, lines[i])
+                decorator_start = i
             elif line and not line.startswith('//'):
                 break
 
-        # Find decorators in the new class
-        new_decorator_lines = []
-        class_line_idx = -1
-        for i, line in enumerate(new_lines):
-            if line.strip().startswith('@'):
-                new_decorator_lines.append(line)
-            elif line.strip().startswith('class '):
-                class_line_idx = i
-                break
+        # Build the result
+        result_lines = []
 
-        # Build result - everything before the class, new decorators, new class, everything after
-        result = []
-
-        # Add everything up to where decorators or class would start
+        # Add everything before decorators or class
         if decorator_lines:
-            decorator_start = lines.index(decorator_lines[0])
-            result.extend(lines[:decorator_start])
+            result_lines.extend(lines[:decorator_start])
         else:
-            result.extend(lines[:start_line - 1])
+            result_lines.extend(lines[:start_line - 1])
 
-        # Add new decorators (keeping their indentation)
-        if new_decorator_lines:
-            for dec_line in new_decorator_lines:
-                result.append(dec_line)
-
-        # Add class definition and body
-        if class_line_idx >= 0:
-            result.append(new_lines[class_line_idx])  # Class declaration line
-
-            # Add class body with proper indentation
-            for i in range(class_line_idx + 1, len(new_lines)):
-                result.append(new_lines[i])
-        else:
-            # If we couldn't identify class line, just add all the new content
-            result.extend(new_lines)
+        # Add the new class content directly
+        # The key is to completely replace both the decorators and the class
+        result_lines.extend(new_class_content.strip().splitlines())
 
         # Add everything after the original class
-        result.extend(lines[end_line:])
+        result_lines.extend(lines[end_line:])
 
-        return '\n'.join(result)
+        return '\n'.join(result_lines)
 
     def replace_method(self, original_code: str, class_name: str, method_name: str, new_method: str) -> str:
         """Replace a method in a class with new content."""
@@ -284,26 +252,47 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         remove_start = decorator_start - 1
         remove_end = end_line
 
-        # Handle empty lines before and after the method
-        # In TypeScript method removal tests, we need to maintain exact whitespace
-
-        # If the method has an empty line before it, we need to keep one of them
-        has_empty_line_before = remove_start > 0 and not lines[remove_start - 1].strip()
-
-        # If the method has an empty line after it, we need to handle that too
-        has_empty_line_after = remove_end < len(lines) and not lines[remove_end].strip()
+        # Special handling for method removal based on position
+        # Check if we're removing the last method in the class
+        is_last_method = False
+        for i in range(end_line, len(lines)):
+            if '}' in lines[i] and i - end_line <= 2:
+                is_last_method = True
+                break
 
         # Create result removing just the method
-        result_lines = lines[:remove_start]
+        result_lines = []
 
-        # Handle the special case where we need to preserve one empty line
-        if has_empty_line_before and not has_empty_line_after and remove_end < len(lines):
-            result_lines.append('')  # Keep one empty line
+        # Add everything before the method
+        result_lines.extend(lines[:remove_start])
 
-        result_lines.extend(lines[remove_end:])
+        # Skip the method and handle spacing
+        if is_last_method:
+            # For last method, don't add extra blank lines
+            result_lines.extend(lines[remove_end:])
+        else:
+            # For methods in the middle, make sure there's exactly one blank line
+            next_line_index = remove_end
+            while next_line_index < len(lines) and not lines[next_line_index].strip():
+                next_line_index += 1
 
-        # Join and return
-        return '\n'.join(result_lines)
+            # If the next non-blank line exists, add it with exactly one blank line before it
+            if next_line_index < len(lines):
+                # Add exactly one blank line if there's meaningful content after
+                if lines[next_line_index].strip() and lines[next_line_index].strip() != "}":
+                    result_lines.append('')
+                result_lines.extend(lines[next_line_index:])
+            else:
+                result_lines.extend(lines[remove_end:])
+
+        # Clean up any potential double blank lines
+        result = '\n'.join(result_lines)
+        result = re.sub(r'\n\s*\n\s*\n', '\n\n', result)
+
+        # Most importantly, fix the blank lines before the closing brace
+        result = re.sub(r'\n\s*\n\s*}', '\n}', result)
+
+        return result
 
     def replace_properties_section(self, original_code: str, class_name: str, new_properties: str) -> str:
         (start_line, end_line) = self.finder.find_properties_section(original_code, class_name)
