@@ -194,59 +194,46 @@ class TypeScriptStrategy(LanguageStrategy):
     def get_content_type(self, content: str) -> str:
         """
         Determine the type of TypeScript content.
-        
+
         Args:
-            content: The code content to analyze
-            
+        content: The code content to analyze
+
         Returns:
-            Content type from CodeElementType
+        Content type from CodeElementType
         """
         if not content or not content.strip():
             return CodeElementType.MODULE.value
-            
         lines = content.strip().splitlines()
         if not lines:
             return CodeElementType.MODULE.value
-            
-        # Check the first non-empty line
         first_line = None
         for line in lines:
             if line.strip():
                 first_line = line.strip()
                 break
-                
         if not first_line:
             return CodeElementType.MODULE.value
-            
         if self.is_class_definition(first_line):
             return CodeElementType.CLASS.value
-            
         if first_line.startswith('interface '):
             return CodeElementType.INTERFACE.value
-            
         if self.is_method_definition(first_line):
             return CodeElementType.METHOD.value
-            
         if self.is_function_definition(first_line):
             return CodeElementType.FUNCTION.value
-            
-        # Check for import statements
-        if re.match(r'^\s*(import|require)', first_line):
+        if re.match('^\\s*(import|require)', first_line):
             return CodeElementType.IMPORT.value
-            
-        # Check for properties
-        if re.match(r'^\s*(public|private|protected)?\s*[a-zA-Z_][a-zA-Z0-9_]*\s*[=:]', first_line):
+        if re.match('^\\s*(public|private|protected)?\\s*[a-zA-Z_][a-zA-Z0-9_]*\\s*[=:]', first_line):
             return CodeElementType.PROPERTY.value
-            
-        # Check for decorators
         if first_line.startswith('@'):
             return CodeElementType.META_ELEMENT.value
-            
-        # Check for type aliases
-        if re.match(r'^\s*(export\s+)?type\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=', first_line):
+        if re.match('^\\s*(export\\s+)?type\\s+[a-zA-Z_][a-zA-Z0-9_]*\\s*=', first_line):
             return CodeElementType.META_ELEMENT.value
-            
-        # Default to MODULE
+        # Check for variable function pattern
+        if re.match('^\\s*(const|let|var)\\s+[a-zA-Z_][a-zA-Z0-9_]*\\s*=\\s*function', first_line):
+            return CodeElementType.FUNCTION.value
+        if re.match('^\\s*(const|let|var)\\s+[a-zA-Z_][a-zA-Z0-9_]*\\s*=\\s*\\(', first_line):
+            return CodeElementType.FUNCTION.value
         return CodeElementType.MODULE.value
 
     def determine_element_type(self, decorators: List[str], is_method: bool=False) -> str:

@@ -5,7 +5,7 @@ from core.finder.base import CodeFinder
 from core.languages import TS_LANGUAGE
 
 class TypeScriptCodeFinder(CodeFinder):
-    language = 'typescript'
+    language = "typescript"
 
     def can_handle(self, code: str) -> bool:
         """
@@ -17,16 +17,80 @@ class TypeScriptCodeFinder(CodeFinder):
         Returns:
         True if this is TypeScript/JavaScript code, False otherwise
         """
-        ts_js_indicators = {'strong': [re.search('function\\s+\\w+\\s*\\([^)]*\\)\\s*{', code) is not None, re.search('class\\s+\\w+\\s*{', code) is not None, re.search('=>\\s*{', code) is not None, re.search('interface\\s+\\w+\\s*{', code) is not None, re.search('enum\\s+\\w+\\s*{', code) is not None, re.search('import\\s+{\\s*[^}]+\\s*}\\s+from', code) is not None], 'medium': [re.search('(const|let|var)\\s+\\w+', code) is not None, re.search('=>', code) is not None, re.search('<\\w+[^>]*>', code) is not None and re.search('</\\w+>', code) is not None, re.search('export\\s+(class|const|function|interface)', code) is not None], 'weak': [';' in code and code.count(';') > code.count('\n') / 5, re.search('//.*$', code, re.MULTILINE) is not None, re.search('{\\s*[\\w]+\\s*:', code) is not None]}
-        negative_indicators = [re.search('def\\s+\\w+\\s*\\([^)]*\\)\\s*:', code) is not None, re.search('def\\s+\\w+\\s*\\([^)]*\\)\\s*:\\s*\\n\\s+', code) is not None, re.search('def\\s+\\w+\\s*\\(\\s*self', code) is not None, re.search('@\\w+', code) is not None and (not re.search('@\\w+\\(', code) is not None), re.search('^from\\s+[\\w.]+\\s+import', code, re.MULTILINE) is not None]
+        ts_js_indicators = {
+            "strong": [
+                re.search("function\\s+\\w+\\s*\\([^)]*\\)\\s*{", code) is not None,
+                re.search("class\\s+\\w+\\s*{", code) is not None,
+                re.search("=>\\s*{", code) is not None,
+                re.search("interface\\s+\\w+\\s*{", code) is not None,
+                re.search("enum\\s+\\w+\\s*{", code) is not None,
+                re.search("import\\s+{\\s*[^}]+\\s*}\\s+from", code) is not None,
+                re.search("const\\s+\\w+\\s*=\\s*function", code) is not None,
+                re.search("var\\s+\\w+\\s*=\\s*function", code) is not None,
+                re.search("let\\s+\\w+\\s*=\\s*function", code) is not None,
+                re.search("angular\\.module", code) is not None,
+                re.search("\\.controller\\(", code) is not None,
+                re.search("\\.directive\\(", code) is not None,
+                re.search("\\.service\\(", code) is not None,
+                re.search("\\.factory\\(", code) is not None,
+                re.search("\\.provider\\(", code) is not None,
+                re.search("\\.config\\(", code) is not None,
+                re.search("\\.run\\(", code) is not None,
+                re.search("this\\.\\w+\\s*=\\s*function", code) is not None,
+                re.search("'use strict';", code) is not None,
+                re.search('"use strict";', code) is not None,
+            ],
+            "medium": [
+                re.search("(const|let|var)\\s+\\w+", code) is not None,
+                re.search("=>", code) is not None,
+                re.search("<\\w+[^>]*>", code) is not None
+                and re.search("</\\w+>", code) is not None,
+                re.search("export\\s+(class|const|function|interface)", code)
+                is not None,
+                re.search("this\\.\\w+\\s*=", code) is not None,
+                re.search("\\$scope", code) is not None,
+                re.search("\\$http", code) is not None,
+                re.search("\\$q", code) is not None,
+                re.search("\\$rootScope", code) is not None,
+            ],
+            "weak": [
+                ";" in code and code.count(";") > code.count("\n") / 5,
+                re.search("//.*$", code, re.MULTILINE) is not None,
+                re.search("{\\s*[\\w]+\\s*:", code) is not None,
+                re.search("function\\(", code) is not None,
+            ],
+        }
+
+        negative_indicators = [
+            re.search("def\\s+\\w+\\s*\\([^)]*\\)\\s*:", code) is not None,
+            re.search("def\\s+\\w+\\s*\\([^)]*\\)\\s*:\\s*\\n\\s+", code) is not None,
+            re.search("def\\s+\\w+\\s*\\(\\s*self", code) is not None,
+            re.search("@\\w+", code) is not None
+            and (not re.search("@\\w+\\(", code) is not None),
+            re.search("^from\\s+[\\w.]+\\s+import", code, re.MULTILINE) is not None,
+        ]
+
+        # Special case for AngularJS files
+        if (
+            "angular.module" in code
+            or ".controller(" in code
+            or ".service(" in code
+            or ".directive(" in code
+            or ".factory(" in code
+            or ".provider(" in code
+        ):
+            return True
+
         confidence = 0
-        confidence += sum(ts_js_indicators['strong']) * 3
-        confidence += sum(ts_js_indicators['medium']) * 2
-        confidence += sum(ts_js_indicators['weak']) * 1
+        confidence += sum(ts_js_indicators["strong"]) * 3
+        confidence += sum(ts_js_indicators["medium"]) * 2
+        confidence += sum(ts_js_indicators["weak"]) * 1
         confidence -= sum(negative_indicators) * 4
         confidence_threshold = 3
-        if sum(ts_js_indicators['strong']) > 0 and sum(negative_indicators) == 0:
+
+        if sum(ts_js_indicators["strong"]) > 0 and sum(negative_indicators) == 0:
             return True
+
         return confidence >= confidence_threshold
 
     def find_function(self, code: str, function_name: str) -> Tuple[int, int]:
@@ -42,7 +106,9 @@ class TypeScriptCodeFinder(CodeFinder):
                     func_node = func_node.parent
                 if func_node is not None:
                     return (func_node.start_point[0] + 1, func_node.end_point[0] + 1)
-        return (0, 0)
+
+        # Try finding function as variable declaration
+        return self.find_variable_function(code, function_name)
 
     def find_class(self, code: str, class_name: str) -> Tuple[int, int]:
         """Find a class in TypeScript code."""
@@ -778,21 +844,259 @@ class TypeScriptCodeFinder(CodeFinder):
                 find_return_statements(child)
 
         # For arrow functions with implicit returns
-        if function_node.type == 'arrow_function':
+        if function_node.type == "arrow_function":
             body = None
             for child in function_node.children:
-                if child.type != 'formal_parameters' and child.type != '=>' and child.type != 'return_type':
+                if (
+                    child.type != "formal_parameters"
+                    and child.type != "=>"
+                    and child.type != "return_type"
+                ):
                     body = child
                     break
 
-            if body and body.type != 'statement_block':
+            if body and body.type != "statement_block":
                 # Implicit return
                 return_values.append(self._get_node_text(body, code_bytes))
 
         # Find explicit return statements
         find_return_statements(function_node)
 
-        return {
-            'return_type': return_type,
-            'return_values': return_values
-        }
+        return {"return_type": return_type, "return_values": return_values}
+
+    def find_variable_function(self, code: str, function_name: str) -> Tuple[int, int]:
+        """
+        Find a function declared as a variable assignment.
+
+        Args:
+        code: Source code as string
+        function_name: Name of the function variable
+
+        Returns:
+        Tuple of (start_line, end_line) or (0, 0) if not found
+        """
+        # First try regex-based approach for more flexibility
+        patterns = [
+            # const/let/var functionName = function(...) {...}
+            re.compile(
+                r"(?:const|let|var)\s+"
+                + re.escape(function_name)
+                + r"\s*=\s*function\s*\(([^)]*)\)\s*{"
+            ),
+            # function expression with arrow function
+            re.compile(
+                r"(?:const|let|var)\s+"
+                + re.escape(function_name)
+                + r"\s*=\s*\(([^)]*)\)\s*=>"
+            ),
+            # Plain function assignment (no const/let/var)
+            re.compile(
+                r"^" + re.escape(function_name) + r"\s*=\s*function\s*\(([^)]*)\)\s*{",
+                re.MULTILINE,
+            ),
+        ]
+
+        for pattern in patterns:
+            match = pattern.search(code)
+            if match:
+                start_pos = match.start()
+                line_number = code[:start_pos].count("\n") + 1
+
+                # Find function end
+                function_code = code[start_pos:]
+                brace_count = 0
+                in_function = False
+                end_pos = 0
+
+                for i, char in enumerate(function_code):
+                    if char == "{":
+                        brace_count += 1
+                        in_function = True
+                    elif char == "}":
+                        brace_count -= 1
+                        if in_function and brace_count == 0:
+                            end_pos = i + 1
+                            break
+
+                if end_pos > 0:
+                    function_content = function_code[:end_pos]
+                    end_line = line_number + function_content.count("\n")
+                    return (line_number, end_line)
+
+        # Fall back to tree-sitter approach if regex fails
+        (root, code_bytes) = self._get_tree(code)
+
+        # Query for 'const/let/var functionName = function() {...}' pattern
+        query_str = """
+            (
+                lexical_declaration
+                (variable_declarator 
+                    name: (identifier) @var_name
+                    value: (function_expression) @function_value)
+            ) @var_function
+            """
+        try:
+            query = Query(TS_LANGUAGE, query_str)
+            raw_captures = query.captures(root, lambda n: code_bytes[n.start_byte:n.end_byte].decode('utf8'))
+            captures = self._process_captures(raw_captures)
+            for (node, cap_name) in captures:
+                if cap_name == 'var_name' and self._get_node_text(node, code_bytes) == function_name:
+                    var_func_node = node.parent.parent
+                    if var_func_node is not None:
+                        return (var_func_node.start_point[0] + 1, var_func_node.end_point[0] + 1)
+        except Exception:
+            pass  # If the query fails, proceed to the next attempt
+
+        # Query for 'const/let/var functionName = (...) => {...}' pattern
+        query_str = """
+            (
+                lexical_declaration
+                (variable_declarator 
+                    name: (identifier) @var_name
+                    value: (arrow_function) @arrow_function_value)
+            ) @arrow_function
+            """
+        try:
+            query = Query(TS_LANGUAGE, query_str)
+            raw_captures = query.captures(root, lambda n: code_bytes[n.start_byte:n.end_byte].decode('utf8'))
+            captures = self._process_captures(raw_captures)
+            for (node, cap_name) in captures:
+                if cap_name == 'var_name' and self._get_node_text(node, code_bytes) == function_name:
+                    var_func_node = node.parent.parent
+                    if var_func_node is not None:
+                        return (var_func_node.start_point[0] + 1, var_func_node.end_point[0] + 1)
+        except Exception:
+            pass  # If the query fails, continue and return (0, 0)
+
+        return (0, 0)
+
+def find_this_methods(self, code: str, function_name: str) -> List[Dict[str, Any]]:
+    """
+    Find methods defined as this.methodName = function() within a constructor function.
+    Common pattern in AngularJS services.
+
+    Args:
+    code: Source code as string
+    function_name: Name of the parent function/service
+
+    Returns:
+    List of dictionaries with method information
+    """
+    result = []
+    (start_line, end_line) = self.find_function(code, function_name)
+
+    if start_line == 0 or end_line == 0:
+        # Try variable function as fallback
+        (start_line, end_line) = self.find_variable_function(code, function_name)
+        if start_line == 0 or end_line == 0:
+            return result
+
+    lines = code.splitlines()
+    function_code = '\n'.join(lines[start_line-1:end_line])
+
+    # Find this.method = function pattern using more robust regex that can handle multiline
+    this_method_pattern = re.compile(r'this\.(\w+)\s*=\s*function\s*\(([^{]*)\)\s*{', re.DOTALL)
+    for match in this_method_pattern.finditer(function_code):
+        method_name = match.group(1)
+        params = match.group(2).strip()
+
+        # Find position in the function
+        start_pos = match.start()
+        line_count = function_code[:start_pos].count('\n')
+        method_start_line = start_line + line_count
+
+        # Get method body - find matching closing brace
+        open_pos = function_code.find('{', match.end())
+        if open_pos == -1:
+            continue
+
+        # Count braces to find the matching closing brace
+        brace_count = 1
+        end_pos = open_pos + 1
+
+        while brace_count > 0 and end_pos < len(function_code):
+            if function_code[end_pos] == '{':
+                brace_count += 1
+            elif function_code[end_pos] == '}':
+                brace_count -= 1
+            end_pos += 1
+
+        if brace_count > 0:  # Didn't find matching brace
+            continue
+
+        # Get the complete method code
+        method_content = function_code[match.start():end_pos]
+
+        # Count lines to get end line
+        method_end_line = method_start_line + method_content.count('\n')
+
+        # Skip duplicates
+        if any(m['name'] == method_name for m in result):
+            continue
+
+        result.append({
+            'name': method_name,
+            'params': params,
+            'start_line': method_start_line,
+            'end_line': method_end_line,
+            'content': method_content
+        })
+
+    # Also try alternative pattern with arrow functions
+    arrow_method_pattern = re.compile(r'this\.(\w+)\s*=\s*\(([^)]*)\)\s*=>', re.DOTALL)
+    for match in arrow_method_pattern.finditer(function_code):
+        method_name = match.group(1)
+        params = match.group(2).strip()
+
+        # Skip duplicates
+        if any(m['name'] == method_name for m in result):
+            continue
+
+        # Find the entire arrow function body
+        start_pos = match.start()
+        line_count = function_code[:start_pos].count('\n')
+        method_start_line = start_line + line_count
+
+        # Try to find end of arrow function
+        arrow_pos = function_code.find('=>', match.end())
+        if arrow_pos == -1:
+            continue
+
+        # Check if it's a block or expression
+        block_start = function_code.find('{', arrow_pos)
+        if block_start != -1 and not re.search(r'[;\n]', function_code[arrow_pos:block_start]):
+            # It's a block function - find closing brace
+            brace_count = 1
+            end_pos = block_start + 1
+
+            while brace_count > 0 and end_pos < len(function_code):
+                if function_code[end_pos] == '{':
+                    brace_count += 1
+                elif function_code[end_pos] == '}':
+                    brace_count -= 1
+                end_pos += 1
+
+            if brace_count > 0:  # Didn't find matching brace
+                continue
+        else:
+            # It's an expression - find semicolon or newline
+            end_pos = function_code.find(';', arrow_pos)
+            if end_pos == -1:
+                newline_pos = function_code.find('\n', arrow_pos)
+                if newline_pos == -1:
+                    end_pos = len(function_code)
+                else:
+                    end_pos = newline_pos
+
+        method_content = function_code[start_pos:end_pos]
+        method_end_line = method_start_line + method_content.count('\n')
+
+        result.append({
+            'name': method_name,
+            'params': params,
+            'start_line': method_start_line,
+            'end_line': method_end_line,
+            'content': method_content
+        })
+
+    return result
