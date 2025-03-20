@@ -14,6 +14,7 @@ class CodeElementType(str, Enum):
     PARAMETER = 'parameter'
     RETURN_VALUE = 'return_value'
     META_ELEMENT = 'meta_element'
+    INTERFACE = 'interface'
 
 class MetaElementType(str, Enum):
     """Types of meta-elements that provide information about or modify code elements"""
@@ -22,6 +23,7 @@ class MetaElementType(str, Enum):
     ATTRIBUTE = 'attribute'
     DOC_COMMENT = 'doc_comment'
     TYPE_HINT = 'type_hint'
+    PARAMETER = 'parameter'
 
 class CodeRange(BaseModel):
     """Represents a range in source code (line numbers)"""
@@ -44,37 +46,39 @@ class CodeElement(BaseModel):
     children: List['CodeElement'] = Field(default_factory=list)
 
     @property
-    def is_class(self) -> bool:
-        return self.type == CodeElementType.CLASS
+    def decorators(self) -> List['CodeElement']:
+        """Get all decorator metaelements"""
+        return [child for child in self.meta_elements if child.additional_data.get('meta_type') == MetaElementType.DECORATOR]
 
     @property
     def is_method(self) -> bool:
         return self.type == CodeElementType.METHOD
 
     @property
-    def is_function(self) -> bool:
-        return self.type == CodeElementType.FUNCTION
+    def is_interface(self) -> bool:
+        return self.type == CodeElementType.INTERFACE
+
+    @property
+    def parameters(self) -> List['CodeElement']:
+        """Get all parameter children"""
+        return [child for child in self.children if child.is_parameter]
 
     @property
     def is_property(self) -> bool:
         return self.type == CodeElementType.PROPERTY
 
     @property
-    def is_parameter(self) -> bool:
-        return self.type == CodeElementType.PARAMETER
+    def is_function(self) -> bool:
+        return self.type == CodeElementType.FUNCTION
+
+    @property
+    def meta_elements(self) -> List['CodeElement']:
+        """Get all metaelement children"""
+        return [child for child in self.children if child.is_meta_element]
 
     @property
     def is_return_value(self) -> bool:
         return self.type == CodeElementType.RETURN_VALUE
-
-    @property
-    def is_meta_element(self) -> bool:
-        return self.type == CodeElementType.META_ELEMENT
-
-    @property
-    def parameters(self) -> List['CodeElement']:
-        """Get all parameter children"""
-        return [child for child in self.children if child.is_parameter]
 
     @property
     def return_value(self) -> Optional['CodeElement']:
@@ -83,35 +87,36 @@ class CodeElement(BaseModel):
         return return_vals[0] if return_vals else None
 
     @property
-    def meta_elements(self) -> List['CodeElement']:
-        """Get all metaelement children"""
-        return [child for child in self.children if child.is_meta_element]
+    def is_parameter(self) -> bool:
+        return self.type == CodeElementType.PARAMETER
 
     @property
-    def decorators(self) -> List['CodeElement']:
-        """Get all decorator metaelements"""
-        return [child for child in self.meta_elements
-                if child.additional_data.get('meta_type') == MetaElementType.DECORATOR]
+    def is_meta_element(self) -> bool:
+        return self.type == CodeElementType.META_ELEMENT
+
+    @property
+    def is_class(self) -> bool:
+        return self.type == CodeElementType.CLASS
 
 class CodeElementsResult(BaseModel):
     """Collection of extracted code elements"""
     elements: List[CodeElement] = Field(default_factory=list)
-    
+
     @property
     def classes(self) -> List[CodeElement]:
-        return [e for e in self.elements if e.is_class]
-        
-    @property
-    def methods(self) -> List[CodeElement]:
-        return [e for e in self.elements if e.is_method]
-        
-    @property
-    def functions(self) -> List[CodeElement]:
-        return [e for e in self.elements if e.is_function]
-        
+        return [e for e in self.elements if e.is_class or (e.type == CodeElementType.INTERFACE)]
+
     @property
     def properties(self) -> List[CodeElement]:
         return [e for e in self.elements if e.is_property]
+
+    @property
+    def methods(self) -> List[CodeElement]:
+        return [e for e in self.elements if e.is_method]
+
+    @property
+    def functions(self) -> List[CodeElement]:
+        return [e for e in self.elements if e.is_function]
 
 # Handle circular references
 CodeElement.model_rebuild()

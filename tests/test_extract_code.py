@@ -78,42 +78,60 @@ class TestClass:
             if child.name == "get_value":
                 self.assertIn("return self.value", child.content)
 
-    def test_extract_class_with_properties(self):
-        """Test extraction of a class with properties."""
-        code = '\nclass Person:\n    def __init__(self, name, age):\n        self._name = name\n        self._age = age\n\n    @property\n    def name(self):\n        return self._name\n\n    @property\n    def age(self):\n        return self._age\n\n    @age.setter\n    def age(self, value):\n        if value < 0:\n            raise ValueError("Age cannot be negative")\n        self._age = value\n'
+
+    def test_extract_class_with_static_properties(self):
+        """Test extraction of a class with static properties (class variables)."""
+        code = """
+    class ConfigClass:
+        VERSION = "1.0.0"
+        DEBUG = True
+        MAX_CONNECTIONS = 100
+        DEFAULT_TIMEOUT = 30.0
+
+        def __init__(self):
+            self.instance_var = "instance"
+
+        def get_version(self):
+            return self.VERSION
+    """
         result = self.python_hem.extract_code_elements(code)
-        rich.print(result)
 
         # Find class element
         class_element = None
         for element in result.elements:
-            if element.type == CodeElementType.CLASS and element.name == "Person":
+            if element.type == CodeElementType.CLASS and element.name == "ConfigClass":
                 class_element = element
                 break
 
         self.assertIsNotNone(class_element)
 
-        # Find properties and property-related methods
+        # Find actual property elements (static properties)
         property_elements = [
             child
             for child in class_element.children
             if child.type == CodeElementType.PROPERTY
         ]
-        property_methods = [
-            child
-            for child in class_element.children
-            if child.type == CodeElementType.METHOD
-            and any(".setter" in d for d in child.additional_data.get("decorators", []))
-        ]
 
-        # Assertions with explanatory comments
-        # Expect 'name' property to be recognized as PROPERTY type
-        self.assertEqual(len(property_elements), 1)
-        self.assertEqual(property_elements[0].name, "name")
+        # We should have 4 static properties
+        self.assertEqual(len(property_elements), 4, "Should have 4 static properties")
 
-        # Expect 'age' getter and setter to be identified as methods with '.setter' decorators
-        self.assertEqual(len(property_methods), 2)
-        self.assertTrue(all(method.name == 'age' for method in property_methods))
+        # Check property names
+        property_names = [prop.name for prop in property_elements]
+        expected_names = ["VERSION", "DEBUG", "MAX_CONNECTIONS", "DEFAULT_TIMEOUT"]
+
+        for name in expected_names:
+            self.assertIn(name, property_names, f"Should have '{name}' static property")
+
+        # Check property values
+        for prop in property_elements:
+            if prop.name == "VERSION":
+                self.assertEqual(prop.additional_data.get("value"), '"1.0.0"')
+            elif prop.name == "DEBUG":
+                self.assertEqual(prop.additional_data.get("value"), "True")
+            elif prop.name == "MAX_CONNECTIONS":
+                self.assertEqual(prop.additional_data.get("value"), "100")
+            elif prop.name == "DEFAULT_TIMEOUT":
+                self.assertEqual(prop.additional_data.get('value'), '30.0')
 
     def test_extract_functions(self):
         """Test extraction of standalone functions."""

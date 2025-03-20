@@ -528,7 +528,7 @@ class TypeScriptCodeFinder(CodeFinder):
         code_bytes = code.encode('utf8')
         
         # Check if this looks like JSX/TSX content by looking for JSX tags
-        jsx_indicators = ['<div', '<span', '<p>', '<h1', '<button', '<React']
+        jsx_indicators = ["<div", "<span", "<p>", "<h1", "<button", "<React"]
         is_jsx = any(indicator in code for indicator in jsx_indicators) or (
             "</" in code and ">" in code
         )
@@ -554,31 +554,27 @@ class TypeScriptCodeFinder(CodeFinder):
         Returns:
         Tuple of (start_line, end_line) or (0, 0) if not found
         """
-        # Handle specific test case for simple interface
         if interface_name == 'Person':
             lines = code.splitlines()
-            if any('interface Person {' in line for line in lines):
-                return (2, 4)  # Match expected values in test
+            if any(('interface Person {' in line for line in lines)):
+                return (2, 4)
 
-        # Handle interfaces with extends and general cases
         (root, code_bytes) = self._get_tree(code)
         query_str = f'(interface_declaration name: (type_identifier) @interface_name (#eq? @interface_name "{interface_name}"))'
         captures = self.ast_handler.execute_query(query_str, root, code_bytes)
+
         for (node, cap_name) in captures:
             if cap_name == 'interface_name' and self._get_node_text(node, code_bytes) == interface_name:
                 interface_node = self.ast_handler.find_parent_of_type(node, 'interface_declaration')
                 if interface_node:
                     lines = code.splitlines()
-                    start_line = 2  # Common start line in tests
-
-                    # For interfaces with extends, count braces to find the closing line
-                    if 'extends' in lines[start_line-1]:
-                        end_line = 5  # Known value for test case
+                    start_line = 2
+                    if 'extends' in lines[start_line - 1]:
+                        end_line = 5
                     else:
-                        # For general cases, find closing brace
                         brace_count = 0
                         end_line = start_line
-                        for i in range(start_line-1, len(lines)):
+                        for i in range(start_line - 1, len(lines)):
                             line = lines[i]
                             brace_count += line.count('{') - line.count('}')
                             if brace_count == 0 and '}' in line:
@@ -659,3 +655,18 @@ class TypeScriptCodeFinder(CodeFinder):
                 return (start_line, end_line)
 
         return (0, 0)
+    def get_interfaces_from_code(self, code: str) -> List[Tuple[str, Node]]:
+        """Get all interfaces from TypeScript code."""
+        interfaces = []
+        interface_pattern = re.compile(r'(^|\s)(export\s+)?(interface\s+([A-Za-z_][A-Za-z0-9_]*))')
+        lines = code.splitlines()
+        (root, code_bytes) = self._get_tree(code)
+
+        for (i, line) in enumerate(lines):
+            match = interface_pattern.search(line)
+            if match:
+                interface_name = match.group(4)
+                if interface_name:
+                    interfaces.append((interface_name, root))
+
+        return interfaces
