@@ -128,7 +128,7 @@ class CodeHem:
                     return self.strategy.is_class_definition(line)
         return self.finder.content_looks_like_class_definition(content)
 
-    def extract_code_elements(self, code: str) -> "CodeElementsResult":
+    def extract(self, code: str) -> "CodeElementsResult":
         """
         Extract code elements from source code and return them as Pydantic models.
 

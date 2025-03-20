@@ -139,7 +139,7 @@ class SampleClass:
 def standalone_func():
     return 42
 """
-        elements = self.hem.extract_code_elements(code)
+        elements = self.hem.extract(code)
         
         # Test class filter
         class_element = self.hem.filter(elements, "SampleClass")

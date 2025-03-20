@@ -15,14 +15,14 @@ class TestExtractCodeElements(unittest.TestCase):
 
     def test_extract_empty_code(self):
         """Test extraction from empty code."""
-        result = self.python_hem.extract_code_elements("")
+        result = self.python_hem.extract("")
         self.assertIsInstance(result, CodeElementsResult)
         self.assertEqual(len(result.elements), 0)
 
     def test_extract_imports(self):
         """Test extraction of import statements."""
         code = '\nimport os\nimport sys\nfrom datetime import datetime\nfrom typing import List, Dict\n\ndef main():\n    pass\n'
-        result = self.python_hem.extract_code_elements(code)
+        result = self.python_hem.extract(code)
         self.assertIsInstance(result, CodeElementsResult)
 
         # Find imports element
@@ -55,7 +55,7 @@ class TestClass:
     def set_value(self, new_value):
         self.value = new_value
 """
-        result = self.python_hem.extract_code_elements(code)
+        result = self.python_hem.extract(code)
 
         # Find class element
         class_element = None
@@ -94,7 +94,7 @@ class TestClass:
         def get_version(self):
             return self.VERSION
     """
-        result = self.python_hem.extract_code_elements(code)
+        result = self.python_hem.extract(code)
 
         # Find class element
         class_element = None
@@ -146,7 +146,7 @@ def multiply(a, b):
 def decorated_function():
     print("I am decorated")
 """
-        result = self.python_hem.extract_code_elements(code)
+        result = self.python_hem.extract(code)
 
         # Find function elements
         function_elements = [element for element in result.elements
@@ -188,7 +188,7 @@ class ChildClass(BaseClass):
     def child_method(self):
         pass
 """
-        result = self.python_hem.extract_code_elements(code)
+        result = self.python_hem.extract(code)
 
         class_elements = [element for element in result.elements
                           if element.type == CodeElementType.CLASS]
@@ -211,7 +211,7 @@ class ChildClass(BaseClass):
     def test_extract_nested_structures(self):
         """Test extraction of nested structures like classes inside functions."""
         code = '\ndef outer_function():\n    class InnerClass:\n        def inner_method(self):\n            pass\n\n    return InnerClass()\n'
-        result = self.python_hem.extract_code_elements(code)
+        result = self.python_hem.extract(code)
 
         # We should have one function
         function_elements = [element for element in result.elements if element.type == CodeElementType.FUNCTION]
@@ -248,7 +248,7 @@ function calculateSum(a: number, b: number): number {
     return a + b;
 }
 """
-        result = self.typescript_hem.extract_code_elements(code)
+        result = self.typescript_hem.extract(code)
 
         # Check imports
         imports_element = None
@@ -283,7 +283,7 @@ function calculateSum(a: number, b: number): number {
     def test_complex_class_hierarchy(self):
         """Test extraction of complex class hierarchy with inheritance and decorators."""
         code = '\n@dataclass\nclass BaseEntity:\n    id: int\n    created_at: datetime\n\n    def get_id(self):\n        return self.id\n\n@dataclass\nclass User(BaseEntity):\n    name: str\n    email: str\n    _password: str\n\n    @property\n    def password(self):\n        return "********"\n\n    @password.setter\n    def password(self, new_password):\n        self._password = hash_password(new_password)\n\n    @staticmethod\n    def validate_email(email):\n        return \'@\' in email\n'
-        result = self.python_hem.extract_code_elements(code)
+        result = self.python_hem.extract(code)
 
         # Check classes
         class_elements = [element for element in result.elements if element.type == CodeElementType.CLASS]
