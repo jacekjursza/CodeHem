@@ -172,43 +172,24 @@ class ExtractionService:
             class_element.children.append(meta_element)
         return class_element
 
-    def _extract_methods_using_finder(
-        self, code: str, code_bytes: bytes, class_name: str, class_element: CodeElement
-    ):
+    def _extract_methods_using_finder(self, code: str, code_bytes: bytes, class_name: str, class_element: CodeElement):
         """
         Extract methods using the standard finder approach.
         Simplified version that treats all methods as methods.
         """
         try:
             methods = self.finder.get_methods_from_class(code, class_name)
-            for method_name, method_node in methods:
+            for (method_name, method_node) in methods:
                 try:
                     method_range = self.finder.get_node_range(method_node)
-                    method_content = self.finder.get_node_content(
-                        method_node, code_bytes
-                    )
-                    decorators = (
-                        self.finder.get_decorators(code, method_name, class_name) or []
-                    )
-
-                    # All methods are methods, regardless of decorators
-                    self._add_method_to_class(
-                        class_name,
-                        class_element,
-                        {
-                            "name": method_name,
-                            "node": method_node,
-                            "content": method_content,
-                            "range": method_range,
-                            "decorators": decorators,
-                        },
-                    )
+                    method_content = self.finder.get_node_content(method_node, code_bytes)
+                    decorators = self.finder.get_decorators(code, method_name, class_name) or []
+                    self._add_method_to_class(class_name, class_element, {'name': method_name, 'node': method_node, 'content': method_content, 'range': method_range, 'decorators': decorators})
                 except Exception as e:
-                    print(f"Error processing method {method_name}: {e}")
+                    print(f'Error processing method {method_name}: {e}')
         except Exception as e:
             import traceback
-
-            print(f"Error in _extract_methods_using_finder: {e}")
+            print(f'Error in _extract_methods_using_finder: {e}')
             print(traceback.format_exc())
 
     def _scan_for_properties(self, class_code: str, full_code: str, class_name: str, class_element: CodeElement, property_names: Set[str]):
@@ -275,22 +256,24 @@ class ExtractionService:
             decorators = method_info['decorators']
             element_type_str = self.strategy.determine_element_type(decorators, is_method=True)
             element_type = getattr(CodeElementType, element_type_str)
-            method_element = CodeElement(
-                type=element_type,
-                name=method_name,
-                content=method_content,
-                range=CodeRange(start_line=method_range[0], end_line=method_range[1], node=method_node),
-                parent_name=class_name,
-                additional_data={'decorators': decorators}
-            )
-            self._add_decorator_meta_elements(
-                parent_element=method_element,
-                decorators=decorators,
-                parent_name=f'{class_name}.{method_name}',
-                target_type=element_type.value,
-                target_name=method_name,
-                class_name=class_name
-            )
+            method_element = CodeElement(type=element_type, name=method_name, content=method_content, range=CodeRange(start_line=method_range[0], end_line=method_range[1], node=method_node), parent_name=class_name, additional_data={'decorators': decorators})
+            self._add_decorator_meta_elements(parent_element=method_element, decorators=decorators, parent_name=f'{class_name}.{method_name}', target_type=element_type.value, target_name=method_name, class_name=class_name)
+
+            print(f"\nDEBUG - Processing parameters for method: {class_name}.{method_name}")
+            parameters = self.finder.get_function_parameters(method_content, method_name, class_name)
+            print(f"DEBUG - Parameters found: {parameters}")
+
+            for param in parameters:
+                param_element = CodeElement(type=CodeElementType.PARAMETER, name=param['name'], content=param['name'], parent_name=f'{class_name}.{method_name}', value_type=param.get('type'), additional_data={'optional': param.get('optional', False), 'default': param.get('default')})
+                method_element.children.append(param_element)
+
+            print(f"DEBUG - Processing return info for method: {class_name}.{method_name}")
+            return_info = self.finder.get_function_return_info(method_content, method_name, class_name)
+            print(f"DEBUG - Return info found: {return_info}")
+
+            if return_info['return_type'] or return_info['return_values']:
+                return_element = CodeElement(type=CodeElementType.RETURN_VALUE, name=f'{method_name}_return', content=return_info['return_type'] if return_info['return_type'] else '', parent_name=f'{class_name}.{method_name}', value_type=return_info['return_type'], additional_data={'values': return_info['return_values']})
+                method_element.children.append(return_element)
             class_element.children.append(method_element)
         except Exception as e:
             import traceback
@@ -367,20 +350,40 @@ class ExtractionService:
                     decorators = []
                 element_type_str = self.strategy.determine_element_type(decorators, is_method=False)
                 element_type = getattr(CodeElementType, element_type_str)
-                func_element = CodeElement(
-                    type=element_type,
-                    name=func_name,
-                    content=func_content,
-                    range=CodeRange(start_line=func_range[0], end_line=func_range[1], node=func_node),
-                    additional_data={'decorators': decorators}
-                )
-                self._add_decorator_meta_elements(
-                    parent_element=func_element,
-                    decorators=decorators,
-                    parent_name=func_name,
-                    target_type='function',
-                    target_name=func_name
-                )
+                func_element = CodeElement(type=element_type, name=func_name, content=func_content, range=CodeRange(start_line=func_range[0], end_line=func_range[1], node=func_node), additional_data={'decorators': decorators})
+                self._add_decorator_meta_elements(parent_element=func_element, decorators=decorators, parent_name=func_name, target_type='function', target_name=func_name)
+
+                # Extract parameters
+                parameters = self.finder.get_function_parameters(func_content, func_name)
+                for param in parameters:
+                    param_element = CodeElement(
+                        type=CodeElementType.PARAMETER,
+                        name=param['name'],
+                        content=param['name'],
+                        parent_name=func_name,
+                        value_type=param.get('type'),
+                        additional_data={
+                            'optional': param.get('optional', False),
+                            'default': param.get('default')
+                        }
+                    )
+                    func_element.children.append(param_element)
+
+                # Extract return info
+                return_info = self.finder.get_function_return_info(func_content, func_name)
+                if return_info['return_type'] or return_info['return_values']:
+                    return_element = CodeElement(
+                        type=CodeElementType.RETURN_VALUE,
+                        name=f"{func_name}_return",
+                        content=return_info['return_type'] if return_info['return_type'] else "",
+                        parent_name=func_name,
+                        value_type=return_info['return_type'],
+                        additional_data={
+                            'values': return_info['return_values']
+                        }
+                    )
+                    func_element.children.append(return_element)
+
                 result.elements.append(func_element)
         except Exception as e:
             import traceback
@@ -399,9 +402,7 @@ class ExtractionService:
             print(f'Error in _is_class_method: {e}')
             return False
 
-    def _extract_class_members(
-        self, code: str, code_bytes: bytes, class_name: str, class_element: CodeElement
-    ):
+    def _extract_class_members(self, code: str, code_bytes: bytes, class_name: str, class_element: CodeElement):
         """
         Extract all class members including methods and properties.
         Now also extracts static properties (class variables).
@@ -411,20 +412,12 @@ class ExtractionService:
             if start_line == 0 or end_line == 0:
                 return
             lines = code.splitlines()
-            class_code = "\n".join(lines[start_line - 1 : end_line])
-
-            # Extract methods using finder
-            self._extract_methods_using_finder(
-                code, code_bytes, class_name, class_element
-            )
-
-            # Extract static properties (class variables)
+            class_code = '\n'.join(lines[start_line - 1:end_line])
+            self._extract_methods_using_finder(code, code_bytes, class_name, class_element)
             self._extract_static_properties(class_code, code, class_name, class_element)
-
         except Exception as e:
             import traceback
-
-            print(f"Error in _extract_class_members: {e}")
+            print(f'Error in _extract_class_members: {e}')
             print(traceback.format_exc())
 
     def _extract_static_properties(self, class_code: str, full_code: str, class_name: str, class_element: CodeElement):

@@ -156,7 +156,8 @@ def standalone_func():
         # Test property filter
         prop_element = self.hem.filter(elements, "SampleClass.prop1")
         self.assertIsNotNone(prop_element)
-        self.assertEqual(prop_element.type, CodeElementType.PROPERTY)
+
+        self.assertEqual(prop_element.type, CodeElementType.METHOD)
         self.assertEqual(prop_element.name, "prop1")
         
         # Test function filter

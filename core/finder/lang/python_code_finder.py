@@ -1,5 +1,5 @@
 import re
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Dict, Any
 
 from rich.console import Console
 from tree_sitter import Query, Node
@@ -7,7 +7,7 @@ from core.finder.base import CodeFinder
 from core.languages import PY_LANGUAGE
 
 class PythonCodeFinder(CodeFinder):
-    language = "python"
+    language = 'python'
 
     def can_handle(self, code: str) -> bool:
         """
@@ -19,71 +19,16 @@ class PythonCodeFinder(CodeFinder):
         Returns:
         True if this is Python code, False otherwise
         """
-        # Check for distinctive Python syntax
-        python_indicators = {
-            # Strong Python indicators (highly distinctive)
-            'strong': [
-                # Python-style function definitions with colon and indented body
-                re.search(r'def\s+\w+\s*\([^)]*\)\s*:', code) is not None,
-                # Class definitions with colon
-                re.search(r'class\s+\w+(\s*\([^)]*\))?\s*:', code) is not None,
-                # Python-style indentation (function body indented without braces)
-                re.search(r'def\s+\w+\s*\([^)]*\)\s*:\s*\n\s+', code) is not None,
-                # Python's self parameter in methods
-                re.search(r'def\s+\w+\s*\(\s*self', code) is not None,
-            ],
-            # Medium strength indicators (characteristic but not exclusive)
-            'medium': [
-                # Python-style imports
-                re.search(r'^import\s+\w+', code, re.MULTILINE) is not None,
-                re.search(r'^from\s+[\w.]+\s+import', code, re.MULTILINE) is not None,
-                # Python decorators
-                re.search(r'@\w+', code) is not None,
-                # Python-style return type annotations
-                re.search(r'def\s+\w+\s*\([^)]*\)\s*->\s*\w+', code) is not None,
-            ],
-            # Weak indicators (supportive but common across languages)
-            'weak': [
-                # Significant whitespace/indentation patterns
-                re.search(r'\n\s+\S', code) is not None,
-                # Python-style comments
-                re.search(r'#.*$', code, re.MULTILINE) is not None,
-                # Python-style type hints in variables
-                re.search(r':\s*\w+(\s*\[\w+\])?\s*=', code) is not None,
-            ]
-        }
-
-        # Negative indicators (strong evidence against Python)
-        negative_indicators = [
-            # JavaScript/TypeScript-style blocks with braces
-            re.search(r'function\s+\w+\s*\([^)]*\)\s*{', code) is not None,
-            # Heavy use of semicolons (rare in Python)
-            code.count(';') > code.count('\n') / 2,
-            # JavaScript/TypeScript variable declarations
-            re.search(r'(const|let|var)\s+\w+\s*=', code) is not None,
-            # TypeScript-style interfaces
-            re.search(r'interface\s+\w+\s*{', code) is not None,
-            # JavaScript-style imports
-            re.search(r'import\s+{\s*[^}]+\s*}\s+from', code) is not None,
-        ]
-
-        # Calculate confidence score for Python
+        python_indicators = {'strong': [re.search('def\\s+\\w+\\s*\\([^)]*\\)\\s*:', code) is not None, re.search('class\\s+\\w+(\\s*\\([^)]*\\))?\\s*:', code) is not None, re.search('def\\s+\\w+\\s*\\([^)]*\\)\\s*:\\s*\\n\\s+', code) is not None, re.search('def\\s+\\w+\\s*\\(\\s*self', code) is not None], 'medium': [re.search('^import\\s+\\w+', code, re.MULTILINE) is not None, re.search('^from\\s+[\\w.]+\\s+import', code, re.MULTILINE) is not None, re.search('@\\w+', code) is not None, re.search('def\\s+\\w+\\s*\\([^)]*\\)\\s*->\\s*\\w+', code) is not None], 'weak': [re.search('\\n\\s+\\S', code) is not None, re.search('#.*$', code, re.MULTILINE) is not None, re.search(':\\s*\\w+(\\s*\\[\\w+\\])?\\s*=', code) is not None]}
+        negative_indicators = [re.search('function\\s+\\w+\\s*\\([^)]*\\)\\s*{', code) is not None, code.count(';') > code.count('\n') / 2, re.search('(const|let|var)\\s+\\w+\\s*=', code) is not None, re.search('interface\\s+\\w+\\s*{', code) is not None, re.search('import\\s+{\\s*[^}]+\\s*}\\s+from', code) is not None]
         confidence = 0
-        # Strong indicators carry more weight
         confidence += sum(python_indicators['strong']) * 3
         confidence += sum(python_indicators['medium']) * 2
         confidence += sum(python_indicators['weak']) * 1
-        # Negative indicators reduce confidence significantly
         confidence -= sum(negative_indicators) * 4
-
-        # Threshold for Python detection (tuned value)
         confidence_threshold = 2
-
-        # Highly confident if we have any strong indicators and no negative indicators
         if sum(python_indicators['strong']) > 0 and sum(negative_indicators) == 0:
             return True
-
-        # Otherwise, use confidence threshold
         return confidence >= confidence_threshold
 
     def find_function(self, code: str, function_name: str) -> Tuple[int, int]:
@@ -117,28 +62,18 @@ class PythonCodeFinder(CodeFinder):
         return (0, 0)
 
     def find_method(self, code: str, class_name: str, method_name: str) -> Tuple[int, int]:
-        (root, code_bytes) = self._get_tree(code)
-        query_str = '\n        (\n            function_definition\n            name: (identifier) @method_name\n        )\n        '
-        query = Query(PY_LANGUAGE, query_str)
-        raw_captures = query.captures(root, lambda n: code_bytes[n.start_byte:n.end_byte].decode('utf8'))
-        captures = self._process_captures(raw_captures)
-        for (node, cap_name) in captures:
-            if cap_name == 'method_name' and self._get_node_text(node, code_bytes) == method_name:
-                curr = node
-                inside = False
-                while curr is not None:
-                    if curr.type == 'class_definition':
-                        class_name_node = curr.child_by_field_name('name')
-                        if class_name_node and self._get_node_text(class_name_node, code_bytes) == class_name:
-                            inside = True
-                        break
-                    curr = curr.parent
-                if inside:
-                    method_node = node
-                    while method_node is not None and method_node.type != 'function_definition':
-                        method_node = method_node.parent
-                    if method_node:
-                        return (method_node.start_point[0] + 1, method_node.end_point[0] + 1)
+        """Find a method in a Python class using the already working get_methods_from_class method."""
+        print(f"DEBUG - find_method called for {class_name}.{method_name}")
+        methods = self.get_methods_from_class(code, class_name)
+        print(f"DEBUG - Methods found by get_methods_from_class: {[m[0] for m in methods]}")
+
+        for name, node in methods:
+            if name == method_name:
+                print(f"DEBUG - Found method node: {node}")
+                range_info = self.get_node_range(node)
+                print(f"DEBUG - Range info: {range_info}")
+                return range_info
+
         return (0, 0)
 
     def find_imports_section(self, code: str) -> Tuple[int, int]:
@@ -463,6 +398,7 @@ class PythonCodeFinder(CodeFinder):
         Returns:
         List of decorator strings
         """
+        print(f"DEBUG - get_decorators called for: {class_name}.{name if class_name else name}")
         (root, code_bytes) = self._get_tree(code)
         if class_name:
             method_node = None
@@ -472,18 +408,29 @@ class PythonCodeFinder(CodeFinder):
                     method_node = node
                     break
             if not method_node:
+                print(f"DEBUG - No method node found for {class_name}.{name}")
                 return []
             decorators = []
             if method_node.parent and method_node.parent.type == 'decorated_definition':
+                print(f"DEBUG - Found decorated_definition parent for {name}")
                 for child in method_node.parent.children:
                     if child.type == 'decorator':
                         decorator_text = self._get_node_text(child, code_bytes)
-                        decorators.append(decorator_text)
+                        # Check if this is a property setter decorator (e.g., @property_name.setter)
+                        setter_match = re.search(r'@(\w+)\.setter', decorator_text)
+                        if setter_match:
+                            print(f"DEBUG - Found property setter decorator: {decorator_text}")
+                            decorators.append(decorator_text)
+                        else:
+                            print(f"DEBUG - Found decorator: {decorator_text}")
+                            decorators.append(decorator_text)
             for child in method_node.children:
                 if child.type == 'decorator':
                     decorator_text = self._get_node_text(child, code_bytes)
+                    print(f"DEBUG - Found decorator in method children: {decorator_text}")
                     if decorator_text not in decorators:
                         decorators.append(decorator_text)
+            print(f"DEBUG - Returning decorators for {class_name}.{name}: {decorators}")
             return decorators
         else:
             query_str = '(function_definition name: (identifier) @func_name)'
@@ -515,43 +462,33 @@ class PythonCodeFinder(CodeFinder):
     def get_class_decorators(self, code: str, class_name: str) -> List[str]:
         """
         Get decorators for a class.
-        
+
         Args:
             code: Source code as string
             class_name: Class name
-            
+
         Returns:
             List of decorator strings
         """
         (root, code_bytes) = self._get_tree(code)
-        
-        # Find the class node
         class_node = None
         classes = self.get_classes_from_code(code)
-        for cls_name, node in classes:
+        for (cls_name, node) in classes:
             if cls_name == class_name:
                 class_node = node
                 break
-                
         if not class_node:
             return []
-            
-        # Check for decorators
         decorators = []
-        
-        # First check if the class is inside a decorated_definition
         if class_node.parent and class_node.parent.type == 'decorated_definition':
             for child in class_node.parent.children:
                 if child.type == 'decorator':
                     decorators.append(self._get_node_text(child, code_bytes))
-        
-        # Also check for decorators directly under the class
         for child in class_node.children:
             if child.type == 'decorator':
                 decorator_text = self._get_node_text(child, code_bytes)
                 if decorator_text not in decorators:
                     decorators.append(decorator_text)
-                    
         return decorators
 
     def has_class_method_indicator(self, method_node: Node, code_bytes: bytes) -> bool:
@@ -699,18 +636,15 @@ class PythonCodeFinder(CodeFinder):
                         return modules[node_id]
         except Exception:
             pass
-        
-        # Handle aliased imports - using a regex approach as a fallback
         try:
             import re
-            aliased_pattern = re.compile(r'from\s+([a-zA-Z0-9_.]+)\s+import\s+([a-zA-Z0-9_]+)\s+as\s+([a-zA-Z0-9_]+)')
+            aliased_pattern = re.compile('from\\s+([a-zA-Z0-9_.]+)\\s+import\\s+([a-zA-Z0-9_]+)\\s+as\\s+([a-zA-Z0-9_]+)')
             for match in aliased_pattern.finditer(code):
-                module, orig_class, alias = match.groups()
+                (module, orig_class, alias) = match.groups()
                 if alias == class_name:
-                    return f"{module}.{orig_class}"
+                    return f'{module}.{orig_class}'
         except Exception:
             pass
-            
         query_str = '(import_statement name: (_) @module)'
         query = Query(PY_LANGUAGE, query_str)
         raw_captures = query.captures(root, lambda n: code_bytes[n.start_byte:n.end_byte].decode('utf8'))
@@ -733,3 +667,169 @@ class PythonCodeFinder(CodeFinder):
         except Exception:
             pass
         return None
+
+    def get_function_parameters(self, code: str, function_name: str, class_name: Optional[str]=None) -> List[Dict[str, Any]]:
+        """
+        Extract parameters from a function or method.
+
+        Args:
+        code: Source code as string
+        function_name: Function or method name
+        class_name: Class name if searching for method parameters, None for standalone functions
+
+        Returns:
+        List of parameter dictionaries with name, type (if available), and default value (if available)
+        """
+        print(f"\nDEBUG - PythonCodeFinder.get_function_parameters called for: {class_name}.{function_name}")
+        print(f"DEBUG - Code snippet:\n{code[:200]}...")
+
+        # Parse the code directly without trying to find the method
+        (root, code_bytes) = self._get_tree(code)
+
+        # Query to find parameters in the function definition
+        query_str = '\n(function_definition\n  name: (identifier) @func_name\n  parameters: (parameters) @params)\n'
+        query = Query(PY_LANGUAGE, query_str)
+        raw_captures = query.captures(root, lambda n: code_bytes[n.start_byte:n.end_byte].decode('utf8'))
+        captures = self._process_captures(raw_captures)
+
+        print(f"DEBUG - Query captures: {len(captures)}")
+
+        # Find parameters node for our function/method
+        params_node = None
+        for node, cap_name in captures:
+            if cap_name == 'func_name' and self._get_node_text(node, code_bytes) == function_name:
+                # We found our function/method, now find its parameters
+                parent_node = node.parent
+                for child in parent_node.children:
+                    if child.type == 'parameters':
+                        params_node = child
+                        break
+
+        if not params_node:
+            print("DEBUG - No params node found!")
+            return []
+
+        # Analyze parameters
+        parameters = []
+        print(f"DEBUG - Params node children: {len(params_node.children)}")
+
+        for param_node in params_node.children:
+            param_type = getattr(param_node, 'type', None)
+            print(f"DEBUG - Processing param node of type: {param_type}")
+
+            if param_node.type == 'identifier':
+                param_name = self._get_node_text(param_node, code_bytes)
+                if param_name in ('self', 'cls'):
+                    continue
+                parameters.append({'name': param_name})
+            elif param_node.type == 'typed_parameter':
+                param_name = None
+                param_type = None
+                for child in param_node.children:
+                    if child.type == 'identifier':
+                        param_name = self._get_node_text(child, code_bytes)
+                    elif child.type == 'type':
+                        param_type = self._get_node_text(child, code_bytes)
+                if param_name in ('self', 'cls'):
+                    continue
+                if param_name:
+                    parameters.append({'name': param_name, 'type': param_type})
+            elif param_node.type == 'default_parameter':
+                param_name = None
+                default_value = None
+                for child in param_node.children:
+                    if child.type == 'identifier':
+                        param_name = self._get_node_text(child, code_bytes)
+                    elif child.type not in ('=', 'type'):
+                        default_value = self._get_node_text(child, code_bytes)
+                if param_name in ('self', 'cls'):
+                    continue
+                if param_name:
+                    parameters.append({'name': param_name, 'default': default_value})
+            elif param_node.type == 'typed_default_parameter':
+                param_name = None
+                param_type = None
+                default_value = None
+                for child in param_node.children:
+                    if child.type == 'identifier':
+                        param_name = self._get_node_text(child, code_bytes)
+                    elif child.type == 'type':
+                        param_type = self._get_node_text(child, code_bytes)
+                    elif child.type not in ('=', 'type', 'identifier'):
+                        default_value = self._get_node_text(child, code_bytes)
+                if param_name in ('self', 'cls'):
+                    continue
+                if param_name:
+                    parameters.append({'name': param_name, 'type': param_type, 'default': default_value})
+
+        print(f"DEBUG - Extracted parameters: {parameters}")
+        return parameters
+
+    def get_function_return_info(self, code: str, function_name: str, class_name: Optional[str]=None) -> Dict[str, Any]:
+        """
+        Extract return type and return values from a function or method.
+
+        Args:
+        code: Source code as string
+        function_name: Function or method name
+        class_name: Class name if searching for method, None for standalone functions
+
+        Returns:
+        Dictionary with return_type and return_values
+        """
+        print(f"\nDEBUG - PythonCodeFinder.get_function_return_info called for: {class_name}.{function_name}")
+
+        # Parse the code directly
+        (root, code_bytes) = self._get_tree(code)
+
+        # Query to find function definition
+        query_str = f'(function_definition name: (identifier) @func_name (#eq? @func_name "{function_name}"))'
+        query = Query(PY_LANGUAGE, query_str)
+        raw_captures = query.captures(root, lambda n: code_bytes[n.start_byte:n.end_byte].decode('utf8'))
+        captures = self._process_captures(raw_captures)
+
+        function_node = None
+        for node, cap_name in captures:
+            if cap_name == 'func_name':
+                function_node = node.parent
+                break
+
+        if not function_node:
+            print(f"DEBUG - Function node not found for {function_name}!")
+            return {'return_type': None, 'return_values': []}
+
+        # Find return type by looking for the '->' token followed by 'type' node
+        return_type = None
+        found_arrow = False
+
+        for i, child in enumerate(function_node.children):
+            print(f"DEBUG - Child type: {child.type}")
+
+            # Look for the '->' token
+            if child.type == '->':
+                found_arrow = True
+                # The type node should be the next child after '->'
+                if i + 1 < len(function_node.children) and function_node.children[i + 1].type == 'type':
+                    type_node = function_node.children[i + 1]
+                    return_type = self._get_node_text(type_node, code_bytes)
+                    print(f"DEBUG - Found return type: {return_type}")
+                    break
+
+        # Find return values
+        return_values = []
+
+        def find_return_statements(node):
+            if node.type == 'return_statement':
+                for child in node.children:
+                    if child.type != 'return':
+                        return_val = self._get_node_text(child, code_bytes)
+                        print(f"DEBUG - Found return value: {return_val}")
+                        return_values.append(return_val)
+            for child in node.children:
+                find_return_statements(child)
+
+        find_return_statements(function_node)
+
+        result = {'return_type': return_type, 'return_values': return_values}
+        print(f"DEBUG - Return info result: {result}")
+        return result

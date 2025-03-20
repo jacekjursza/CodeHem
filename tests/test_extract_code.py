@@ -282,8 +282,12 @@ function calculateSum(a: number, b: number): number {
 
     def test_complex_class_hierarchy(self):
         """Test extraction of complex class hierarchy with inheritance and decorators."""
-        code = '\n@dataclass\nclass BaseEntity:\n    id: int\n    created_at: datetime\n\n    def get_id(self):\n        return self.id\n\n@dataclass\nclass User(BaseEntity):\n    name: str\n    email: str\n    _password: str\n\n    @property\n    def password(self):\n        return "********"\n\n    @password.setter\n    def password(self, new_password):\n        self._password = hash_password(new_password)\n\n    @staticmethod\n    def validate_email(email):\n        return \'@\' in email\n'
+        code = "\n@dataclass\nclass BaseEntity:\n    id: int\n    created_at: datetime\n\n    def get_id(self):\n        return self.id\n\n@dataclass\nclass User(BaseEntity):\n    name: str\n    email: str\n    _password: str\n\n    @property\n    def password(self):\n        return \"********\"\n\n    @password.setter\n    def password(self, new_password):\n        self._password = hash_password(new_password)\n\n    @staticmethod\n    def validate_email(email):\n        return '@' in email\n"
         result = self.python_hem.extract_code_elements(code)
+
+        print("-------------------------------------->>>>")
+        rich.print(result)
+        print("-------------------------------------->>>>!")
 
         # Check classes
         class_elements = [element for element in result.elements if element.type == CodeElementType.CLASS]
@@ -304,23 +308,29 @@ function calculateSum(a: number, b: number): number {
 
         # Check methods and properties
         method_count = 0
-        property_count = 0
+        property_method_count = 0
+        setter_method_count = 0 
         static_method_count = 0
 
         for child in user_class.children:
             if child.type == CodeElementType.METHOD:
+                print("METHOD: ", child.name)
                 method_count += 1
-            elif child.type == CodeElementType.PROPERTY:
-                property_count += 1
+                # Check for property decorator
+                if 'decorators' in child.additional_data:
+                    decorators = child.additional_data['decorators']
+                    print("DECORATORS: ", decorators)
+                    if '@property' in decorators:
+                        property_method_count += 1
+                    if any('.setter' in d for d in decorators):
+                        setter_method_count += 1
+                    if '@staticmethod' in decorators:
+                        static_method_count += 1
 
-            # Check for static method
-            if 'decorators' in child.additional_data:
-                decorators = child.additional_data['decorators']
-                if '@staticmethod' in decorators:
-                    static_method_count += 1
-
-        self.assertGreaterEqual(method_count, 1)  # At least password setter and validate_email
-        self.assertEqual(property_count, 1)       # password property
+        self.assertGreaterEqual(method_count, 3)  # At least password getter, setter and validate_email
+        self.assertEqual(property_method_count, 1)  # One method with @property decorator
+        self.assertEqual(setter_method_count, 1)   # One method with .setter decorator
+        self.assertEqual(static_method_count, 1)   # One method with @staticmethod decorator
 
 if __name__ == '__main__':
     unittest.main()
