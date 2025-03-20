@@ -5,6 +5,8 @@ import re
 from typing import Tuple, List, Dict, Any, Optional
 from tree_sitter import Node
 from .language_strategy import LanguageStrategy
+from ..models import CodeElementType
+
 
 class PythonStrategy(LanguageStrategy):
     """
@@ -187,16 +189,63 @@ class PythonStrategy(LanguageStrategy):
             if current.type == 'class_definition':
                 for child in current.children:
                     if child.type == 'identifier':
-                        class_node_name = code_bytes[
-                            child.start_byte : child.end_byte
-                        ].decode("utf8")
+                        class_node_name = code_bytes[child.start_byte:child.end_byte].decode('utf8')
                         return class_node_name == class_name
             current = current.parent
         return False
 
-    def determine_element_type(
-        self, decorators: List[str], is_method: bool = False
-    ) -> str:
+    def get_content_type(self, content: str) -> str:
+        """
+        Determine the type of Python content.
+        
+        Args:
+            content: The code content to analyze
+            
+        Returns:
+            Content type from CodeElementType
+        """
+        if not content or not content.strip():
+            return CodeElementType.MODULE.value
+            
+        lines = content.strip().splitlines()
+        if not lines:
+            return CodeElementType.MODULE.value
+            
+        # Check the first non-empty line
+        first_line = None
+        for line in lines:
+            if line.strip():
+                first_line = line.strip()
+                break
+                
+        if not first_line:
+            return CodeElementType.MODULE.value
+            
+        if self.is_class_definition(first_line):
+            return CodeElementType.CLASS.value
+            
+        if self.is_method_definition(first_line):
+            return CodeElementType.METHOD.value
+            
+        if self.is_function_definition(first_line):
+            return CodeElementType.FUNCTION.value
+            
+        # Check for import statements
+        if re.match(r'^\s*(import|from)', first_line):
+            return CodeElementType.IMPORT.value
+            
+        # Check for properties
+        if re.match(r'^\s*@property', first_line) or re.search(r'^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*=', first_line):
+            return CodeElementType.PROPERTY.value
+            
+        # Check for decorators
+        if first_line.startswith('@'):
+            return CodeElementType.META_ELEMENT.value
+            
+        # Default to MODULE
+        return CodeElementType.MODULE.value
+
+    def determine_element_type(self, decorators: List[str], is_method: bool=False) -> str:
         """
         Determine the Python element type based on decorators and context.
         Simplified version: methods are always methods, regardless of decorators.
@@ -225,7 +274,6 @@ class PythonStrategy(LanguageStrategy):
         decorator = decorator.strip()
         if decorator.startswith('@'):
             decorator = decorator[1:]
-        # Handle property setter/deleter case
         if '.' in decorator:
             parts = decorator.split('.')
             if len(parts) >= 2 and parts[1].startswith('setter') or parts[1].startswith('deleter'):

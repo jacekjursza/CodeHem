@@ -154,7 +154,20 @@ class LanguageStrategy(ABC):
         """
         pass
         
-    def determine_element_type(self, decorators: List[str], is_method: bool = False) -> str:
+    @abstractmethod
+    def get_content_type(self, content: str) -> str:
+        """
+        Determine the type of content.
+        
+        Args:
+            content: The code content to analyze
+            
+        Returns:
+            Content type from CodeElementType
+        """
+        pass
+
+    def determine_element_type(self, decorators: List[str], is_method: bool=False) -> str:
         """
         Determine the element type based on decorators and context.
         
@@ -165,10 +178,9 @@ class LanguageStrategy(ABC):
         Returns:
             Element type name
         """
-        # Default implementation - should be overridden by language-specific strategies
-        return "METHOD" if is_method else "FUNCTION"
-    
-    def create_meta_elements(self, decorators: List[str], parent_name: str, target_type: str, target_name: str, class_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        return 'METHOD' if is_method else 'FUNCTION'
+
+    def create_meta_elements(self, decorators: List[str], parent_name: str, target_type: str, target_name: str, class_name: Optional[str]=None) -> List[Dict[str, Any]]:
         """
         Create meta element dictionaries for decorators.
         
@@ -185,19 +197,12 @@ class LanguageStrategy(ABC):
         meta_elements = []
         for decorator in decorators:
             decorator_name = self._extract_decorator_name(decorator)
-            meta_element = {
-                'name': decorator_name,
-                'content': decorator,
-                'parent_name': parent_name,
-                'meta_type': 'DECORATOR',
-                'target_type': target_type,
-                'target_name': target_name
-            }
+            meta_element = {'name': decorator_name, 'content': decorator, 'parent_name': parent_name, 'meta_type': 'DECORATOR', 'target_type': target_type, 'target_name': target_name}
             if class_name:
                 meta_element['class_name'] = class_name
             meta_elements.append(meta_element)
         return meta_elements
-    
+
     def _extract_decorator_name(self, decorator: str) -> str:
         """
         Extract decorator name from decorator string.
@@ -208,13 +213,11 @@ class LanguageStrategy(ABC):
         Returns:
             Decorator name
         """
-        # Default implementation - can be overridden by language-specific strategies
-        # Extract decorator name without @ and parameters
         decorator = decorator.strip()
         if decorator.startswith('@'):
             decorator = decorator[1:]
         return decorator.split('(')[0].strip()
-    
+
     def get_imports(self, code: str, finder) -> Optional[Dict[str, Any]]:
         """
         Get imports from the code.
@@ -226,15 +229,9 @@ class LanguageStrategy(ABC):
         Returns:
             Dictionary with import information or None if no imports found
         """
-        # Default implementation uses the finder's find_imports_section method
         (import_start, import_end) = finder.find_imports_section(code)
         if import_start > 0 and import_end > 0:
             import_lines = code.splitlines()[import_start - 1:import_end]
             import_content = '\n'.join(import_lines)
-            return {
-                'start_line': import_start,
-                'end_line': import_end,
-                'content': import_content,
-                'lines': import_lines
-            }
+            return {'start_line': import_start, 'end_line': import_end, 'content': import_content, 'lines': import_lines}
         return None

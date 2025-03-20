@@ -5,6 +5,8 @@ import re
 from typing import Tuple, List, Dict, Any, Optional
 from tree_sitter import Node
 from .language_strategy import LanguageStrategy
+from ..models import CodeElementType
+
 
 class TypeScriptStrategy(LanguageStrategy):
     """
@@ -189,6 +191,64 @@ class TypeScriptStrategy(LanguageStrategy):
             current = current.parent
         return False
 
+    def get_content_type(self, content: str) -> str:
+        """
+        Determine the type of TypeScript content.
+        
+        Args:
+            content: The code content to analyze
+            
+        Returns:
+            Content type from CodeElementType
+        """
+        if not content or not content.strip():
+            return CodeElementType.MODULE.value
+            
+        lines = content.strip().splitlines()
+        if not lines:
+            return CodeElementType.MODULE.value
+            
+        # Check the first non-empty line
+        first_line = None
+        for line in lines:
+            if line.strip():
+                first_line = line.strip()
+                break
+                
+        if not first_line:
+            return CodeElementType.MODULE.value
+            
+        if self.is_class_definition(first_line):
+            return CodeElementType.CLASS.value
+            
+        if first_line.startswith('interface '):
+            return CodeElementType.INTERFACE.value
+            
+        if self.is_method_definition(first_line):
+            return CodeElementType.METHOD.value
+            
+        if self.is_function_definition(first_line):
+            return CodeElementType.FUNCTION.value
+            
+        # Check for import statements
+        if re.match(r'^\s*(import|require)', first_line):
+            return CodeElementType.IMPORT.value
+            
+        # Check for properties
+        if re.match(r'^\s*(public|private|protected)?\s*[a-zA-Z_][a-zA-Z0-9_]*\s*[=:]', first_line):
+            return CodeElementType.PROPERTY.value
+            
+        # Check for decorators
+        if first_line.startswith('@'):
+            return CodeElementType.META_ELEMENT.value
+            
+        # Check for type aliases
+        if re.match(r'^\s*(export\s+)?type\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=', first_line):
+            return CodeElementType.META_ELEMENT.value
+            
+        # Default to MODULE
+        return CodeElementType.MODULE.value
+
     def determine_element_type(self, decorators: List[str], is_method: bool=False) -> str:
         """
         Determine the TypeScript element type based on decorators and context.
@@ -201,14 +261,11 @@ class TypeScriptStrategy(LanguageStrategy):
         Element type name from CodeElementType
         """
         if is_method:
-            # Check if decorators is a list of strings
-            if isinstance(decorators, list) and all(isinstance(d, str) for d in decorators):
+            if isinstance(decorators, list) and all((isinstance(d, str) for d in decorators)):
                 for decorator in decorators:
                     if '@get ' in decorator or decorator.startswith('@get '):
                         return 'PROPERTY'
-            # Handle Node decorators
-            elif decorators and not isinstance(decorators, list):
-                # Handle a single Node object
+            elif decorators and (not isinstance(decorators, list)):
                 return 'METHOD'
             return 'METHOD'
         return 'FUNCTION'
@@ -223,12 +280,10 @@ class TypeScriptStrategy(LanguageStrategy):
         Returns:
         Decorator name
         """
-        # Handle different types of decorator objects
         if isinstance(decorator, str):
             decorator_text = decorator.strip()
             if decorator_text.startswith('@'):
                 decorator_text = decorator_text[1:]
             return decorator_text.split('(')[0].strip()
         else:
-            # Return a placeholder name for non-string decorators
-            return "decorator"
+            return 'decorator'
