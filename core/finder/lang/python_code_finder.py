@@ -21,11 +21,20 @@ class PythonCodeFinder(CodeFinder):
         """
         python_indicators = {'strong': [re.search('def\\s+\\w+\\s*\\([^)]*\\)\\s*:', code) is not None, re.search('class\\s+\\w+(\\s*\\([^)]*\\))?\\s*:', code) is not None, re.search('def\\s+\\w+\\s*\\([^)]*\\)\\s*:\\s*\\n\\s+', code) is not None, re.search('def\\s+\\w+\\s*\\(\\s*self', code) is not None], 'medium': [re.search('^import\\s+\\w+', code, re.MULTILINE) is not None, re.search('^from\\s+[\\w.]+\\s+import', code, re.MULTILINE) is not None, re.search('@\\w+', code) is not None, re.search('def\\s+\\w+\\s*\\([^)]*\\)\\s*->\\s*\\w+', code) is not None], 'weak': [re.search('\\n\\s+\\S', code) is not None, re.search('#.*$', code, re.MULTILINE) is not None, re.search(':\\s*\\w+(\\s*\\[\\w+\\])?\\s*=', code) is not None]}
         negative_indicators = [re.search('function\\s+\\w+\\s*\\([^)]*\\)\\s*{', code) is not None, code.count(';') > code.count('\n') / 2, re.search('(const|let|var)\\s+\\w+\\s*=', code) is not None, re.search('interface\\s+\\w+\\s*{', code) is not None, re.search('import\\s+{\\s*[^}]+\\s*}\\s+from', code) is not None]
+
+        # Give more weight to Python comments
+        has_python_comments = re.search('#.*$', code, re.MULTILINE) is not None
+
         confidence = 0
         confidence += sum(python_indicators['strong']) * 3
         confidence += sum(python_indicators['medium']) * 2
         confidence += sum(python_indicators['weak']) * 1
         confidence -= sum(negative_indicators) * 4
+
+        # Boost confidence if file contains Python comments
+        if has_python_comments:
+            confidence += 2
+
         confidence_threshold = 2
         if sum(python_indicators['strong']) > 0 and sum(negative_indicators) == 0:
             return True

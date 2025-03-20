@@ -26,14 +26,19 @@ class CodeHem:
         Initialize a language handler for a specific language.
 
         Args:
-            language_code: Code of the language (e.g., 'python', 'javascript')
+        language_code: Code of the language (e.g., 'python', 'javascript')
         """
         self.language_code = language_code
-        self.finder = get_code_finder(language_code)
-        self.manipulator = get_code_manipulator(language_code)
-        self.ast_handler = ASTHandler(language_code)
-        self.formatter = get_formatter(language_code)
-        self.strategy = get_strategy(language_code)
+        # JavaScript uses TypeScript finder but keeps its own language code
+        finder_language = language_code
+        if language_code.lower() == 'javascript':
+            finder_language = 'typescript'
+            self.language_code = 'typescript'
+        self.finder = get_code_finder(finder_language)
+        self.manipulator = get_code_manipulator(finder_language)
+        self.ast_handler = ASTHandler(finder_language)
+        self.formatter = get_formatter(finder_language)
+        self.strategy = get_strategy(finder_language)
 
     @classmethod
     def from_file_path(cls, file_path: str) -> 'CodeHem':

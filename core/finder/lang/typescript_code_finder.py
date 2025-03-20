@@ -17,80 +17,28 @@ class TypeScriptCodeFinder(CodeFinder):
         Returns:
         True if this is TypeScript/JavaScript code, False otherwise
         """
-        ts_js_indicators = {
-            "strong": [
-                re.search("function\\s+\\w+\\s*\\([^)]*\\)\\s*{", code) is not None,
-                re.search("class\\s+\\w+\\s*{", code) is not None,
-                re.search("=>\\s*{", code) is not None,
-                re.search("interface\\s+\\w+\\s*{", code) is not None,
-                re.search("enum\\s+\\w+\\s*{", code) is not None,
-                re.search("import\\s+{\\s*[^}]+\\s*}\\s+from", code) is not None,
-                re.search("const\\s+\\w+\\s*=\\s*function", code) is not None,
-                re.search("var\\s+\\w+\\s*=\\s*function", code) is not None,
-                re.search("let\\s+\\w+\\s*=\\s*function", code) is not None,
-                re.search("angular\\.module", code) is not None,
-                re.search("\\.controller\\(", code) is not None,
-                re.search("\\.directive\\(", code) is not None,
-                re.search("\\.service\\(", code) is not None,
-                re.search("\\.factory\\(", code) is not None,
-                re.search("\\.provider\\(", code) is not None,
-                re.search("\\.config\\(", code) is not None,
-                re.search("\\.run\\(", code) is not None,
-                re.search("this\\.\\w+\\s*=\\s*function", code) is not None,
-                re.search("'use strict';", code) is not None,
-                re.search('"use strict";', code) is not None,
-            ],
-            "medium": [
-                re.search("(const|let|var)\\s+\\w+", code) is not None,
-                re.search("=>", code) is not None,
-                re.search("<\\w+[^>]*>", code) is not None
-                and re.search("</\\w+>", code) is not None,
-                re.search("export\\s+(class|const|function|interface)", code)
-                is not None,
-                re.search("this\\.\\w+\\s*=", code) is not None,
-                re.search("\\$scope", code) is not None,
-                re.search("\\$http", code) is not None,
-                re.search("\\$q", code) is not None,
-                re.search("\\$rootScope", code) is not None,
-            ],
-            "weak": [
-                ";" in code and code.count(";") > code.count("\n") / 5,
-                re.search("//.*$", code, re.MULTILINE) is not None,
-                re.search("{\\s*[\\w]+\\s*:", code) is not None,
-                re.search("function\\(", code) is not None,
-            ],
-        }
+        ts_js_indicators = {'strong': [re.search('function\\s+\\w+\\s*\\([^)]*\\)\\s*{', code) is not None, re.search('class\\s+\\w+\\s*{', code) is not None, re.search('=>\\s*{', code) is not None, re.search('interface\\s+\\w+\\s*{', code) is not None, re.search('enum\\s+\\w+\\s*{', code) is not None, re.search('import\\s+{\\s*[^}]+\\s*}\\s+from', code) is not None, re.search('const\\s+\\w+\\s*=\\s*function', code) is not None, re.search('var\\s+\\w+\\s*=\\s*function', code) is not None, re.search('let\\s+\\w+\\s*=\\s*function', code) is not None, re.search('angular\\.module', code) is not None, re.search('\\.controller\\(', code) is not None, re.search('\\.directive\\(', code) is not None, re.search('\\.service\\(', code) is not None, re.search('\\.factory\\(', code) is not None, re.search('\\.provider\\(', code) is not None, re.search('\\.config\\(', code) is not None, re.search('\\.run\\(', code) is not None, re.search('this\\.\\w+\\s*=\\s*function', code) is not None, re.search("'use strict';", code) is not None, re.search('"use strict";', code) is not None], 'medium': [re.search('(const|let|var)\\s+\\w+', code) is not None, re.search('=>', code) is not None, re.search('<\\w+[^>]*>', code) is not None and re.search('</\\w+>', code) is not None, re.search('export\\s+(class|const|function|interface)', code) is not None, re.search('this\\.\\w+\\s*=', code) is not None, re.search('\\$scope', code) is not None, re.search('\\$http', code) is not None, re.search('\\$q', code) is not None, re.search('\\$rootScope', code) is not None], 'weak': [';' in code and code.count(';') > code.count('\n') / 5, re.search('//.*$', code, re.MULTILINE) is not None, re.search('{\\s*[\\w]+\\s*:', code) is not None, re.search('function\\(', code) is not None]}
+        negative_indicators = [re.search('def\\s+\\w+\\s*\\([^)]*\\)\\s*:', code) is not None, re.search('def\\s+\\w+\\s*\\([^)]*\\)\\s*:\\s*\\n\\s+', code) is not None, re.search('def\\s+\\w+\\s*\\(\\s*self', code) is not None, re.search('@\\w+', code) is not None and (not re.search('@\\w+\\(', code) is not None), re.search('^from\\s+[\\w.]+\\s+import', code, re.MULTILINE) is not None]
 
-        negative_indicators = [
-            re.search("def\\s+\\w+\\s*\\([^)]*\\)\\s*:", code) is not None,
-            re.search("def\\s+\\w+\\s*\\([^)]*\\)\\s*:\\s*\\n\\s+", code) is not None,
-            re.search("def\\s+\\w+\\s*\\(\\s*self", code) is not None,
-            re.search("@\\w+", code) is not None
-            and (not re.search("@\\w+\\(", code) is not None),
-            re.search("^from\\s+[\\w.]+\\s+import", code, re.MULTILINE) is not None,
-        ]
+        # Decrease confidence for comments-only code
+        has_only_comments = re.search('//.*$', code, re.MULTILINE) is not None and not any(re.search(pattern, code) is not None for pattern in ['function', 'class', 'var', 'let', 'const', '{', '}', '=', '=>'])
 
-        # Special case for AngularJS files
-        if (
-            "angular.module" in code
-            or ".controller(" in code
-            or ".service(" in code
-            or ".directive(" in code
-            or ".factory(" in code
-            or ".provider(" in code
-        ):
+        if 'angular.module' in code or '.controller(' in code or '.service(' in code or ('.directive(' in code) or ('.factory(' in code) or ('.provider(' in code):
             return True
 
         confidence = 0
-        confidence += sum(ts_js_indicators["strong"]) * 3
-        confidence += sum(ts_js_indicators["medium"]) * 2
-        confidence += sum(ts_js_indicators["weak"]) * 1
+        confidence += sum(ts_js_indicators['strong']) * 3
+        confidence += sum(ts_js_indicators['medium']) * 2
+        confidence += sum(ts_js_indicators['weak']) * 1
         confidence -= sum(negative_indicators) * 4
+
+        # Reduce confidence for comments-only code
+        if has_only_comments:
+            confidence -= 2
+
         confidence_threshold = 3
-
-        if sum(ts_js_indicators["strong"]) > 0 and sum(negative_indicators) == 0:
+        if sum(ts_js_indicators['strong']) > 0 and sum(negative_indicators) == 0:
             return True
-
         return confidence >= confidence_threshold
 
     def find_function(self, code: str, function_name: str) -> Tuple[int, int]:

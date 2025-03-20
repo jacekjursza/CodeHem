@@ -15,40 +15,19 @@ class PythonCodeManipulator(BaseCodeManipulator):
         (start_line, end_line) = self.finder.find_function(original_code, function_name)
         if start_line == 0 and end_line == 0:
             return original_code
-
-        # Handle decorators by looking backward
-        lines = original_code.splitlines()
+        orig_lines = original_code.splitlines()
         adjusted_start = start_line
         for i in range(start_line - 2, -1, -1):
-            if i < 0 or i >= len(lines):
+            if i < 0 or i >= len(orig_lines):
                 continue
-            line = lines[i].strip()
+            line = orig_lines[i].strip()
             if line.startswith('@'):
                 adjusted_start = i + 1
             elif line and (not line.startswith('#')):
                 break
-
-        # Get base indentation of the original function
-        base_indent = self._get_indentation(lines[adjusted_start - 1]) if adjusted_start <= len(lines) else ''
-
-        # Format the new function with proper indentation
-        formatted_function = []
-        in_func_def = False
-        for line in new_function.splitlines():
-            stripped = line.strip()
-            if not stripped:
-                formatted_function.append('')
-            elif stripped.startswith('@'):
-                formatted_function.append(base_indent + stripped)
-            elif stripped.startswith('def '):
-                formatted_function.append(base_indent + stripped)
-                in_func_def = True
-            elif in_func_def:
-                # Add extra indent for function body
-                formatted_function.append(base_indent + '    ' + stripped)
-
-        # Replace the old function with the new formatted function
-        return self.replace_lines(original_code, adjusted_start, end_line, '\n'.join(formatted_function))
+        base_indent = self._get_indentation(orig_lines[adjusted_start - 1]) if adjusted_start <= len(orig_lines) else ''
+        formatted_function = self._format_python_code_block(new_function.strip(), base_indent)
+        return self.replace_lines(original_code, adjusted_start, end_line, formatted_function)
 
     def replace_class(self, original_code: str, class_name: str, new_class_content: str) -> str:
         from core.utils.format_utils import format_python_class_content
@@ -413,107 +392,76 @@ class PythonCodeManipulator(BaseCodeManipulator):
                     # Class-level attribute or statement
                     formatted_lines.append(f"{method_indent}{line}")
 
-        return '\n'.join(formatted_lines)
+        return "\n".join(formatted_lines)
 
     def _format_python_code_block(self, code: str, base_indent: str) -> str:
+        """Format a Python code block with proper indentation."""
         lines = code.splitlines()
         if not lines:
-            return ''
+            return ""
 
-        # Find decorators and the function/method definition line
-        decorators = []
-        def_line = None
-        def_index = -1
+        # Track indentation levels
+        indent_stack = [0]  # Start with base level
+        formatted_lines = []
+        in_func_def = False
 
         for i, line in enumerate(lines):
             stripped = line.strip()
-            if stripped.startswith('@'):
-                decorators.append(stripped)
-            elif stripped.startswith('def ') or stripped.startswith('async def '):
-                def_line = stripped
-                def_index = i
-                break
+            if not stripped:
+                formatted_lines.append("")
+                continue
 
-        if def_line is None:
-            # If no function definition found, use regular indentation
-            return self._format_code_with_indentation(code, base_indent)
+            # Track function definition
+            if stripped.startswith("def ") or stripped.startswith("async def "):
+                # Get current indentation level from the original line
+                orig_indent = len(line) - len(line.lstrip())
 
-        # Format decorators and function definition
-        formatted_lines = []
-        for decorator in decorators:
-            formatted_lines.append(f'{base_indent}{decorator}')
-
-        formatted_lines.append(f'{base_indent}{def_line}')
-
-        # Format function body
-        body_indent = base_indent + '    '
-
-        # Find the appropriate indentation level for the body
-        min_indent = float('inf')
-        body_lines = lines[def_index+1:]
-
-        for line in body_lines:
-            if line.strip():
-                indent_level = len(line) - len(line.lstrip())
-                min_indent = min(min_indent, indent_level) if indent_level > 0 else min_indent
-
-        if min_indent == float('inf'):
-            min_indent = 4  # Default indentation if we can't determine it
-
-        # Format docstring if present
-        if body_lines and (body_lines[0].strip().startswith('"""') or body_lines[0].strip().startswith("'''")):
-            docstring_delimiter = '"""' if body_lines[0].strip().startswith('"""') else "'''"
-            docstring_lines = []
-            docstring_end_index = 0
-            in_docstring = True
-
-            docstring_lines.append(body_lines[0].strip())
-            for i in range(1, len(body_lines)):
-                docstring_end_index = i
-                line = body_lines[i]
-                docstring_lines.append(line)
-                if docstring_delimiter in line:
-                    in_docstring = False
-                    break
-
-            # Add formatted docstring
-            for i, line in enumerate(docstring_lines):
-                if i == 0:
-                    formatted_lines.append(f'{body_indent}{line.strip()}')
+                # If this is a nested function (indented in the original),
+                # update indent stack accordingly
+                if orig_indent > 0:
+                    while len(indent_stack) > 1 and indent_stack[-1] >= orig_indent:
+                        indent_stack.pop()
+                    if indent_stack[-1] < orig_indent:
+                        indent_stack.append(orig_indent)
                 else:
-                    line_content = line.strip()
-                    if line_content:
-                        formatted_lines.append(f'{body_indent}{line_content}')
-                    else:
-                        formatted_lines.append('')
+                    # Reset to base level for top-level functions
+                    indent_stack = [0]
 
-            # Process remaining body after docstring
-            if not in_docstring and docstring_end_index + 1 < len(body_lines):
-                remaining_body = body_lines[docstring_end_index+1:]
-                for line in remaining_body:
-                    if not line.strip():
-                        formatted_lines.append('')
-                        continue
+                in_func_def = True
+                curr_indent = base_indent + "    " * (len(indent_stack) - 1)
+                formatted_lines.append(f"{curr_indent}{stripped}")
+                continue
 
-                    indent_level = len(line) - len(line.lstrip())
-                    if indent_level >= min_indent:
-                        relative_indent = indent_level - min_indent
-                        formatted_lines.append(f"{body_indent}{' ' * relative_indent}{line.lstrip()}")
-                    else:
-                        formatted_lines.append(f'{body_indent}{line.lstrip()}')
-        else:
-            # Process body without docstring
-            for line in body_lines:
-                if not line.strip():
-                    formatted_lines.append('')
-                    continue
+            # Handle docstring (assumes it's on the line immediately after a function def)
+            if in_func_def and (
+                stripped.startswith('"""') or stripped.startswith("'''")
+            ):
+                # Docstring gets one more level of indentation than the function def
+                curr_indent = base_indent + "    " * len(indent_stack)
+                formatted_lines.append(f"{curr_indent}{stripped}")
+                in_func_def = False
+                continue
 
-                indent_level = len(line) - len(line.lstrip())
-                if indent_level >= min_indent:
-                    relative_indent = indent_level - min_indent
-                    formatted_lines.append(f"{body_indent}{' ' * relative_indent}{line.lstrip()}")
-                else:
-                    formatted_lines.append(f'{body_indent}{line.lstrip()}')
+            # Default indentation based on the indent stack
+            curr_indent = base_indent + "    " * len(indent_stack)
+
+            # Check if we need to increase indentation for code inside a function
+            if not in_func_def:
+                # Get original indentation
+                orig_indent = len(line) - len(line.lstrip())
+
+                # If the line is indented more than the current level, increase indent stack
+                if orig_indent > indent_stack[-1]:
+                    indent_stack.append(orig_indent)
+                    curr_indent = base_indent + "    " * (len(indent_stack) - 1)
+                # If it's indented less, pop levels until we find the right one
+                elif orig_indent < indent_stack[-1]:
+                    while len(indent_stack) > 1 and indent_stack[-1] > orig_indent:
+                        indent_stack.pop()
+                    curr_indent = base_indent + '    ' * (len(indent_stack) - 1)
+
+            formatted_lines.append(f"{curr_indent}{stripped}")
+            in_func_def = False
 
         return '\n'.join(formatted_lines)
 

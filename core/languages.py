@@ -5,18 +5,13 @@ import tree_sitter_python
 import tree_sitter_javascript
 import tree_sitter_typescript
 from tree_sitter import Language, Parser
-
 PY_LANGUAGE = Language(tree_sitter_python.language())
 JS_LANGUAGE = Language(tree_sitter_javascript.language())
 TS_LANGUAGE = Language(tree_sitter_typescript.language_typescript())
 TSX_LANGUAGE = Language(tree_sitter_typescript.language_tsx())
+LANGUAGES = {'python': PY_LANGUAGE, 'javascript': JS_LANGUAGE, 'typescript': TS_LANGUAGE, 'tsx': TSX_LANGUAGE}
+FILE_EXTENSIONS = {'.py': 'python', '.js': 'typescript', '.jsx': 'typescript', '.ts': 'typescript', '.tsx': 'typescript'}
 
-LANGUAGES = {
-    'python': PY_LANGUAGE,
-    'javascript': JS_LANGUAGE,
-    'typescript': TS_LANGUAGE,
-    'tsx': TSX_LANGUAGE,
-}
 _PARSER_CACHE = {}
 
 def get_parser(language_code: str) -> Parser:
@@ -39,7 +34,6 @@ def get_parser(language_code: str) -> Parser:
         _PARSER_CACHE[language_code] = parser
     return _PARSER_CACHE[language_code]
 
-FILE_EXTENSIONS = {'.py': 'python', '.js': 'javascript', '.jsx': 'javascript', '.ts': 'typescript', '.tsx': 'tsx'}
 
 def get_language_for_file(file_path: str) -> str:
     """
