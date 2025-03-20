@@ -63,15 +63,11 @@ class PythonCodeFinder(CodeFinder):
 
     def find_method(self, code: str, class_name: str, method_name: str) -> Tuple[int, int]:
         """Find a method in a Python class using the already working get_methods_from_class method."""
-        print(f"DEBUG - find_method called for {class_name}.{method_name}")
         methods = self.get_methods_from_class(code, class_name)
-        print(f"DEBUG - Methods found by get_methods_from_class: {[m[0] for m in methods]}")
 
         for name, node in methods:
             if name == method_name:
-                print(f"DEBUG - Found method node: {node}")
                 range_info = self.get_node_range(node)
-                print(f"DEBUG - Range info: {range_info}")
                 return range_info
 
         return (0, 0)
@@ -398,7 +394,6 @@ class PythonCodeFinder(CodeFinder):
         Returns:
         List of decorator strings
         """
-        print(f"DEBUG - get_decorators called for: {class_name}.{name if class_name else name}")
         (root, code_bytes) = self._get_tree(code)
         if class_name:
             method_node = None
@@ -408,29 +403,35 @@ class PythonCodeFinder(CodeFinder):
                     method_node = node
                     break
             if not method_node:
-                print(f"DEBUG - No method node found for {class_name}.{name}")
                 return []
+
+            # We need to examine the actual source code for this method to find the decorators
+            method_start, method_end = self.get_node_range(method_node)
+            lines = code.splitlines()
+
+            # Look for decorators in lines before the method definition
             decorators = []
-            if method_node.parent and method_node.parent.type == 'decorated_definition':
-                print(f"DEBUG - Found decorated_definition parent for {name}")
-                for child in method_node.parent.children:
-                    if child.type == 'decorator':
-                        decorator_text = self._get_node_text(child, code_bytes)
-                        # Check if this is a property setter decorator (e.g., @property_name.setter)
-                        setter_match = re.search(r'@(\w+)\.setter', decorator_text)
-                        if setter_match:
-                            print(f"DEBUG - Found property setter decorator: {decorator_text}")
-                            decorators.append(decorator_text)
-                        else:
-                            print(f"DEBUG - Found decorator: {decorator_text}")
-                            decorators.append(decorator_text)
-            for child in method_node.children:
-                if child.type == 'decorator':
-                    decorator_text = self._get_node_text(child, code_bytes)
-                    print(f"DEBUG - Found decorator in method children: {decorator_text}")
-                    if decorator_text not in decorators:
-                        decorators.append(decorator_text)
-            print(f"DEBUG - Returning decorators for {class_name}.{name}: {decorators}")
+            i = method_start - 2  # Start from the line before the method
+            while i >= 0:
+                line = lines[i].strip() if i < len(lines) else ""
+                if line.startswith('@'):
+                    if '.setter' in line:
+                        # This is a property setter decorator
+                        decorators.append(line)
+                    elif line.startswith('@property'):
+                        # This is a property getter decorator
+                        decorators.append(line)
+                    elif line.startswith('@staticmethod') or line.startswith('@classmethod'):
+                        # These are common method decorators
+                        decorators.append(line)
+                    else:
+                        # Other decorator types
+                        decorators.append(line)
+                elif line and not line.startswith('#'):
+                    # We've reached a non-empty, non-comment line that's not a decorator
+                    break
+                i -= 1
+
             return decorators
         else:
             query_str = '(function_definition name: (identifier) @func_name)'
@@ -446,17 +447,21 @@ class PythonCodeFinder(CodeFinder):
                     break
             if not func_node:
                 return []
+
+            # Same approach for standalone functions
+            function_start, function_end = self.get_node_range(func_node)
+            lines = code.splitlines()
+
             decorators = []
-            decorated_parent = func_node.parent
-            if decorated_parent and decorated_parent.type == 'decorated_definition':
-                for child in decorated_parent.children:
-                    if child.type == 'decorator':
-                        decorators.append(self._get_node_text(child, code_bytes))
-            for child in func_node.children:
-                if child.type == 'decorator':
-                    decorator_text = self._get_node_text(child, code_bytes)
-                    if decorator_text not in decorators:
-                        decorators.append(decorator_text)
+            i = function_start - 2
+            while i >= 0:
+                line = lines[i].strip() if i < len(lines) else ""
+                if line.startswith('@'):
+                    decorators.append(line)
+                elif line and not line.startswith('#'):
+                    break
+                i -= 1
+
             return decorators
 
     def get_class_decorators(self, code: str, class_name: str) -> List[str]:
@@ -680,9 +685,6 @@ class PythonCodeFinder(CodeFinder):
         Returns:
         List of parameter dictionaries with name, type (if available), and default value (if available)
         """
-        print(f"\nDEBUG - PythonCodeFinder.get_function_parameters called for: {class_name}.{function_name}")
-        print(f"DEBUG - Code snippet:\n{code[:200]}...")
-
         # Parse the code directly without trying to find the method
         (root, code_bytes) = self._get_tree(code)
 
@@ -691,8 +693,6 @@ class PythonCodeFinder(CodeFinder):
         query = Query(PY_LANGUAGE, query_str)
         raw_captures = query.captures(root, lambda n: code_bytes[n.start_byte:n.end_byte].decode('utf8'))
         captures = self._process_captures(raw_captures)
-
-        print(f"DEBUG - Query captures: {len(captures)}")
 
         # Find parameters node for our function/method
         params_node = None
@@ -706,16 +706,13 @@ class PythonCodeFinder(CodeFinder):
                         break
 
         if not params_node:
-            print("DEBUG - No params node found!")
             return []
 
         # Analyze parameters
         parameters = []
-        print(f"DEBUG - Params node children: {len(params_node.children)}")
 
         for param_node in params_node.children:
             param_type = getattr(param_node, 'type', None)
-            print(f"DEBUG - Processing param node of type: {param_type}")
 
             if param_node.type == 'identifier':
                 param_name = self._get_node_text(param_node, code_bytes)
@@ -762,7 +759,6 @@ class PythonCodeFinder(CodeFinder):
                 if param_name:
                     parameters.append({'name': param_name, 'type': param_type, 'default': default_value})
 
-        print(f"DEBUG - Extracted parameters: {parameters}")
         return parameters
 
     def get_function_return_info(self, code: str, function_name: str, class_name: Optional[str]=None) -> Dict[str, Any]:
@@ -777,7 +773,6 @@ class PythonCodeFinder(CodeFinder):
         Returns:
         Dictionary with return_type and return_values
         """
-        print(f"\nDEBUG - PythonCodeFinder.get_function_return_info called for: {class_name}.{function_name}")
 
         # Parse the code directly
         (root, code_bytes) = self._get_tree(code)
@@ -795,7 +790,6 @@ class PythonCodeFinder(CodeFinder):
                 break
 
         if not function_node:
-            print(f"DEBUG - Function node not found for {function_name}!")
             return {'return_type': None, 'return_values': []}
 
         # Find return type by looking for the '->' token followed by 'type' node
@@ -803,7 +797,6 @@ class PythonCodeFinder(CodeFinder):
         found_arrow = False
 
         for i, child in enumerate(function_node.children):
-            print(f"DEBUG - Child type: {child.type}")
 
             # Look for the '->' token
             if child.type == '->':
@@ -812,7 +805,6 @@ class PythonCodeFinder(CodeFinder):
                 if i + 1 < len(function_node.children) and function_node.children[i + 1].type == 'type':
                     type_node = function_node.children[i + 1]
                     return_type = self._get_node_text(type_node, code_bytes)
-                    print(f"DEBUG - Found return type: {return_type}")
                     break
 
         # Find return values
@@ -823,7 +815,6 @@ class PythonCodeFinder(CodeFinder):
                 for child in node.children:
                     if child.type != 'return':
                         return_val = self._get_node_text(child, code_bytes)
-                        print(f"DEBUG - Found return value: {return_val}")
                         return_values.append(return_val)
             for child in node.children:
                 find_return_statements(child)
@@ -831,5 +822,4 @@ class PythonCodeFinder(CodeFinder):
         find_return_statements(function_node)
 
         result = {'return_type': return_type, 'return_values': return_values}
-        print(f"DEBUG - Return info result: {result}")
         return result

@@ -259,17 +259,13 @@ class ExtractionService:
             method_element = CodeElement(type=element_type, name=method_name, content=method_content, range=CodeRange(start_line=method_range[0], end_line=method_range[1], node=method_node), parent_name=class_name, additional_data={'decorators': decorators})
             self._add_decorator_meta_elements(parent_element=method_element, decorators=decorators, parent_name=f'{class_name}.{method_name}', target_type=element_type.value, target_name=method_name, class_name=class_name)
 
-            print(f"\nDEBUG - Processing parameters for method: {class_name}.{method_name}")
             parameters = self.finder.get_function_parameters(method_content, method_name, class_name)
-            print(f"DEBUG - Parameters found: {parameters}")
 
             for param in parameters:
                 param_element = CodeElement(type=CodeElementType.PARAMETER, name=param['name'], content=param['name'], parent_name=f'{class_name}.{method_name}', value_type=param.get('type'), additional_data={'optional': param.get('optional', False), 'default': param.get('default')})
                 method_element.children.append(param_element)
 
-            print(f"DEBUG - Processing return info for method: {class_name}.{method_name}")
             return_info = self.finder.get_function_return_info(method_content, method_name, class_name)
-            print(f"DEBUG - Return info found: {return_info}")
 
             if return_info['return_type'] or return_info['return_values']:
                 return_element = CodeElement(type=CodeElementType.RETURN_VALUE, name=f'{method_name}_return', content=return_info['return_type'] if return_info['return_type'] else '', parent_name=f'{class_name}.{method_name}', value_type=return_info['return_type'], additional_data={'values': return_info['return_values']})
