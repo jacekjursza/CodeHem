@@ -182,8 +182,6 @@ function Component({ title = "Default Title" }) {
 '''
         
         modified_code = self.manipulator.replace_function(original_code, 'Component', new_component)
-        arr = modified_code.split('\n')
-        print(arr)
 
         # Verify JSX indentation is preserved
         self.assertIn('function Component({ title = "Default Title" }) {', modified_code)
