@@ -82,7 +82,7 @@ CodeHem/
 
 ### Querying Code
 
-handler = LangHem('python')
+handler = CodeHem('python')
 
 code = '''
 class Example:
