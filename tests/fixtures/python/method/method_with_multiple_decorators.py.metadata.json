@@ -1,0 +1,8 @@
+{
+  "class_name": "MyClass",
+  "method_name": "my_method",
+  "start_line": 5,
+  "end_line": 6,
+  "include_extra_start_line": 2,
+  "include_extra_end_line": 6
+}

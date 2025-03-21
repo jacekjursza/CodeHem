@@ -1,0 +1,2 @@
+class AnotherClass:
+    pass

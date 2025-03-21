@@ -1,0 +1,8 @@
+{
+  "class_name": "MyClass",
+  "method_decorators": {
+    "class_method": ["@classmethod"],
+    "static_method": ["@staticmethod"],
+    "my_property": ["@property"]
+  }
+}

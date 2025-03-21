@@ -1,0 +1,4 @@
+{
+  "child_class": "NonExistentClass",
+  "expected_parents": []
+}

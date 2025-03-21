@@ -1,0 +1,7 @@
+{
+  "class_name": "MyClass",
+  "property_name": "my_value",
+  "start_line": 10,
+  "end_line": 13,
+  "include_extra": true
+}

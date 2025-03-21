@@ -1,0 +1,4 @@
+{
+  "original": "@decorator\nclass MyClass:\n    def method(self):\n        print(\"Hello\")\n    ",
+  "expected": "@decorator\nclass MyClass:\n    def method(self):\n        print(\"Hello\")\n    "
+}

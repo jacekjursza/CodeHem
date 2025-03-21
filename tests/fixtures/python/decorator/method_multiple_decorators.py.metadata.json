@@ -1,0 +1,5 @@
+{
+  "class_name": "MyClass",
+  "method_name": "my_method",
+  "expected_decorators": ["@decorator1", "@decorator2", "@decorator3"]
+}

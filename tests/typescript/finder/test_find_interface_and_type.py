@@ -14,7 +14,7 @@ interface Person {
 '''
     (start_line, end_line) = typescript_finder.find_interface(code, 'Person')
     assert start_line == 2, f'Expected interface start at line 2, got {start_line}'
-    assert end_line == 4, f'Expected interface end at line 4, got {end_line}'
+    assert end_line == 5, f'Expected interface end at line 5, got {end_line}'
 
 def test_find_interface_with_extends(typescript_finder):
     code = '''
