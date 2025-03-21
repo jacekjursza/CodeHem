@@ -42,4 +42,5 @@ setup(
             "wheel",
         ],
     },
+    entry_points={'console_scripts': ['codehem=codehem.cli:main']}
 )
