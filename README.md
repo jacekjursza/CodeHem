@@ -17,6 +17,21 @@ classes, methods, and properties across multiple programming languages, includin
 - Python
 - JavaScript / TypeScript (including TSX)
 
+## Installation
+
+### Using pip / pipx
+
+The simplest way to install CodeHem:
+
+```bash
+pip install codehem
+````
+or
+
+```bash
+pipx install codehem
+````
+
 ## Project Structure
 
 ```
@@ -63,20 +78,10 @@ CodeHem/
 │
 └── utils/
     └── logs.py               # Logging utilities
-## Installation
-
-Ensure Python 3.7 or later is installed, then:
-
-```
-
-Dependencies include `tree-sitter` and language-specific parsers.
-
 ## Usage Example
 
 ### Querying Code
 
-
-# Create a handler for Python code
 handler = LangHem('python')
 
 code = '''
@@ -88,12 +93,8 @@ class Example:
 # Find method location
 start, end = handler.finder.find_method(code, 'Example', 'greet')
 print(f'Method found from line {start} to {end}')
-```
-
 ### Manipulating Code
 
-
-handler = LangHem('python')
 
 original_code = '''
 def greet():
@@ -107,7 +108,6 @@ def greet():
 
 modified_code = handler.manipulator.replace_function(original_code, 'greet', new_function)
 ```
-
 
 ## Contributing
 
