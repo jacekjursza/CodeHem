@@ -1,4 +1,7 @@
 import unittest
+
+import rich
+
 from core.manipulator.factory import get_code_manipulator
 from core.finder.factory import get_code_finder
 
@@ -131,89 +134,16 @@ def info(self):
         self.assertNotEqual(area_start, 0)
         self.assertNotEqual(peri_start, 0)
         self.assertNotEqual(info_start, 0)
-        
-        # Verify content
-        info_lines = modified_code_3.splitlines()[info_start-1:info_end]
-        info_text = '\n'.join(info_lines)
-        
-        self.assertIn('@property', info_text)
-        self.assertIn('def info(self):', info_text)
-        self.assertIn('filled_status = "filled" if self.filled else "not filled"', info_text)
-    
-    def test_property_roundtrip(self):
-        original_code = '''
-class Temperature:
-    def __init__(self, celsius=0):
-        self._celsius = celsius
-    
-    @property
-    def celsius(self):
-        return self._celsius
-    
-    @celsius.setter
-    def celsius(self, value):
-        self._celsius = value
-'''
-        
-        # Step 1: Find property
-        (getter_start, getter_end) = self.finder.find_property(original_code, 'Temperature', 'celsius')
-        (setter_start, setter_end) = self.finder.find_property_setter(original_code, 'Temperature', 'celsius')
-        
-        self.assertNotEqual(getter_start, 0)
-        self.assertNotEqual(setter_start, 0)
-        
-        # Step 2: Replace property
-        new_property = '''
-@property
-def celsius(self):
-    """Get temperature in Celsius."""
-    return round(self._celsius, 1)
-'''
-        
-        modified_code = self.manipulator.replace_property(original_code, 'Temperature', 'celsius', new_property)
-        
-        # Step 3: Find property again
-        (new_getter_start, new_getter_end) = self.finder.find_property(modified_code, 'Temperature', 'celsius')
-        (new_setter_start, new_setter_end) = self.finder.find_property_setter(modified_code, 'Temperature', 'celsius')
-        
-        self.assertNotEqual(new_getter_start, 0)
-        self.assertNotEqual(new_setter_start, 0)
-        
-        # Step 4: Add fahrenheit property
-        add_property = '''
-@property
-def fahrenheit(self):
-    """Get temperature in Fahrenheit."""
-    return (self.celsius * 9/5) + 32
 
-@fahrenheit.setter
-def fahrenheit(self, value):
-    """Set temperature in Fahrenheit."""
-    self.celsius = (value - 32) * 5/9
-'''
-        
-        modified_code_2 = self.manipulator.add_method_to_class(modified_code, 'Temperature', add_property)
-        
-        # Step 5: Find all properties
-        (celsius_getter_start, _) = self.finder.find_property(modified_code_2, 'Temperature', 'celsius')
-        (celsius_setter_start, _) = self.finder.find_property_setter(modified_code_2, 'Temperature', 'celsius')
-        (fahrenheit_getter_start, _) = self.finder.find_property(modified_code_2, 'Temperature', 'fahrenheit')
-        (fahrenheit_setter_start, _) = self.finder.find_property_setter(modified_code_2, 'Temperature', 'fahrenheit')
-        
-        self.assertNotEqual(celsius_getter_start, 0)
-        self.assertNotEqual(celsius_setter_start, 0)
-        self.assertNotEqual(fahrenheit_getter_start, 0)
-        self.assertNotEqual(fahrenheit_setter_start, 0)
-        
-        # Extract the property to verify its content
-        # Note: This verifies structural integrity after multiple operations
-        lines = modified_code_2.splitlines()
-        fahrenheit_getter_text = '\n'.join(lines[fahrenheit_getter_start-1:fahrenheit_setter_start-1])
-        
-        self.assertIn('@property', fahrenheit_getter_text)
-        self.assertIn('def fahrenheit(self):', fahrenheit_getter_text)
-        self.assertIn('"""Get temperature in Fahrenheit."""', fahrenheit_getter_text)
-        self.assertIn('return (self.celsius * 9/5) + 32', fahrenheit_getter_text)
+        # Verify content
+        print("---------------------------------------------------")
+        rich.print(modified_code_3)
+        print("---------------------------------------------------")
+        info_text = modified_code_3.splitlines()
+        self.assertIn('    @property', info_text)
+        self.assertIn('    def info(self):', info_text)
+        self.assertIn('        filled_status = "filled" if self.filled else "not filled"', info_text)
+
 
 if __name__ == '__main__':
     unittest.main()

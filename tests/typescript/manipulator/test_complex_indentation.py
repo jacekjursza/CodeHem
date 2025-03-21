@@ -1,4 +1,7 @@
 import unittest
+
+import rich
+
 from core.manipulator.factory import get_code_manipulator
 
 class TestTypeScriptIndentationPreservation(unittest.TestCase):
@@ -273,7 +276,9 @@ const processItems = (items, options = {}) => {
 '''
         
         modified_code = self.manipulator.replace_function(original_code, 'processItems', new_function)
-        
+        print('---------------------------------------')
+        rich.print(modified_code)
+        print('---------------------------------------')
         # Verify arrow function indentation is preserved
         self.assertIn('const processItems = (items, options = {}) => {', modified_code)
         self.assertIn('  const {', modified_code)

@@ -20,6 +20,7 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         (start_line, end_line) = self.finder.find_function(original_code, function_name)
         if start_line == 0 and end_line == 0:
             return original_code
+
         lines = original_code.splitlines()
         adjusted_start = start_line
         for i in range(start_line - 2, -1, -1):
@@ -31,55 +32,11 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
             elif line:
                 break
 
-        func_indent = self._get_indentation(lines[adjusted_start - 1]) if adjusted_start <= len(lines) else ''
-        function_body_indent = func_indent + '    '
+        # Format the new function with proper indentation
+        formatted_function = self.formatter.format_function(new_function.strip())
 
-        # Process JSDoc comments and function body with correct indentation
-        new_func_lines = new_function.strip().splitlines()
-        formatted_lines = []
-        in_jsdoc = False
-        in_func_body = False
-
-        for line in new_func_lines:
-            stripped = line.strip()
-            if not stripped:
-                formatted_lines.append('')
-                continue
-
-            # JSDoc comments handling
-            if stripped.startswith('/**'):
-                in_jsdoc = True
-                formatted_lines.append(f'{func_indent}{stripped}')
-            elif in_jsdoc and stripped == '*/':
-                in_jsdoc = False
-                formatted_lines.append(f'{func_indent} {stripped}')
-            elif in_jsdoc and stripped.startswith('*'):
-                # Ensure proper spacing after asterisk in JSDoc
-                if stripped == '*':
-                    formatted_lines.append(f'{func_indent} *')
-                else:
-                    formatted_lines.append(f'{func_indent} {stripped}')
-            # Function definition
-            elif stripped.startswith('function') or stripped.startswith('async function'):
-                formatted_lines.append(f'{func_indent}{stripped}')
-                if '{' in stripped:
-                    in_func_body = True
-            # Opening brace
-            elif stripped == '{':
-                formatted_lines.append(f'{func_indent}{stripped}')
-                in_func_body = True
-            # Closing brace
-            elif stripped == '}' or stripped == '};':
-                in_func_body = False
-                formatted_lines.append(f'{func_indent}{stripped}')
-            # Function body
-            elif in_func_body:
-                formatted_lines.append(f'{function_body_indent}{stripped}')
-            # Other content
-            else:
-                formatted_lines.append(f'{func_indent}{stripped}')
-
-        return '\n'.join(lines[:adjusted_start - 1] + formatted_lines + lines[end_line:])
+        # Replace the function in the original code
+        return self.replace_lines(original_code, adjusted_start, end_line, formatted_function)
 
     def replace_class(self, original_code: str, class_name: str, new_class_content: str) -> str:
         """
@@ -153,27 +110,18 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
 
         lines = original_code.splitlines()
         class_indent = self._get_indentation(lines[class_start - 1]) if class_start <= len(lines) else ''
-        method_indent = class_indent + '    '  # 4 spaces for class members
+        method_indent = class_indent + '    '
 
         # Format the method with proper indentation
-        new_method_lines = new_method.strip().splitlines()
+        formatted_method = self.formatter.format_method(new_method.strip())
+
+        # Add class-level indentation to the formatted method
         formatted_lines = []
-
-        for i, line in enumerate(new_method_lines):
-            stripped = line.strip()
-            if not stripped:
-                formatted_lines.append('')
-                continue
-
-            if i == 0:  # Method signature
-                formatted_lines.append(f"{method_indent}{stripped}")
-            elif stripped == '}' or stripped == '};':
-                formatted_lines.append(f"{method_indent}{stripped}")
+        for line in formatted_method.splitlines():
+            if line.strip():
+                formatted_lines.append(method_indent + line)
             else:
-                # Method body gets another level of indentation (8 spaces from class level)
-                formatted_lines.append(f"{method_indent}    {stripped}")
-
-        formatted_method = '\n'.join(formatted_lines)
+                formatted_lines.append('')
 
         # Replace the method in the original code
         return '\n'.join(lines[:start_line - 1] + formatted_lines + lines[end_line:])
@@ -194,33 +142,35 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
 
     def add_method_to_class(self, original_code: str, class_name: str, method_code: str) -> str:
         """
-        Add a new method to the specified class, with proper TypeScript indentation.
+        Add a new method to a class, with proper TypeScript indentation.
         """
         (start_line, end_line) = self.finder.find_class(original_code, class_name)
         if start_line == 0 and end_line == 0:
             return original_code
+
         lines = original_code.splitlines()
         class_indent = self._get_indentation(lines[start_line - 1]) if start_line <= len(lines) else ''
         method_indent = class_indent + '    '
-        method_lines = method_code.strip().splitlines()
-        formatted_method_lines = []
-        for (i, line) in enumerate(method_lines):
-            stripped = line.strip()
-            if not stripped:
-                formatted_method_lines.append('')
-                continue
-            if i == 0:
-                formatted_method_lines.append(f'{method_indent}{stripped}')
-            elif stripped == '}' or stripped == '};':
-                formatted_method_lines.append(f'{method_indent}{stripped}')
+
+        # Format the method with proper indentation
+        formatted_method = self.formatter.format_method(method_code.strip())
+
+        # Add class-level indentation to the formatted method
+        formatted_lines = []
+        for line in formatted_method.splitlines():
+            if line.strip():
+                formatted_lines.append(method_indent + line)
             else:
-                formatted_method_lines.append(f'{method_indent}    {stripped}')
-        formatted_method = '\n'.join(formatted_method_lines)
+                formatted_lines.append('')
+
+        # Handle empty class special case
         is_empty_class = True
         for i in range(start_line, min(end_line, len(lines))):
             if lines[i].strip() and (not (lines[i].strip() == '{' or lines[i].strip() == '}')):
                 is_empty_class = False
                 break
+
+        # Insert the method at the appropriate location
         if is_empty_class:
             opening_brace_line = -1
             for i in range(start_line - 1, min(start_line + 3, len(lines))):
@@ -228,9 +178,9 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
                     opening_brace_line = i
                     break
             if opening_brace_line >= 0:
-                modified_lines = lines[:opening_brace_line + 1] + formatted_method_lines + lines[opening_brace_line + 1:]
+                modified_lines = lines[:opening_brace_line + 1] + formatted_lines + lines[opening_brace_line + 1:]
             else:
-                modified_lines = lines[:start_line] + [class_indent + '{', formatted_method, class_indent + '}'] + lines[start_line:]
+                modified_lines = lines[:start_line] + [class_indent + '{', formatted_lines[0]] + formatted_lines[1:] + [class_indent + '}'] + lines[start_line:]
         else:
             closing_brace_line = -1
             for i in range(end_line - 1, start_line - 1, -1):
@@ -239,11 +189,12 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
                     break
             if closing_brace_line > 0:
                 if closing_brace_line > 0 and lines[closing_brace_line - 1].strip():
-                    modified_lines = lines[:closing_brace_line] + [''] + formatted_method_lines + lines[closing_brace_line:]
+                    modified_lines = lines[:closing_brace_line] + [''] + formatted_lines + lines[closing_brace_line:]
                 else:
-                    modified_lines = lines[:closing_brace_line] + formatted_method_lines + lines[closing_brace_line:]
+                    modified_lines = lines[:closing_brace_line] + formatted_lines + lines[closing_brace_line:]
             else:
-                modified_lines = lines[:end_line] + formatted_method_lines + lines[end_line:]
+                modified_lines = lines[:end_line] + formatted_lines + lines[end_line:]
+
         return '\n'.join(modified_lines)
 
     def remove_method_from_class(self, original_code: str, class_name: str, method_name: str) -> str:
@@ -378,12 +329,26 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         if start_line > 0 and start_line <= len(lines):
             original_line = lines[start_line - 1]
             indent = self._get_indentation(original_line)
+
+            # Determine the type of content for appropriate formatting
             is_function = self._is_function_or_method(original_line)
+            is_interface = original_line.strip().startswith('interface ')
+
             if is_function:
-                formatted_content = self._format_typescript_code_block(new_content, indent)
+                formatted_content = self.formatter.format_function(new_content)
+                indented_content = self.formatter.apply_indentation(formatted_content, indent)
+            elif is_interface:
+                if hasattr(self.formatter, 'format_interface'):
+                    formatted_content = self.formatter.format_interface(new_content)
+                    indented_content = self.formatter.apply_indentation(formatted_content, indent)
+                else:
+                    formatted_content = self.formatter.format_code(new_content)
+                    indented_content = self.formatter.apply_indentation(formatted_content, indent)
             else:
-                formatted_content = self._format_code_with_indentation(new_content, indent)
-            return self.replace_lines(original_code, start_line, end_line, formatted_content)
+                formatted_content = self.formatter.format_code(new_content)
+                indented_content = self.formatter.apply_indentation(formatted_content, indent)
+
+            return self.replace_lines(original_code, start_line, end_line, indented_content)
         return original_code
 
     def _is_function_or_method(self, line: str) -> bool:
@@ -398,98 +363,22 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
     def _format_typescript_code_block(self, code: str, base_indent: str) -> str:
         """
         Format a TypeScript code block (function/method) with correct indentation.
-        This handles the TypeScript-specific indentation rules (typically 4 spaces).
+        Uses the TypeScriptFormatter to ensure proper indentation.
         """
-        lines = code.splitlines()
-        if not lines:
-            return ''
-        decorators = []
-        start_index = 0
-        for (i, line) in enumerate(lines):
-            if line.strip().startswith('@'):
-                decorators.append(line.strip())
-                start_index = i + 1
-            else:
-                break
-        if start_index >= len(lines):
-            return '\n'.join([f'{base_indent}{dec}' for dec in decorators])
-        formatted_lines = [f'{base_indent}{dec}' for dec in decorators]
-        signature_line = None
-        body_start_index = start_index
-        for i in range(start_index, len(lines)):
-            line = lines[i].strip()
-            if not signature_line and (line.startswith('function') or line.startswith('async function') or '(' in line):
-                signature_line = line
-                body_start_index = i + 1 if '{' in line else i + 2
-                if not '{' in line:
-                    for j in range(i + 1, len(lines)):
-                        if '{' in lines[j].strip():
-                            body_start_index = j + 1
-                            break
-                break
-        if not signature_line:
-            return self._format_code_with_indentation(code, base_indent)
-        formatted_lines.append(f'{base_indent}{signature_line}')
-        body_indent = base_indent + '    '  # Use 4 spaces rather than 2
-        for i in range(body_start_index, len(lines)):
-            line = lines[i].strip()
-            if line == '}':
-                formatted_lines.append(f'{base_indent}{line}')
-            elif line:
-                formatted_lines.append(f'{body_indent}{line}')
-            else:
-                formatted_lines.append('')
-        return '\n'.join(formatted_lines)
+        return self.formatter.format_function(code)
 
     def _format_property_lines(self, properties: str, indent: str) -> str:
-        """Format class property lines with correct indentation."""
-        lines = properties.splitlines()
-        formatted_lines = []
-        for line in lines:
-            if line.strip():
-                formatted_lines.append(f'{indent}{line.strip()}')
-            else:
-                formatted_lines.append('')
-        return '\n'.join(formatted_lines)
+        """Format class property lines with correct indentation using the formatter."""
+        formatted_properties = self.formatter.format_code(properties)
+        return self.formatter.apply_indentation(formatted_properties, indent)
 
     def _format_code_with_indentation(self, code: str, base_indent: str) -> str:
         """
-        Format general code with indentation (fallback method).
+        Format general code with indentation using the TypeScriptFormatter.
         Used for code that isn't a TypeScript function/method/class.
         """
-        lines = code.splitlines()
-        if not lines:
-            return ''
-        has_indentation = False
-        min_indent = float('inf')
-        for line in lines:
-            if line.strip():
-                spaces = len(line) - len(line.lstrip())
-                if spaces > 0:
-                    has_indentation = True
-                    min_indent = min(min_indent, spaces)
-        if not has_indentation or min_indent == float('inf'):
-            formatted_lines = []
-            for line in lines:
-                if line.strip():
-                    formatted_lines.append(f'{base_indent}{line.strip()}')
-                else:
-                    formatted_lines.append('')
-            return '\n'.join(formatted_lines)
-        else:
-            formatted_lines = []
-            for line in lines:
-                if line.strip():
-                    current_indent = len(line) - len(line.lstrip())
-                    if current_indent >= min_indent:
-                        relative_indent = current_indent - min_indent
-                        # Double the indent to match 4-space indentation
-                        formatted_lines.append(f"{base_indent}{' ' * (2 * relative_indent)}{line.lstrip()}")
-                    else:
-                        formatted_lines.append(f'{base_indent}{line.lstrip()}')
-                else:
-                    formatted_lines.append('')
-            return '\n'.join(formatted_lines)
+        formatted_code = self.formatter.format_code(code)
+        return self.formatter.apply_indentation(formatted_code, base_indent)
 
     def fix_special_characters(self, content: str, xpath: str) -> tuple[str, str]:
         """
@@ -545,35 +434,23 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         lines = original_code.splitlines()
         interface_indent = self._get_indentation(lines[start_line - 1]) if start_line <= len(lines) else ''
 
-        # Process the new interface with correct indentation
-        new_interface_lines = new_interface.strip().splitlines()
+        # Use format_code if format_interface is not available
+        if hasattr(self.formatter, 'format_interface'):
+            formatted_content = self.formatter.format_interface(new_interface.strip())
+        else:
+            formatted_content = self.formatter.format_code(new_interface.strip())
+
+        # Add the base indentation to the formatted interface
         formatted_lines = []
-        brace_count = 0
-
-        for i, line in enumerate(new_interface_lines):
-            stripped = line.strip()
-            if not stripped:
-                formatted_lines.append('')
-                continue
-
-            # Track braces to handle nesting
-            if '{' in stripped:
-                brace_count += 1
-            if '}' in stripped:
-                brace_count -= 1
-
-            # Apply indentation based on line type
-            if i == 0 or stripped == '}':
-                formatted_lines.append(f'{interface_indent}{stripped}')
+        for line in formatted_content.splitlines():
+            if line.strip():
+                formatted_lines.append(interface_indent + line)
             else:
-                formatted_lines.append(f'{interface_indent}  {stripped}')
+                formatted_lines.append('')
 
-        # Replace old interface with new one
+        # Replace the interface in the original code
         result = '\n'.join(lines[:start_line - 1] + formatted_lines + lines[end_line:])
-
-        # Remove any duplicate closing braces
         result = result.replace('}\n}', '}')
-
         return result
 
     def replace_type_alias(self, original_code: str, type_name: str, new_type_alias: str) -> str:

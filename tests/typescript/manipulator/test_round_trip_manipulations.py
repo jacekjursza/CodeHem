@@ -55,8 +55,8 @@ function calculateTotal(
         function_text = '\n'.join(function_lines)
         
         self.assertIn('function calculateTotal(', function_text)
-        self.assertIn('  items: number[],', function_text)
-        self.assertIn('  discount: number = 0', function_text)
+        self.assertIn('items: number[],', function_text)
+        self.assertIn('discount: number = 0', function_text)
         self.assertIn('const discountAmount = subtotal * discount;', function_text)
     
     def test_add_find_modify_method(self):

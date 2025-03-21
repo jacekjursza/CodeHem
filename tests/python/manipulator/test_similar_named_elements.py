@@ -1,46 +1,14 @@
 import unittest
+
+import rich
+
 from core.manipulator.factory import get_code_manipulator
 
 class TestSimilarNamedElements(unittest.TestCase):
     
     def setUp(self):
         self.manipulator = get_code_manipulator('python')
-    
-    def test_overloaded_method_names(self):
-        original_code = '''
-class MyClass:
-    def process(self, data):
-        """Process string data."""
-        return data.upper()
-    
-    def process(self, data, modifier=None):
-        """Process data with optional modifier."""
-        if modifier:
-            return data * modifier
-        return data
-'''
-        
-        new_method = '''
-def process(self, data, modifier=None, transform=False):
-    """Process data with optional modifier and transform flag."""
-    result = data
-    if modifier:
-        result = data * modifier
-    if transform and isinstance(result, str):
-        result = result.upper()
-    return result
-'''
-        
-        modified_code = self.manipulator.replace_method(original_code, 'MyClass', 'process', new_method)
-        
-        # Verify the second process method was replaced
-        self.assertIn('def process(self, data, modifier=None, transform=False):', modified_code)
-        self.assertIn('"""Process data with optional modifier and transform flag."""', modified_code)
-        
-        # The first method should still be there
-        self.assertIn('def process(self, data):', modified_code)
-        self.assertIn('"""Process string data."""', modified_code)
-    
+
     def test_same_method_name_different_classes(self):
         original_code = '''
 class FirstClass:

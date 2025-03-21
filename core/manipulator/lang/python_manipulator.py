@@ -29,7 +29,6 @@ class PythonCodeManipulator(BaseCodeManipulator):
         return self.replace_lines(original_code, adjusted_start, end_line, formatted_function)
 
     def replace_class(self, original_code: str, class_name: str, new_class_content: str) -> str:
-        from core.utils.format_utils import format_python_class_content
         (start_line, end_line) = self.finder.find_class(original_code, class_name)
         if start_line == 0 and end_line == 0:
             return original_code
@@ -43,7 +42,7 @@ class PythonCodeManipulator(BaseCodeManipulator):
                 adjusted_start = i + 1
             elif line and (not line.startswith('#')):
                 break
-        formatted_content = format_python_class_content(new_class_content)
+        formatted_content = new_class_content
         return self.replace_lines(original_code, adjusted_start, end_line, formatted_content)
 
     def replace_method(self, original_code: str, class_name: str, method_name: str, new_method: str) -> str:

@@ -11,32 +11,81 @@ class TypeScriptFormatter(CodeFormatter):
     Handles TypeScript's indentation rules and common patterns.
     """
     
-    def __init__(self, indent_size: int = 2):
+    def __init__(self, indent_size: int=4):
         """
         Initialize a TypeScript formatter.
-        
+
         Args:
-            indent_size: Number of spaces for each indentation level (default: 2)
+        indent_size: Number of spaces for each indentation level (default: 4)
         """
         super().__init__(indent_size)
     
     def format_code(self, code: str) -> str:
         """
         Format TypeScript code according to common standards.
-        
+
         Args:
-            code: TypeScript code to format
-            
+        code: TypeScript code to format
+
         Returns:
-            Formatted TypeScript code
+        Formatted TypeScript code
         """
-        # Basic cleaning
         code = code.strip()
-        
-        # Ensure proper spacing
         code = self._fix_spacing(code)
-        
-        return code
+
+        # For more complex formatting, parse line by line
+        lines = code.splitlines()
+        if len(lines) <= 1:
+            return code
+
+        # Process indentation using brace tracking
+        result = []
+        brace_level = 0
+        jsx_level = 0
+
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                result.append('')
+                continue
+
+            # Handle comments with special indentation
+            if stripped.startswith('//') or stripped.startswith('/*') or stripped.startswith('*'):
+                result.append(self.indent_string * brace_level + stripped)
+                continue
+
+            # Count braces and JSX tags for indentation level
+            open_count = stripped.count('{')
+            close_count = stripped.count('}')
+
+            # Handle JSX indentation
+            open_jsx = stripped.count('<') - stripped.count('</') - stripped.count('/>')
+            close_jsx = stripped.count('</') + stripped.count('/>')
+
+            # Special handling for JSX/TSX
+            jsx_indent = 0
+            if '<' in stripped and '>' in stripped and not stripped.startswith('import'):
+                if open_jsx > close_jsx:
+                    jsx_indent = 1  # Increase indent for next line
+
+            # Handle lines with just closing brace
+            if stripped == '}' or stripped == '};':
+                brace_level = max(0, brace_level - 1)
+                result.append(self.indent_string * brace_level + stripped)
+            else:
+                # Normal line with current indentation (account for both braces and JSX)
+                result.append(self.indent_string * (brace_level + jsx_level) + stripped)
+
+                # Update brace level for next line
+                brace_level += open_count
+                if close_count > 0 and stripped != '}' and stripped != '};':
+                    brace_level = max(0, brace_level - close_count)
+
+                # Update JSX level
+                jsx_level += jsx_indent
+                jsx_level = max(0, jsx_level - (close_jsx if close_jsx > open_jsx else 0))
+
+        return '\n'.join(result)
     
     def format_class(self, class_code: str) -> str:
         """
@@ -95,87 +144,83 @@ class TypeScriptFormatter(CodeFormatter):
     def format_method(self, method_code: str) -> str:
         """
         Format a TypeScript method definition.
-        
+
         Args:
-            method_code: Method code to format
-            
+        method_code: Method code to format
+
         Returns:
-            Formatted method code
+        Formatted method code
         """
-        # Dedent the whole method definition first
-        dedented = self.dedent(method_code).strip()
-        
-        lines = dedented.splitlines()
-        if not lines:
-            return ''
-            
-        result = []
-        
-        # Find opening and closing braces
-        brace_stack = []
-        
-        # Process each line
-        for i, line in enumerate(lines):
-            stripped = line.strip()
-            
-            if not stripped:
-                result.append('')
-                continue
-                
-            # Track braces
-            if '{' in stripped:
-                brace_stack.append((i, '{'))
-                
-            if '}' in stripped and brace_stack:
-                brace_stack.pop()
-                
-            # Determine indentation level
-            indent_level = len(brace_stack)
-            current_indent = self.indent_string * indent_level
-                
-            # Apply proper indentation
-            result.append(f"{current_indent}{stripped}")
-                
-        return '\n'.join(result)
+        # Method formatting is essentially the same as function formatting
+        return self.format_function(method_code)
     
     def format_function(self, function_code: str) -> str:
         """
         Format a TypeScript function definition.
-        
+
         Args:
-            function_code: Function code to format
-            
+        function_code: Function code to format
+
         Returns:
-            Formatted function code
+        Formatted function code
         """
-        # For functions, we can reuse the method formatting logic
-        return self.format_method(function_code)
+        dedented = self.dedent(function_code.strip())
+        lines = dedented.splitlines()
+        if not lines:
+            return ''
+
+        result = []
+        brace_level = 0
+
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                result.append('')
+                continue
+
+            # Handle docstring/comment lines specially to maintain their indentation
+            if stripped.startswith('/*') or stripped.startswith('*') or stripped.startswith('//'):
+                # For first line of comment or standalone comment
+                if brace_level == 0:
+                    result.append(stripped)
+                else:
+                    result.append(self.indent_string * brace_level + stripped)
+                continue
+
+            # Count braces before deciding indentation
+            open_count = stripped.count('{')
+            close_count = stripped.count('}')
+
+            # Lines with just a closing brace reduce level before indenting
+            if stripped == '}' or stripped == '};':
+                brace_level = max(0, brace_level - 1)
+                result.append(self.indent_string * brace_level + stripped)
+            else:
+                # Apply current brace level for indentation
+                result.append(self.indent_string * brace_level + stripped)
+
+                # Update brace level for next line
+                brace_level += open_count
+                if close_count > 0 and stripped != '}' and stripped != '};':
+                    brace_level = max(0, brace_level - close_count)
+
+        return '\n'.join(result)
     
     def _fix_spacing(self, code: str) -> str:
         """
         Fix spacing issues in TypeScript code.
-        
+
         Args:
-            code: TypeScript code to fix
-            
+        code: TypeScript code to fix
+
         Returns:
-            Code with fixed spacing
+        Code with fixed spacing
         """
-        # Fix spacing around operators
-        code = re.sub(r'([^\s=!<>])=([^\s=])', r'\1 = \2', code)  # Assignment
-        code = re.sub(r'([^\s!<>])==[^\s]', r'\1 == \2', code)  # Equality
-        code = re.sub(r'([^\s])([+\-*/%])', r'\1 \2', code)  # Binary operators
-        
-        # Fix spacing after commas
+        code = re.sub(r'([^\s=!<>])=([^\s=])', r'\1 = \2', code)
+        code = re.sub(r'([^\s!<>])==([^\s])', r'\1 == \2', code)  # Fixed: Added capture group
+        code = re.sub(r'([^\s])([+\-*/%])', r'\1 \2', code)
         code = re.sub(r',([^\s])', r', \1', code)
-        
-        # Fix spacing around colons in object literals and types
         code = re.sub(r'([^\s]):([^\s])', r'\1: \2', code)
-        
-        # Fix spacing after semicolons
         code = re.sub(r';([^\s\n])', r';\n\1', code)
-        
-        # Fix blank lines
-        code = re.sub(r'\n\s*\n\s*\n', '\n\n', code)
-        
+        code = re.sub(r'\n\s*\n\s*\n', r'\n\n', code)
         return code
