@@ -30,9 +30,9 @@ class CodeRange(BaseModel):
     start_line: int
     end_line: int
     node: Any = None  # tree-sitter Node object (not serializable directly)
-    
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {
+        'arbitrary_types_allowed': True
+    }
 
 class CodeElement(BaseModel):
     """Unified model for all code elements"""

@@ -108,10 +108,6 @@ def greet():
 modified_code = handler.manipulator.replace_function(original_code, 'greet', new_function)
 ```
 
-## Adding Support for New Languages
-
-CodeHem is designed to be extensible to support multiple programming languages. 
-See the [Adding a New Language](docs/adding_new_language.md) guide for detailed instructions.
 
 ## Contributing
 
