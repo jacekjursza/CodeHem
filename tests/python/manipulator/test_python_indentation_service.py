@@ -1,7 +1,6 @@
 import unittest
-from textwrap import dedent
 
-from core.services.python_indentation_service import PythonIndentationService
+from codehem.core.services.python_indentation_service import PythonIndentationService
 
 class TestPythonIndentationService(unittest.TestCase):
     """Test suite for PythonIndentationService."""

@@ -1,5 +1,5 @@
 import pytest
-from core.finder import get_code_finder
+from codehem.core.finder import get_code_finder
 
 @pytest.fixture
 def typescript_finder():

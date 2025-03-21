@@ -1,8 +1,6 @@
 import unittest
 
-import rich
-
-from core.manipulator.factory import get_code_manipulator
+from codehem.core.manipulator.factory import get_code_manipulator
 
 class TestSimilarNamedElements(unittest.TestCase):
     

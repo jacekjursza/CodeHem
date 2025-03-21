@@ -216,7 +216,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="CodeHem",
-    version="0.1.0",
+    version="0.1.4",
     author="JAacek Jursza",
     author_email="jacek.jursza@gmail.com",
     description="A language-agnostic library for code querying and manipulation",

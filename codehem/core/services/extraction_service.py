@@ -5,7 +5,7 @@ Extraction service for code elements with deterministic property handling.
 from typing import List, Optional, Set, Dict, Any
 import re
 from tree_sitter import Node
-from core.models import CodeElementsResult, CodeElement, CodeElementType, CodeRange, MetaElementType
+from codehem.core.models import CodeElementsResult, CodeElement, CodeElementType, CodeRange, MetaElementType
 
 class ExtractionService:
     """Service for extracting code elements from source code."""

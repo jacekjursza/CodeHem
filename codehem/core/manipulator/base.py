@@ -1,6 +1,6 @@
-from core.finder.factory import get_code_finder
-from core.manipulator.abstract import AbstractCodeManipulator
-from core.formatting import get_formatter
+from codehem.core.finder.factory import get_code_finder
+from codehem.core.manipulator.abstract import AbstractCodeManipulator
+from codehem.core.formatting import get_formatter
 
 class BaseCodeManipulator(AbstractCodeManipulator):
 

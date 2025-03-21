@@ -2,7 +2,7 @@
 # test_replace_properties_section.py
 import pytest
 
-from core.manipulator.factory import get_code_manipulator
+from codehem.core.manipulator.factory import get_code_manipulator
 
 
 @pytest.fixture

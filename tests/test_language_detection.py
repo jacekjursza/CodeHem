@@ -1,9 +1,8 @@
 import unittest
-import os
-from main import CodeHem
-from core.finder.factory import get_code_finder
-from core.finder.lang.python_code_finder import PythonCodeFinder
-from core.finder.lang.typescript_code_finder import TypeScriptCodeFinder
+from codehem.main import CodeHem
+from codehem.core.finder import get_code_finder
+from codehem.core.finder.lang.python_code_finder import PythonCodeFinder
+from codehem.core.finder import TypeScriptCodeFinder
 
 class TestLanguageDetection(unittest.TestCase):
     """Test suite for the language detection capabilities of CodeHem."""

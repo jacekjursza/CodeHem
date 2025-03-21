@@ -1,5 +1,5 @@
 import unittest
-from core.manipulator.factory import get_code_manipulator
+from codehem.core.manipulator.factory import get_code_manipulator
 
 class TestDecoratorEdgeCases(unittest.TestCase):
     

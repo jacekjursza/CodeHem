@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Any, List, Optional
-from core.ast_handler import ASTHandler
-from core.query_builder import QueryBuilder
+from codehem.core.ast_handler import ASTHandler
+from codehem.core.query_builder import QueryBuilder
 from tree_sitter import Node
 
-from core.languages import get_parser
+from codehem.core.languages import get_parser
 
 
 class CodeFinder(ABC):

@@ -1,8 +1,8 @@
 import os
 import re
-from core.finder.lang.python_code_finder import PythonCodeFinder
-from core.manipulator.base import BaseCodeManipulator
-from core.services.python_indentation_service import PythonIndentationService
+from codehem.core.finder.lang.python_code_finder import PythonCodeFinder
+from codehem.core.manipulator.base import BaseCodeManipulator
+from codehem.core.services.python_indentation_service import PythonIndentationService
 
 class PythonCodeManipulator(BaseCodeManipulator):
 

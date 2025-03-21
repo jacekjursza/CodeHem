@@ -1,9 +1,7 @@
 import unittest
 
-import rich
-
-from core.models import CodeElementsResult, CodeElementType, MetaElementType
-from main import CodeHem
+from codehem.core.models import CodeElementsResult, CodeElementType, MetaElementType
+from codehem.main import CodeHem
 
 class TestExtractCodeElements(unittest.TestCase):
     """Test suite for the CodeHem extract_code_elements method."""

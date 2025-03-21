@@ -1,5 +1,5 @@
 import pytest
-from core.finder.factory import get_code_finder
+from codehem.core.finder import get_code_finder
 from tests.helpers.code_examples import TestHelper
 
 @pytest.fixture

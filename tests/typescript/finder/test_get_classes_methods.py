@@ -1,5 +1,5 @@
 import pytest
-from core.finder import get_code_finder
+from codehem.core.finder import get_code_finder
 from tree_sitter import Node
 
 @pytest.fixture

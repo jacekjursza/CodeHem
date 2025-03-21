@@ -5,15 +5,15 @@ Provides a unified interface for language-specific operations.
 import re
 import os
 from typing import Optional
-from core.ast_handler import ASTHandler
-from core.formatting import get_formatter
-from core.languages import get_language_for_file, FILE_EXTENSIONS
-from core.manipulator.factory import get_code_manipulator
-from core.models import CodeElementsResult, CodeElement, CodeElementType, CodeRange, MetaElementType
-from core.services.extraction_service import ExtractionService
-from core.strategies import get_strategy
-from core.finder.factory import get_code_finder
-from core.utils.logs import logger
+from codehem.core.ast_handler import ASTHandler
+from codehem.core.formatting import get_formatter
+from codehem.core.languages import get_language_for_file, FILE_EXTENSIONS
+from codehem.core.manipulator.factory import get_code_manipulator
+from codehem.core.models import CodeElementsResult, CodeElement, CodeElementType
+from codehem.core.services.extraction_service import ExtractionService
+from codehem.core.strategies import get_strategy
+from codehem.core.finder.factory import get_code_finder
+from codehem.core.utils.logs import logger
 
 class CodeHem:
     """

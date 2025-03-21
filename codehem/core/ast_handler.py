@@ -6,8 +6,8 @@ from typing import Tuple, List, Any, Optional, Dict
 from rich.console import Console
 from tree_sitter import Node, Query
 
-from core.caching import cached
-from core.languages import get_parser, LANGUAGES
+from codehem.core.caching import cached
+from codehem.core.languages import get_parser, LANGUAGES
 
 
 class ASTHandler:

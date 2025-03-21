@@ -1,6 +1,6 @@
 import unittest
-from core.models import CodeElementsResult, CodeElement, CodeElementType, CodeRange, MetaElementType
-from main import CodeHem
+from codehem.core.models import CodeElementsResult, CodeElement, CodeElementType, CodeRange
+from codehem.main import CodeHem
 
 class TestCodeHemFilter(unittest.TestCase):
     """Test cases for the CodeHem filter method."""

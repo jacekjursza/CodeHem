@@ -1,31 +1,45 @@
 from setuptools import setup, find_packages
+
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
 setup(
-    name='codehem', 
-    version='0.1.1', 
-    description='Language-agnostic library for code querying and manipulation', 
-    long_description=open('README.md').read(), 
-    long_description_content_type='text/markdown', 
-    author='Jacek Jursza', 
-    url='https://github.com/jacekjursza/CodeHem', 
-    packages=find_packages(), 
-    install_requires=[
-        'tree-sitter', 
-        'tree-sitter-python', 
-        'tree-sitter-javascript', 
-        'tree-sitter-typescript', 
-        'rich', 
-        'pydantic'
-    ], 
+    name="CodeHem",
+    version="0.1.5",
+    author="Jacek Jursza",
+    author_email="jacek.jursza@gmail.com",
+    description="A language-agnostic library for code querying and manipulation",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/jacekjursza/CodeHem",
+    packages=find_packages(),
     classifiers=[
-        'Development Status :: 3 - Alpha', 
-        'Intended Audience :: Developers', 
-        'License :: OSI Approved :: MIT License', 
-        'Programming Language :: Python :: 3', 
-        'Programming Language :: Python :: 3.7', 
-        'Programming Language :: Python :: 3.8', 
-        'Programming Language :: Python :: 3.9', 
-        'Programming Language :: Python :: 3.10'
-    ], 
-    python_requires='>=3.7', 
-    entry_points={'console_scripts': ['codehem=codehem.cli:main']}
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+    ],
+    python_requires=">=3.7",
+    install_requires=[
+        "tree-sitter==0.24.0",
+        "tree-sitter-javascript==0.23.1",
+        "tree-sitter-python==0.23.6",
+        "tree-sitter-typescript==0.23.2",
+        "typing_extensions==4.12.2",
+        "rich==13.9.4",
+        "pydantic==2.10.6",
+        "pydantic_core==2.27.2",
+        "setuptools>=77.0.1",
+    ],
+    extras_require={
+        "dev": [
+            "pytest>=7.0.0",
+            "pytest-cov>=3.0.0",
+            "twine",
+            "build",
+            "wheel",
+        ],
+    },
 )

@@ -1,6 +1,6 @@
 import unittest
-from core.manipulator.factory import get_code_manipulator
-from core.finder.factory import get_code_finder
+from codehem.core.manipulator.factory import get_code_manipulator
+from codehem.core.finder import get_code_finder
 
 class TestTypeScriptRoundTrip(unittest.TestCase):
     

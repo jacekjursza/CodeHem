@@ -1,8 +1,8 @@
 import re
 from typing import Tuple, List, Optional, Dict, Any
 from tree_sitter import Query, Node
-from core.finder.base import CodeFinder
-from core.languages import TS_LANGUAGE
+from codehem.core.finder.base import CodeFinder
+from codehem.core.languages import TS_LANGUAGE
 from rich.console import Console
 
 class TypeScriptCodeFinder(CodeFinder):

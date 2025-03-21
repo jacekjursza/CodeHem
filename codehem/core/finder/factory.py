@@ -1,6 +1,6 @@
-from core.finder.base import CodeFinder
-from core.finder.lang.python_code_finder import PythonCodeFinder
-from core.finder.lang.typescript_code_finder import TypeScriptCodeFinder
+from codehem.core.finder.base import CodeFinder
+from codehem.core.finder.lang.python_code_finder import PythonCodeFinder
+from codehem.core.finder.lang.typescript_code_finder import TypeScriptCodeFinder
 
 def get_code_finder(language: str) -> CodeFinder:
     if language.lower() == 'python':
