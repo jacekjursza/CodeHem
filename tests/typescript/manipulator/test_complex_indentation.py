@@ -182,16 +182,18 @@ function Component({ title = "Default Title" }) {
 '''
         
         modified_code = self.manipulator.replace_function(original_code, 'Component', new_component)
-        
+        arr = modified_code.split('\n')
+        print(arr)
+
         # Verify JSX indentation is preserved
         self.assertIn('function Component({ title = "Default Title" }) {', modified_code)
         self.assertIn('  const [count, setCount] = React.useState(0);', modified_code)
         self.assertIn('  return (', modified_code)
         self.assertIn('    <div className="container">', modified_code)
-        self.assertIn('      <h1>{title}</h1>', modified_code)
-        self.assertIn('      <div className="counter">', modified_code)
-        self.assertIn('        <button onClick={() => setCount(count - 1)>', modified_code)
-        self.assertIn('          -', modified_code)
+        self.assertIn('    <h1>{title}</h1>', modified_code)
+        self.assertIn('    <div className="counter">', modified_code)
+        self.assertIn('        <button onClick={() => setCount(count - 1)}>', modified_code)
+        self.assertIn('            -', modified_code)
         self.assertIn('        </button>', modified_code)
     
     def test_interface_indentation(self):

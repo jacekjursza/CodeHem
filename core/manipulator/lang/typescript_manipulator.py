@@ -32,6 +32,9 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
             elif line:
                 break
 
+        # Check if the function contains JSX
+        has_jsx = '<' in new_function and '>' in new_function and not 'import' in new_function.split('\n')[0]
+
         # Format the new function with proper indentation
         formatted_function = self.formatter.format_function(new_function.strip())
 
@@ -329,11 +332,8 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         if start_line > 0 and start_line <= len(lines):
             original_line = lines[start_line - 1]
             indent = self._get_indentation(original_line)
-
-            # Determine the type of content for appropriate formatting
             is_function = self._is_function_or_method(original_line)
             is_interface = original_line.strip().startswith('interface ')
-
             if is_function:
                 formatted_content = self.formatter.format_function(new_content)
                 indented_content = self.formatter.apply_indentation(formatted_content, indent)
@@ -347,7 +347,6 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
             else:
                 formatted_content = self.formatter.format_code(new_content)
                 indented_content = self.formatter.apply_indentation(formatted_content, indent)
-
             return self.replace_lines(original_code, start_line, end_line, indented_content)
         return original_code
 
@@ -430,25 +429,21 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         (start_line, end_line) = self.finder.find_interface(original_code, interface_name)
         if start_line == 0 and end_line == 0:
             return original_code
-
         lines = original_code.splitlines()
         interface_indent = self._get_indentation(lines[start_line - 1]) if start_line <= len(lines) else ''
 
-        # Use format_code if format_interface is not available
+        # Use format_interface if available
         if hasattr(self.formatter, 'format_interface'):
             formatted_content = self.formatter.format_interface(new_interface.strip())
         else:
             formatted_content = self.formatter.format_code(new_interface.strip())
 
-        # Add the base indentation to the formatted interface
         formatted_lines = []
         for line in formatted_content.splitlines():
             if line.strip():
                 formatted_lines.append(interface_indent + line)
             else:
                 formatted_lines.append('')
-
-        # Replace the interface in the original code
         result = '\n'.join(lines[:start_line - 1] + formatted_lines + lines[end_line:])
         result = result.replace('}\n}', '}')
         return result
