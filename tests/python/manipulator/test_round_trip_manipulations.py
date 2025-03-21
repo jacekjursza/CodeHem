@@ -9,42 +9,17 @@ class TestRoundTripManipulations(unittest.TestCase):
         self.finder = get_code_finder('python')
     
     def test_modify_and_find_function(self):
-        original_code = '''
-def calculate_total(items, tax_rate=0.0):
-    """Calculate total cost with tax."""
-    subtotal = sum(items)
-    tax = subtotal * tax_rate
-    return subtotal + tax
-'''
-        
-        # Step 1: Find the function
+        original_code = '\ndef calculate_total(items, tax_rate=0.0):\n    """Calculate total cost with tax."""\n    subtotal = sum(items)\n    tax = subtotal * tax_rate\n    return subtotal + tax\n'
         (start_line, end_line) = self.finder.find_function(original_code, 'calculate_total')
         self.assertEqual(start_line, 2)
-        self.assertEqual(end_line, 5)
-        
-        # Step 2: Modify the function
-        new_function = '''
-def calculate_total(items, tax_rate=0.0, discount=0.0):
-    """Calculate total cost with tax and discount."""
-    subtotal = sum(items)
-    tax = subtotal * tax_rate
-    discounted = subtotal * (1 - discount)
-    return discounted + tax
-'''
-        
+        self.assertEqual(end_line, 6)  # Changed from 5 to 6 to match actual end line
+        new_function = '\ndef calculate_total(items, tax_rate=0.0, discount=0.0):\n    """Calculate total cost with tax and discount."""\n    subtotal = sum(items)\n    tax = subtotal * tax_rate\n    discounted = subtotal * (1 - discount)\n    return discounted + tax\n'
         modified_code = self.manipulator.replace_function(original_code, 'calculate_total', new_function)
-        
-        # Step 3: Find the function again
         (new_start_line, new_end_line) = self.finder.find_function(modified_code, 'calculate_total')
-        
-        # Verify it's still findable
         self.assertNotEqual(new_start_line, 0)
         self.assertNotEqual(new_end_line, 0)
-        
-        # Extract the function to verify its content
-        function_lines = modified_code.splitlines()[new_start_line-1:new_end_line]
+        function_lines = modified_code.splitlines()[new_start_line - 1:new_end_line]
         function_text = '\n'.join(function_lines)
-        
         self.assertIn('def calculate_total(items, tax_rate=0.0, discount=0.0):', function_text)
         self.assertIn('discounted = subtotal * (1 - discount)', function_text)
     

@@ -30,25 +30,95 @@ class CodeFinder(ABC):
         pass
 
     @abstractmethod
-    def find_function(self, code: str, function_name: str) -> Tuple[int, int]:
+    def find_function(self, code: str, function_name: str, include_extra: bool = False) -> Tuple[int, int]:
+        """
+        Find a function in the code.
+        
+        Args:
+            code: Source code as string
+            function_name: Name of the function to find
+            include_extra: Whether to include decorators in the returned range
+            
+        Returns:
+            Tuple of (start_line, end_line) or (0, 0) if not found
+        """
         pass
 
     @abstractmethod
-    def find_class(self, code: str, class_name: str) -> Tuple[int, int]:
+    def find_class(self, code: str, class_name: str, include_extra: bool = False) -> Tuple[int, int]:
+        """
+        Find a class in the code.
+        
+        Args:
+            code: Source code as string
+            class_name: Name of the class to find
+            include_extra: Whether to include decorators in the returned range
+            
+        Returns:
+            Tuple of (start_line, end_line) or (0, 0) if not found
+        """
         pass
 
     @abstractmethod
-    def find_method(self, code: str, class_name: str, method_name: str) -> Tuple[int, int]:
+    def find_method(self, code: str, class_name: str, method_name: str, include_extra: bool = False) -> Tuple[int, int]:
+        """
+        Find a method in a class.
+        
+        Args:
+            code: Source code as string
+            class_name: Name of the class containing the method
+            method_name: Name of the method to find
+            include_extra: Whether to include decorators in the returned range
+            
+        Returns:
+            Tuple of (start_line, end_line) or (0, 0) if not found
+        """
         pass
 
     @abstractmethod
-    def find_property(self, code: str, class_name: str, property_name: str) -> Tuple[int, int]:
+    def find_property(self, code: str, class_name: str, property_name: str, include_extra: bool = False) -> Tuple[int, int]:
+        """
+        Find a property getter in a class.
+        
+        Args:
+            code: Source code as string
+            class_name: Name of the class containing the property
+            property_name: Name of the property to find
+            include_extra: Whether to include decorators in the returned range
+            
+        Returns:
+            Tuple of (start_line, end_line) or (0, 0) if not found
+        """
         pass
 
-    def find_property_setter(self, code: str, class_name: str, property_name: str) -> Tuple[int, int]:
+    def find_property_setter(self, code: str, class_name: str, property_name: str, include_extra: bool = False) -> Tuple[int, int]:
+        """
+        Find a property setter in a class.
+        
+        Args:
+            code: Source code as string
+            class_name: Name of the class containing the property
+            property_name: Name of the property to find
+            include_extra: Whether to include decorators in the returned range
+            
+        Returns:
+            Tuple of (start_line, end_line) or (0, 0) if not found
+        """
         return (0, 0)
 
-    def find_property_and_setter(self, code: str, class_name: str, property_name: str) -> Tuple[int, int]:
+    def find_property_and_setter(self, code: str, class_name: str, property_name: str, include_extra: bool = False) -> Tuple[int, int]:
+        """
+        Find both a property getter and its setter in a class.
+        
+        Args:
+            code: Source code as string
+            class_name: Name of the class containing the property
+            property_name: Name of the property to find
+            include_extra: Whether to include decorators in the returned range
+            
+        Returns:
+            Tuple of (start_line, end_line) covering both getter and setter, or (0, 0) if not found
+        """
         return (0, 0)
 
     def get_class_with_updated_property(self, code: str, class_name: str, property_name: str, new_property_code: str) -> str:

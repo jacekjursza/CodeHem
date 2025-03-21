@@ -1,31 +1,18 @@
 import pytest
-
 from core.finder.factory import get_code_finder
-
+from tests.helpers.code_examples import TestHelper
 
 @pytest.fixture
 def python_finder():
     return get_code_finder('python')
 
 def test_find_properties_section_simple(python_finder):
-    code = '''
-class MyClass:
-    x = 1
-    y = 2
-    z = "test"
-    
-    def method(self):
-        pass
-'''
-    (start_line, end_line) = python_finder.find_properties_section(code, 'MyClass')
-    assert start_line == 3, f'Expected properties section start at line 3, got {start_line}'
-    assert end_line == 5, f'Expected properties section end at line 5, got {end_line}'
+    example = TestHelper.load_example('properties_section_simple.py', category='property_section')
+    (start_line, end_line) = python_finder.find_properties_section(example.content, example.class_name)
+    assert start_line == example.expected_start_line, f'Expected properties section start at line {example.expected_start_line}, got {start_line}'
+    assert end_line == example.expected_end_line, f'Expected properties section end at line {example.expected_end_line}, got {end_line}'
 
 def test_find_properties_section_none(python_finder):
-    code = '''
-class MyClass:
-    def method(self):
-        pass
-'''
-    (start_line, end_line) = python_finder.find_properties_section(code, 'MyClass')
-    assert start_line == 0 and end_line == 0, 'Expected no properties section when no properties'
+    example = TestHelper.load_example('properties_section_none.py', category='property_section')
+    (start_line, end_line) = python_finder.find_properties_section(example.content, example.class_name)
+    assert start_line == example.expected_start_line and end_line == example.expected_end_line, 'Expected no properties section when no properties'

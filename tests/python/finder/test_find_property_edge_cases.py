@@ -1,7 +1,6 @@
 import pytest
-
 from core.finder.factory import get_code_finder
-
+from tests.helpers.code_examples import TestHelper
 
 @pytest.fixture
 def python_finder():
@@ -9,37 +8,28 @@ def python_finder():
 
 def test_find_property_setter_before_getter(python_finder):
     """Test finding a property when the setter is defined before the getter."""
-    code = '''
-class MyClass:
-    @my_value.setter
-    def my_value(self, value):
-        self._value = value
-        
-    @property
-    def my_value(self):
-        return self._value
-'''
-    (start_line, end_line) = python_finder.find_property(code, 'MyClass', 'my_value')
-    assert start_line == 7, f'Expected property start at line 7, got {start_line}'
-    assert end_line == 9, f'Expected property end at line 9, got {end_line}'
+    example = TestHelper.load_example("property_setter_before_getter.py", category="property")
+    
+    (start_line, end_line) = python_finder.find_property(
+        example.content,
+        example.class_name,
+        example.property_name,
+        include_extra=example.include_extra
+    )
+    
+    assert start_line == example.expected_start_line, f'Expected property start at line {example.expected_start_line}, got {start_line}'
+    assert end_line == example.expected_end_line, f'Expected property end at line {example.expected_end_line}, got {end_line}'
 
 def test_find_property_among_other_decorators(python_finder):
-        """Test finding a property that has multiple decorators."""
-        code = '''
-    class MyClass:
-        @staticmethod
-        def static_method():
-            pass
-
-        @classmethod
-        def class_method(cls):
-            pass
-
-        @custom_decorator
-        @property
-        def my_value(self):
-            return self._value
-    '''
-        (start_line, end_line) = python_finder.find_property(code, 'MyClass', 'my_value')
-        assert start_line == 11, f'Expected property start at line 11, got {start_line}'
-        assert end_line == 14, f'Expected property end at line 14, got {end_line}'
+    """Test finding a property that has multiple decorators."""
+    example = TestHelper.load_example("property_among_other_decorators.py", category="property")
+    
+    (start_line, end_line) = python_finder.find_property(
+        example.content,
+        example.class_name,
+        example.property_name,
+        include_extra=example.include_extra
+    )
+    
+    assert start_line == example.expected_start_line, f'Expected property start at line {example.expected_start_line}, got {start_line}'
+    assert end_line == example.expected_end_line, f'Expected property end at line {example.expected_end_line}, got {end_line}'

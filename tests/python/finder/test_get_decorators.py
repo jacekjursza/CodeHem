@@ -1,79 +1,42 @@
 import pytest
-
 from core.finder.factory import get_code_finder
-
+from tests.helpers.code_examples import TestHelper
 
 @pytest.fixture
 def python_finder():
     return get_code_finder('python')
 
 def test_get_function_decorators(python_finder):
-    code = '''
-@decorator1
-@decorator2
-def my_function():
-    return "Hello"
-'''
-    decorators = python_finder.get_decorators(code, 'my_function')
-    assert len(decorators) == 2, f'Expected 2 decorators, got {len(decorators)}'
-    assert '@decorator1' in decorators, 'Expected @decorator1 in decorators'
-    assert '@decorator2' in decorators, 'Expected @decorator2 in decorators'
+    example = TestHelper.load_example('function_decorators.py', category='decorator')
+    decorators = python_finder.get_decorators(example.content, example.metadata['function_name'])
+    assert len(decorators) == len(example.metadata['expected_decorators']), f'Expected {len(example.metadata["expected_decorators"])} decorators, got {len(decorators)}'
+    for expected_decorator in example.metadata['expected_decorators']:
+        assert expected_decorator in decorators, f'Expected {expected_decorator} in decorators'
 
 def test_get_method_decorators(python_finder):
-    code = '''
-class MyClass:
-    @classmethod
-    def class_method(cls):
-        return "Class Method"
-        
-    @staticmethod
-    def static_method():
-        return "Static Method"
-        
-    @property
-    def my_property(self):
-        return "Property"
-'''
-    classmethod_decorators = python_finder.get_decorators(code, 'class_method', 'MyClass')
-    assert len(classmethod_decorators) == 1, f'Expected 1 decorator, got {len(classmethod_decorators)}'
-    assert '@classmethod' in classmethod_decorators, 'Expected @classmethod in decorators'
+    example = TestHelper.load_example('method_decorators.py', category='decorator')
+    class_name = example.metadata['class_name']
+    method_decorators = example.metadata['method_decorators']
     
-    staticmethod_decorators = python_finder.get_decorators(code, 'static_method', 'MyClass')
-    assert len(staticmethod_decorators) == 1, f'Expected 1 decorator, got {len(staticmethod_decorators)}'
-    assert '@staticmethod' in staticmethod_decorators, 'Expected @staticmethod in decorators'
-    
-    property_decorators = python_finder.get_decorators(code, 'my_property', 'MyClass')
-    assert len(property_decorators) == 1, f'Expected 1 decorator, got {len(property_decorators)}'
-    assert '@property' in property_decorators, 'Expected @property in decorators'
+    for method_name, expected_decorators in method_decorators.items():
+        decorators = python_finder.get_decorators(example.content, method_name, class_name)
+        assert len(decorators) == len(expected_decorators), f'Expected {len(expected_decorators)} decorator for {method_name}, got {len(decorators)}'
+        for expected_decorator in expected_decorators:
+            assert expected_decorator in decorators, f'Expected {expected_decorator} in decorators for {method_name}'
 
 def test_get_function_no_decorators(python_finder):
-    code = '''
-def my_function():
-    return "Hello"
-'''
-    decorators = python_finder.get_decorators(code, 'my_function')
-    assert len(decorators) == 0, f'Expected 0 decorators, got {len(decorators)}'
+    example = TestHelper.load_example('function_no_decorators.py', category='decorator')
+    decorators = python_finder.get_decorators(example.content, example.metadata['function_name'])
+    assert len(decorators) == len(example.metadata['expected_decorators']), f'Expected {len(example.metadata["expected_decorators"])} decorators, got {len(decorators)}'
 
 def test_get_method_no_decorators(python_finder):
-    code = '''
-class MyClass:
-    def my_method(self):
-        return "Hello"
-'''
-    decorators = python_finder.get_decorators(code, 'my_method', 'MyClass')
-    assert len(decorators) == 0, f'Expected 0 decorators, got {len(decorators)}'
+    example = TestHelper.load_example('method_no_decorators.py', category='decorator')
+    decorators = python_finder.get_decorators(example.content, example.metadata['method_name'], example.metadata['class_name'])
+    assert len(decorators) == len(example.metadata['expected_decorators']), f'Expected {len(example.metadata["expected_decorators"])} decorators, got {len(decorators)}'
 
 def test_get_method_multiple_decorators(python_finder):
-    code = '''
-class MyClass:
-    @decorator1
-    @decorator2
-    @decorator3
-    def my_method(self):
-        return "Hello"
-'''
-    decorators = python_finder.get_decorators(code, 'my_method', 'MyClass')
-    assert len(decorators) == 3, f'Expected 3 decorators, got {len(decorators)}'
-    assert '@decorator1' in decorators, 'Expected @decorator1 in decorators'
-    assert '@decorator2' in decorators, 'Expected @decorator2 in decorators'
-    assert '@decorator3' in decorators, 'Expected @decorator3 in decorators'
+    example = TestHelper.load_example('method_multiple_decorators.py', category='decorator')
+    decorators = python_finder.get_decorators(example.content, example.metadata['method_name'], example.metadata['class_name'])
+    assert len(decorators) == len(example.metadata['expected_decorators']), f'Expected {len(example.metadata["expected_decorators"])} decorators, got {len(decorators)}'
+    for expected_decorator in example.metadata['expected_decorators']:
+        assert expected_decorator in decorators, f'Expected {expected_decorator} in decorators'
