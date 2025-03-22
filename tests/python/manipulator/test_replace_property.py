@@ -35,8 +35,19 @@ class MyClass:
 def my_method(self):
     print("Hello, World!")
 """
+
+    new_code = '''
+class MyClass:
+    def another_method(self):
+        print("Hello")
+
+    def my_method(self):
+        print("Hello, World!")
+'''
+
     result = python_manipulator.replace_method(original_code, 'MyClass', 'my_method', new_method)
-    assert result.strip() == original_code.strip()
+
+    assert result.strip() == new_code.strip()
 
 def test_replace_method_with_decorator(python_manipulator):
     original_code = """

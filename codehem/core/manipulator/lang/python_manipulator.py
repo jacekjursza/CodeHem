@@ -49,33 +49,28 @@ class PythonCodeManipulator(BaseCodeManipulator):
         """Replace a method in a class with new content, preserving decorators and overloaded methods."""
         (start_line, end_line) = self.finder.find_method(original_code, class_name, method_name)
         if start_line == 0 and end_line == 0:
-            return original_code
+            # Method not found, add it to the class
+            return self.add_method_to_class(original_code, class_name, new_method)
 
         orig_lines = original_code.splitlines()
         adjusted_start = start_line
-
-        # Check if the method signatures match (for handling overloaded methods)
         new_method_lines = new_method.strip().splitlines()
         new_method_signature = None
         for line in new_method_lines:
             if line.strip().startswith('def ' + method_name):
                 new_method_signature = line.strip()
                 break
-
         method_signature = None
         for i in range(start_line - 1, min(start_line + 5, len(orig_lines))):
             if i < len(orig_lines) and orig_lines[i].strip().startswith('def ' + method_name):
                 method_signature = orig_lines[i].strip()
                 break
-
         should_replace = True
         if new_method_signature and method_signature:
             new_params = new_method_signature[new_method_signature.find('('):new_method_signature.find(')') + 1]
             old_params = method_signature[method_signature.find('('):method_signature.find(')') + 1]
             should_replace = new_params == old_params
-
         if not should_replace:
-            # Find method with matching signature
             all_methods = []
             in_class = False
             class_indent = None
@@ -90,7 +85,6 @@ class PythonCodeManipulator(BaseCodeManipulator):
                     if line.strip().startswith('def ' + method_name):
                         method_sig = line.strip()
                         all_methods.append((i + 1, method_sig))
-
             for (method_start, sig) in all_methods:
                 sig_params = sig[sig.find('('):sig.find(')') + 1]
                 new_params = new_method_signature[new_method_signature.find('('):new_method_signature.find(')') + 1]
@@ -104,7 +98,6 @@ class PythonCodeManipulator(BaseCodeManipulator):
                             if not orig_lines[j].strip().startswith('@'):
                                 method_end = j
                                 break
-
                     for i in range(method_start - 2, -1, -1):
                         if i < 0 or i >= len(orig_lines):
                             continue
@@ -113,13 +106,10 @@ class PythonCodeManipulator(BaseCodeManipulator):
                             method_start = i + 1
                         elif line and (not line.startswith('#')):
                             break
-
                     indentation_service = PythonIndentationService()
                     method_indent = indentation_service.calculate_class_indentation(orig_lines, class_name)
                     formatted_method = indentation_service.format_method_content(new_method, method_indent)
                     return self.replace_lines(original_code, method_start, method_end, formatted_method)
-
-        # Handle regular method replacement
         for i in range(start_line - 2, -1, -1):
             if i < 0 or i >= len(orig_lines):
                 continue
@@ -128,11 +118,8 @@ class PythonCodeManipulator(BaseCodeManipulator):
                 adjusted_start = i + 1
             elif line and (not line.startswith('#')):
                 break
-
         indentation_service = PythonIndentationService()
         method_indent = indentation_service.calculate_class_indentation(orig_lines, class_name)
-
-        # Don't merge decorators - use only the new method content with appropriate indentation
         formatted_method = indentation_service.format_method_content(new_method, method_indent)
         return self.replace_lines(original_code, adjusted_start, end_line, formatted_method)
 
@@ -142,11 +129,8 @@ class PythonCodeManipulator(BaseCodeManipulator):
         if getter_start == 0 and getter_end == 0:
             return original_code
 
-        # Check if there's a setter to preserve
         (setter_start, setter_end) = self.finder.find_property_setter(original_code, class_name, property_name)
         has_setter = setter_start > 0 and setter_end > 0
-
-        # Adjust start line to include any property decorators
         lines = original_code.splitlines()
         adjusted_start = getter_start
         for i in range(getter_start - 2, -1, -1):
@@ -157,21 +141,13 @@ class PythonCodeManipulator(BaseCodeManipulator):
                 adjusted_start = i + 1
             elif line and (not line.startswith('#')):
                 break
-
-        # Format the new property with proper indentation
         indentation_service = PythonIndentationService()
         method_indent = indentation_service.calculate_class_indentation(lines, class_name)
         formatted_property = indentation_service.format_method_content(new_property, method_indent)
-
-        # If there's a setter, we need to preserve it
         if has_setter:
-            # First replace just the getter
             interim_code = self.replace_lines(original_code, adjusted_start, getter_end, formatted_property)
-
-            # Return the code with both the new getter and the original setter
             return interim_code
         else:
-            # No setter, just replace the getter
             return self.replace_lines(original_code, adjusted_start, getter_end, formatted_property)
 
     def add_method_to_class(self, original_code: str, class_name: str, method_code: str) -> str:

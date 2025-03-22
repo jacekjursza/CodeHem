@@ -105,35 +105,31 @@ class TypeScriptCodeManipulator(BaseCodeManipulator):
         """Replace a method in a class with new content."""
         (start_line, end_line) = self.finder.find_method(original_code, class_name, method_name)
         if start_line == 0 and end_line == 0:
-            return original_code
+            # Method not found, add it to the class
+            return self.add_method_to_class(original_code, class_name, new_method)
 
         (class_start, _) = self.finder.find_class(original_code, class_name)
         if class_start == 0:
             return original_code
-
         lines = original_code.splitlines()
         class_indent = self._get_indentation(lines[class_start - 1]) if class_start <= len(lines) else ''
         method_indent = class_indent + '    '
-
-        # Format the method with proper indentation
         formatted_method = self.formatter.format_method(new_method.strip())
-
-        # Add class-level indentation to the formatted method
         formatted_lines = []
         for line in formatted_method.splitlines():
             if line.strip():
                 formatted_lines.append(method_indent + line)
             else:
                 formatted_lines.append('')
-
-        # Replace the method in the original code
         return '\n'.join(lines[:start_line - 1] + formatted_lines + lines[end_line:])
 
     def replace_property(self, original_code: str, class_name: str, property_name: str, new_property: str) -> str:
         """Replace the specified property within a class, preserving TypeScript syntax."""
         (start_line, end_line) = self.finder.find_property(original_code, class_name, property_name)
         if start_line == 0 and end_line == 0:
-            return original_code
+            # Property not found, add it to the class
+            return self.add_property_to_class(original_code, class_name, new_property)
+
         lines = original_code.splitlines()
         if start_line > 0 and start_line <= len(lines):
             original_line = lines[start_line - 1]

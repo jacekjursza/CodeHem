@@ -1,9 +1,9 @@
 """
 Code formatting system for standardizing code output across languages.
 """
-from typing import List, Optional
 import re
 import textwrap
+
 
 class CodeFormatter:
     """
@@ -20,6 +20,20 @@ class CodeFormatter:
         """
         self.indent_size = indent_size
         self.indent_string = ' ' * indent_size
+    
+    def format_method(self, method_code: str) -> str:
+        """
+        Format a method definition.
+        Default implementation, can be overridden by language-specific formatters.
+
+        Args:
+            method_code: Method code to format
+
+        Returns:
+            Formatted method code
+            :param method_code: 
+        """
+        return method_code
     
     def format_code(self, code: str) -> str:
         """

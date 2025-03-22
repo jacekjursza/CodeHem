@@ -13,7 +13,8 @@ class BaseCodeManipulator(AbstractCodeManipulator):
         """Replace a function definition with new content."""
         (start_line, end_line) = self.finder.find_function(original_code, function_name)
         if start_line == 0 and end_line == 0:
-            return original_code
+            # Function not found, add it to the code
+            return self.add_function(original_code, new_function)
         orig_lines = original_code.splitlines()
         adjusted_start = start_line
         for i in range(start_line - 2, -1, -1):
@@ -31,7 +32,8 @@ class BaseCodeManipulator(AbstractCodeManipulator):
         """Replace a class definition with new content."""
         (start_line, end_line) = self.finder.find_class(original_code, class_name)
         if start_line == 0 and end_line == 0:
-            return original_code
+            return self.add_class(original_code, new_class_content)
+
         orig_lines = original_code.splitlines()
         adjusted_start = start_line
         for i in range(start_line - 2, -1, -1):
@@ -48,7 +50,8 @@ class BaseCodeManipulator(AbstractCodeManipulator):
     def replace_method(self, original_code: str, class_name: str, method_name: str, new_method: str) -> str:
         (start_line, end_line) = self.finder.find_method(original_code, class_name, method_name)
         if start_line == 0 and end_line == 0:
-            return original_code
+            # Method not found, add it to the class
+            return self.add_method_to_class(original_code, class_name, new_method)
         orig_lines = original_code.splitlines()
         adjusted_start = start_line
         for i in range(start_line - 2, -1, -1):
@@ -59,25 +62,21 @@ class BaseCodeManipulator(AbstractCodeManipulator):
                 adjusted_start = i + 1
             elif line and (not line.startswith('#')):
                 break
-        
-        # Get indentation from the class definition
         class_indent = ''
         for line in orig_lines:
             if line.strip().startswith(f'class {class_name}'):
                 class_indent = self.formatter.get_indentation(line)
                 break
-        
-        # Format the method with proper indentation
         method_indent = class_indent + self.formatter.indent_string
         new_method_clean = self.formatter.format_method(new_method.strip())
         indented_method = self.formatter.apply_indentation(new_method_clean, method_indent)
-        
         return self.replace_lines(original_code, adjusted_start, end_line, indented_method)
 
     def replace_property(self, original_code: str, class_name: str, property_name: str, new_property: str) -> str:
         (start_line, end_line) = self.finder.find_property(original_code, class_name, property_name)
         if start_line == 0 and end_line == 0:
-            return original_code
+            # Property not found, add it to the class
+            return self.add_property_to_class(original_code, class_name, new_property)
         return self.replace_lines(original_code, start_line, end_line, new_property)
 
     def add_method_to_class(self, original_code: str, class_name: str, method_code: str) -> str:
@@ -282,6 +281,8 @@ class BaseCodeManipulator(AbstractCodeManipulator):
             return new_content
         orig_lines = original_code.splitlines()
         new_lines = new_content.splitlines()
+
+        # Normalize line numbers
         if start_line <= 0:
             start_line = 1
         total_lines = len(orig_lines)
@@ -289,7 +290,7 @@ class BaseCodeManipulator(AbstractCodeManipulator):
         end_line = min(max(end_line, start_line), total_lines)
         start_idx = start_line - 1
         end_idx = end_line - 1
-        
+
         if not preserve_formatting:
             return self.replace_lines(original_code, start_line, end_line, new_content)
         else:
