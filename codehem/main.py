@@ -41,32 +41,30 @@ class CodeHem:
         self.strategy = get_strategy(finder_language)
 
     @classmethod
-    def from_file_path(cls, file_path: str) -> 'CodeHem':
+    def from_file_path(cls, file_path: str) -> Optional['CodeHem']:
         """
         Create a language handler based on file path.
 
         Args:
-            file_path: Path to the file
+        file_path: Path to the file
 
         Returns:
-            LanguageHandler for the detected language
+        LanguageHandler for the detected language or None if not supported
         """
-        language_code = get_language_for_file(file_path)
-        return cls(language_code)
+        import os
+        file_ext = os.path.splitext(file_path.lower())[1]
+        return cls.from_file_extension(file_ext)
 
     @classmethod
-    def from_file_extension(cls, file_ext: str) -> 'CodeHem':
+    def from_file_extension(cls, file_ext: str) -> Optional['CodeHem']:
         """
         Create a language handler based on file extension.
 
         Args:
-            file_ext: File extension (with or without leading dot)
+        file_ext: File extension (with or without leading dot)
 
         Returns:
-            LanguageHandler for the detected language
-
-        Raises:
-            ValueError: If the extension is not supported
+        LanguageHandler for the detected language or None if not supported
         """
         file_ext = file_ext.lower()
         if not file_ext.startswith('.'):
@@ -74,7 +72,8 @@ class CodeHem:
         for (ext, lang) in FILE_EXTENSIONS.items():
             if ext == file_ext:
                 return cls(lang)
-        raise ValueError(f'Unsupported file extension: {file_ext}')
+        logger.warning(f'Unsupported file extension: {file_ext}')
+        return None
 
     @staticmethod
     def load_file(file_path: str) -> str:
@@ -103,27 +102,23 @@ class CodeHem:
                 return f.read()
 
     @classmethod
-    def from_raw_code(cls, code_or_path: str, check_for_file: bool = True) -> 'CodeHem':
+    def from_raw_code(cls, code_or_path: str, check_for_file: bool=True) -> Optional['CodeHem']:
         """
         Create a CodeHem instance from raw code string or file path with language auto-detection.
 
         Args:
-            code_or_path: Raw code string or path to a file
-            check_for_file: If True, try to load file if code_or_path exists as a file
+        code_or_path: Raw code string or path to a file
+        check_for_file: If True, try to load file if code_or_path exists as a file
 
         Returns:
-            CodeHem instance with appropriate language settings
+        CodeHem instance with appropriate language settings or None if language not supported
         """
         code = code_or_path
-
-        # Check if input is a file path
         if check_for_file and os.path.isfile(code_or_path):
             try:
                 code = cls.load_file(code_or_path)
             except Exception as e:
-                logger.warning(f"Failed to load file {code_or_path}: {str(e)}")
-
-        # Language detection
+                logger.warning(f'Failed to load file {code_or_path}: {str(e)}')
         finders = {'python': get_code_finder('python'), 'typescript': get_code_finder('typescript')}
         matching_languages = []
         language_confidences = {}
@@ -147,8 +142,8 @@ class CodeHem:
                 return cls(best_languages[0])
             logger.warning("Couldn't determine best language based on confidence. Using first match.")
             return cls(matching_languages[0])
-        logger.warning('No language handler matched the code. Defaulting to Python.')
-        return cls('python')
+        logger.warning('No language handler matched the code. Returning None.')
+        return None
 
     @staticmethod
     def analyze_file(file_path: str) -> None:

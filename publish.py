@@ -196,70 +196,6 @@ def upload_to_pypi(venv_info, test=False):
         print(f"Error during upload: {str(e)}")
         return False
 
-def create_setup_py_if_missing():
-    """Create a basic setup.py file if it doesn't exist."""
-    if os.path.exists("setup.py"):
-        return
-
-    print("setup.py not found, creating a basic template...")
-
-    readme_path = "README.md"
-    if not os.path.exists(readme_path):
-        with open(readme_path, "w") as f:
-            f.write("# CodeHem\n\nA language-agnostic library for code querying and manipulation.")
-
-    setup_py_content = """
-from setuptools import setup, find_packages
-
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
-
-setup(
-    name="CodeHem",
-    version="0.1.6",
-    author="Jacek Jursza",
-    author_email="jacek.jursza@gmail.com",
-    description="A language-agnostic library for code querying and manipulation",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url="https://github.com/jacekjursza/CodeHem",
-    packages=find_packages(),
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "Topic :: Software Development :: Libraries :: Python Modules",
-    ],
-    python_requires=">=3.7",
-    install_requires=[
-        "tree-sitter==0.24.0",
-        "tree-sitter-javascript==0.23.1",
-        "tree-sitter-python==0.23.6",
-        "tree-sitter-typescript==0.23.2",
-        "typing_extensions==4.12.2",
-        "rich==13.9.4",
-        "pydantic==2.10.6",
-        "pydantic_core==2.27.2",
-        "setuptools>=77.0.1",
-    ],
-    extras_require={
-        "dev": [
-            "pytest>=7.0.0",
-            "pytest-cov>=3.0.0",
-            "twine",
-            "build",
-            "wheel",
-        ],
-    },
-)
-"""
-
-    with open("setup.py", "w") as f:
-        f.write(setup_py_content.strip())
-
-    print("TIP: Install development dependencies with: pip install -e .[dev]")
 
 def main():
     parser = argparse.ArgumentParser(description="Build and publish CodeHem to PyPI")
@@ -272,9 +208,6 @@ def main():
 
     # Get virtual environment information
     venv_info = get_venv_info()
-
-    # Create setup.py if missing
-    create_setup_py_if_missing()
 
     # Validate setup.py and dependencies
     if not check_setup_py() or not check_dependencies(venv_info):
