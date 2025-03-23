@@ -1,0 +1,7 @@
+## start_line: 3
+## end_line: 5
+## function_name: test_function
+
+def test_function(param):
+    """Test function docstring."""
+    return param * 2
