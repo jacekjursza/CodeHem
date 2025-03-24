@@ -5,6 +5,7 @@ from typing import List, Optional, Any
 import re
 
 from codehem.core.registry import registry
+from codehem.core.service import LanguageService
 
 
 def get_language_service(language_code: str) -> Optional[Any]:
@@ -22,7 +23,7 @@ def get_language_service_for_file(file_path: str) -> Optional[Any]:
             return service
     return None
 
-def get_language_service_for_code(code: str) -> Optional[Any]:
+def get_language_service_for_code(code: str) -> Optional[LanguageService]:
     """
     Attempt to detect language from code content.
     This is a heuristic approach and not 100% reliable.

@@ -1,14 +1,14 @@
 """
 Base interfaces for language implementations.
 """
-from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple
-from codehem import CodeElementType
-from codehem.extractor import Extractor
-from codehem.models import CodeRange
-from codehem.models.code_element import CodeElementsResult, CodeElement
-from codehem.core.registry import registry
 import logging
+from abc import ABC, abstractmethod
+from typing import List, Optional, Tuple, Dict
+from codehem import CodeElementType
+from codehem.core.registry import registry
+from codehem.manipulator import BaseManipulator
+from codehem.models.code_element import CodeElement, CodeElementsResult
+from codehem.models.language_handler import LanguageHandler
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,21 @@ class LanguageService(ABC):
     Base class for language-specific services.
     Defines the interface for language-specific operations and combines finder, formatter, and manipulator.
     """
+
+    def __init__(self):
+        self.extractors: Dict[str, LanguageHandler] = {}
+        self.manipulators: Dict[str, BaseManipulator] = {}
+
+    def get_extractor(self, element_type: str) -> Optional[LanguageHandler]:
+        """Get an extractor class by element type."""
+        if hasattr(element_type, 'value'):
+            element_type = element_type.value
+        return self.extractors.get(element_type.lower())
+
+    def get_manipulator(self, language_code: str) -> List[BaseManipulator]:
+        """Get all handlers for a specific language."""
+        language_code = language_code.lower()
+        return list(self.manipulators.get(language_code, {}).values())
 
     @property
     @abstractmethod
@@ -74,7 +89,7 @@ class LanguageService(ABC):
             Modified code
         """
         handler = None
-        handlers = registry.get_handlers(self.language_code)
+        handlers = registry.get_manipulator(self.language_code)
         for h in handlers:
             if h.element_type.value == element_type:
                 handler = h
@@ -179,6 +194,8 @@ class LanguageService(ABC):
         Returns:
             CodeElementsResult containing extracted elements
         """
+        from codehem.extractor import Extractor
+
         try:
             extractor = Extractor(self.language_code)
             raw_elements = extractor.extract_all(code)

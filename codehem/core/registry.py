@@ -6,8 +6,9 @@ import importlib
 import logging
 import os
 from typing import Any, List, Optional, Type
-
 import rich
+from codehem.models.language_handler import LanguageHandler
+
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ class Registry:
     Components register themselves using decorators.
     """
     _instance = None
+
+    def __init__(self):
+        self._initialized = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -28,8 +32,8 @@ class Registry:
         """Initialize empty registries for different component types."""
         self.language_detectors = {}
         self.language_services = {}
-        self.extractors = {}
-        self.handlers = {}
+        self.all_extractors = {}
+        self.all_manipulators = {}
         self.discovered_modules = set()
         self._initialized = False
 
@@ -49,24 +53,23 @@ class Registry:
         rich.print(f"Registered language service: {cls.__name__} for {language_code}")
         return cls
 
-    def register_extractor(self, cls):
+    def register_extractor(self, cls: Type[LanguageHandler]):
         """Register an extractor class."""
         instance = cls()
         element_type = instance.element_type.value.lower()
-        self.extractors[element_type] = cls
+        language_code = instance.language_code.lower()
+        self.language_services[language_code].extractors[element_type] = instance
+        self.all_extractors[f"{language_code}__{element_type}"] = instance
         rich.print(f"Registered extractor: {cls.__name__} for {element_type}")
         return cls
 
-    def register_handler(self, cls):
+    def register_manipulator(self, cls):
         """Register a language-specific handler."""
         instance = cls()
         language_code = instance.language_code.lower()
         element_type = instance.element_type.value.lower()
-        
-        if language_code not in self.handlers:
-            self.handlers[language_code] = {}
-        
-        self.handlers[language_code][element_type] = instance
+        self.language_services[language_code].manipulators[element_type] = instance
+        self.all_manipulators[f"{language_code}__{element_type}"] = instance
         rich.print(f"Registered handler: {cls.__name__} for {language_code}/{element_type}")
         return cls
 
@@ -77,23 +80,6 @@ class Registry:
     def get_language_service(self, language_code: str) -> Optional[Any]:
         """Get a language service by code."""
         return self.language_services.get(language_code.lower())
-
-    def get_extractor(self, element_type: str) -> Optional[Type]:
-        """Get an extractor class by element type."""
-        if hasattr(element_type, 'value'):
-            element_type = element_type.value
-        return self.extractors.get(element_type.lower())
-
-    def get_handler(self, language_code: str, element_type: str) -> Optional[Any]:
-        """Get a handler for a specific language and element type."""
-        language_code = language_code.lower()
-        element_type = element_type.lower()
-        return self.handlers.get(language_code, {}).get(element_type)
-
-    def get_handlers(self, language_code: str) -> List[Any]:
-        """Get all handlers for a specific language."""
-        language_code = language_code.lower()
-        return list(self.handlers.get(language_code, {}).values())
 
     def get_supported_languages(self) -> List[str]:
         """Get a list of all supported language codes."""
@@ -145,20 +131,15 @@ class Registry:
         """
         if self._initialized:
             return
-
         # Discover and import all modules to trigger registrations
         self.discover_modules()
-        
-        # Create instances of any registered classes if needed
-        # Currently, the registration decorators already create instances
-        
         self._initialized = True
 
         rich.print(f"Components initialized: "
                    f"{len(self.language_detectors)} detectors, "
                    f"{len(self.language_services)} services, "
-                   f"{len(self.extractors)} extractors, "
-                   f"{len(self.handlers)} languages with handlers")
+                   f"{len(self.all_extractors)} extractors, "
+                   f"{len(self.all_manipulators)} languages with handlers")
 
 
 # Create a singleton registry instance
@@ -179,4 +160,4 @@ def extractor(cls):
 
 def handler(cls):
     """Decorator to register a language handler."""
-    return registry.register_handler(cls)
+    return registry.register_manipulator(cls)

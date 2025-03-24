@@ -3,11 +3,11 @@ from typing import Optional, Tuple
 
 from codehem.models.enums import CodeElementType
 from codehem.core.registry import handler
-from codehem.languages.lang_python.manipulator.base import PythonBaseHandler
+from codehem.languages.lang_python.manipulator.base import PythonBaseManipulator
 from codehem.core.finder.factory import get_code_finder
 
 @handler
-class PythonPropertyHandler(PythonBaseHandler):
+class PythonPropertyManipulator(PythonBaseManipulator):
     language_code = 'python'
     element_type = CodeElementType.PROPERTY
     

@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
+
+from codehem.core.manipulator import BaseManipulator
 from codehem.models.enums import CodeElementType
 
 @dataclass

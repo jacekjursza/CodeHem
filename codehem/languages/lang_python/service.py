@@ -20,15 +20,23 @@ class PythonLanguageService(LanguageService):
 
     @property
     def supported_element_types(self) -> List[str]:
-        return [CodeElementType.CLASS.value, CodeElementType.FUNCTION.value, CodeElementType.METHOD.value, CodeElementType.IMPORT.value, CodeElementType.DECORATOR.value, CodeElementType.PROPERTY.value, CodeElementType.PROPERTY_GETTER.value, CodeElementType.PROPERTY_SETTER.value, CodeElementType.STATIC_PROPERTY.value]
+        return [
+            CodeElementType.CLASS.value,
+            CodeElementType.FUNCTION.value,
+            CodeElementType.METHOD.value,
+            CodeElementType.IMPORT.value,
+            CodeElementType.DECORATOR.value,
+            CodeElementType.PROPERTY.value,
+            CodeElementType.PROPERTY_GETTER.value,
+            CodeElementType.PROPERTY_SETTER.value,
+            CodeElementType.STATIC_PROPERTY.value
+        ]
 
     def detect_element_type(self, code: str) -> str:
         """
         Detect the type of Python code element.
-
         Args:
             code: The code to analyze
-
         Returns:
             Element type string (from CodeElementType)
         """

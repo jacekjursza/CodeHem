@@ -31,35 +31,30 @@ def test_registry():
     
     # Check extractors
     logger.info("Registered Extractors:")
-    for code, extractor in registry.extractors.items():
+    for code, extractor in registry.all_extractors.items():
         logger.info(f"  {code}: {extractor.__name__}")
     
     # Check handlers
-    logger.info("Registered Handlers:")
-    for lang, handlers in registry.handlers.items():
-        logger.info(f"  {lang}:")
-        for element_type, handler in handlers.items():
-            logger.info(f"    {element_type}: {handler.__class__.__name__}")
-    
+    logger.info("Registered Manipulators:")
+    # for lang, handlers in registry.all_manipulators.items():
+    #     logger.info(f"  {lang}:")
+    #     for element_type, handler in handlers.items():
+    #         logger.info(f"    {element_type}: {handler.__class__.__name__}")
+
     logger.info("")
 
-def test_extractors():
-    """Test the extraction functionality."""
-    print("Testing extractors...")
-    
-    # Sample Python code
-    code = """
+code = """
 from pydantic import BaseModel, Field
 
 class MyClass:
     static_property: str = "Hello, World!"
-    
+
     def __init__(self, name: str):
         self.name = name
 
     def greet(self) -> str:
         return f"Hello, {self.name}!"
-    
+
     @mydecorator
     def other(self, x: int, y: str) -> str:
         return f"This is other: {x} {y}"."
@@ -67,6 +62,19 @@ class MyClass:
 def my_function(x: int) -> int:
     return x + 1
 """
+
+new_version = '''
+def greet(self) -> str:
+    return f"Hello, {self.name}!!!!!!!!!!!"
+'''
+
+
+def test_extractors():
+    """Test the extraction functionality."""
+    print("Testing extractors...")
+    
+    # Sample Python code
+
     
     # Create CodeHem instance for Python
     hem = CodeHem('python')
@@ -78,6 +86,10 @@ def my_function(x: int) -> int:
     print("----------------------------------")
     rich.print(elements)
     print("----------------------------------")
+
+    result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
+    rich.print(result)
+
 
 if __name__ == "__main__":
     test_registry()

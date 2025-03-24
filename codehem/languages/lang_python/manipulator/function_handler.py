@@ -5,11 +5,11 @@ from codehem.core import get_code_finder
 
 from codehem.models.enums import CodeElementType
 from codehem.core.registry import handler
-from codehem.languages.lang_python.manipulator.base import PythonBaseHandler
+from codehem.languages.lang_python.manipulator.base import PythonBaseManipulator
 
 
 @handler
-class PythonFunctionHandler(PythonBaseHandler):
+class PythonFunctionManipulator(PythonBaseManipulator):
     language_code = 'python'
     element_type = CodeElementType.FUNCTION
     
