@@ -4,7 +4,7 @@ Language detection and service management.
 from typing import List, Optional, Any
 import re
 
-from codehem.languages.registry import registry
+from codehem.core.registry import registry
 
 
 def get_language_service(language_code: str) -> Optional[Any]:

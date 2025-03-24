@@ -2,12 +2,10 @@
 Central registration system for CodeHem components.
 Uses decorator-based self-registration for automatic component discovery.
 """
+import importlib
 import logging
 import os
-import importlib
-import inspect
-import sys
-from typing import Dict, List, Optional, Type, Any, Set, Callable
+from typing import Any, List, Optional, Type
 
 import rich
 

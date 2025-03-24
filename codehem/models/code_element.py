@@ -17,6 +17,55 @@ class CodeElement(BaseModel):
     additional_data: Dict[str, Any] = Field(default_factory=dict)
     children: List['CodeElement'] = Field(default_factory=list)
 
+    @staticmethod
+    def from_dict(raw_element: dict) -> 'CodeElement':
+        element_type_str = raw_element.get("type", "unknown")
+        name = raw_element.get("name", "")
+        content = raw_element.get("content", "")
+
+        # Map element type
+        element_type = CodeElementType.UNKNOWN
+        if element_type_str == "function":
+            element_type = CodeElementType.FUNCTION
+        elif element_type_str == "class":
+            element_type = CodeElementType.CLASS
+        elif element_type_str == "method":
+            element_type = CodeElementType.METHOD
+        elif element_type_str == "property_getter":
+            element_type = CodeElementType.PROPERTY_GETTER
+        elif element_type_str == "property_setter":
+            element_type = CodeElementType.PROPERTY_SETTER
+        elif element_type_str == "import":
+            element_type = CodeElementType.IMPORT
+        elif element_type_str == "decorator":
+            element_type = CodeElementType.DECORATOR
+        elif element_type_str == "property":
+            element_type = CodeElementType.PROPERTY
+        elif element_type_str == "static_property":
+            element_type = CodeElementType.STATIC_PROPERTY
+
+        # Parse range data
+        range_data = raw_element.get("range")
+        code_range = None
+        if range_data:
+            code_range = CodeRange(
+                start_line=range_data["start"]["line"],
+                start_column=range_data.get("start", {}).get("column", 0),
+                end_line=range_data["end"]["line"],
+                end_column=range_data.get("end", {}).get("column", 0),
+            )
+
+        # Create the element
+        element = CodeElement(
+            type=element_type,
+            name=name,
+            content=content,
+            range=code_range,
+            parent_name=raw_element.get("class_name"),
+            children=[],
+        )
+        return element
+
     @property
     def is_method(self) -> bool:
         return self.type == CodeElementType.METHOD

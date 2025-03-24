@@ -7,7 +7,7 @@ import logging
 from codehem.extractors.base import BaseExtractor
 from codehem.models.enums import CodeElementType
 from codehem.models.language_handler import LanguageHandler
-from codehem.languages.registry import extractor
+from codehem.core.registry import extractor
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@ import re
 from typing import Optional, Tuple
 from codehem.models.enums import CodeElementType
 from codehem.models.language_handler import LanguageHandler
-from codehem.languages.registry import handler
+from codehem.core.registry import handler
 
 @handler
 class PythonClassHandler(LanguageHandler):

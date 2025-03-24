@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Any
 import re
 from codehem.models.enums import CodeElementType
 from codehem.models.language_handler import LanguageHandler
-from codehem.languages.registry import handler
+from codehem.core.registry import handler
 
 @handler
 class PythonDecoratorHandler(LanguageHandler):

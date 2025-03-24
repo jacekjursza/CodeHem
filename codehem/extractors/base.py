@@ -6,10 +6,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from codehem.core.engine.ast_handler import ASTHandler
 from codehem.core.engine.languages import LANGUAGES, get_parser
-from codehem.languages import registry
+from codehem.core.registry import registry
 from codehem.models.enums import CodeElementType
-
-
 logger = logging.getLogger(__name__)
 
 class BaseExtractor(ABC):
@@ -38,11 +36,14 @@ class BaseExtractor(ABC):
         """Get or create an AST handler for the language."""
         language_code = language_code.lower()
         if language_code not in self.ast_handlers:
-            if language_code in LANGUAGES:
-                parser = get_parser(language_code)
-                language = LANGUAGES.get(language_code)
-                if parser and language:
-                    self.ast_handlers[language_code] = ASTHandler(language_code, parser, language)
+            try:
+                if language_code in LANGUAGES:
+                    parser = get_parser(language_code)
+                    language = LANGUAGES.get(language_code)
+                    if parser and language:
+                        self.ast_handlers[language_code] = ASTHandler(language_code, parser, language)
+            except Exception as e:
+                logger.error(f"Error creating AST handler for {language_code}: {str(e)}")
         return self.ast_handlers.get(language_code)
 
     @abstractmethod

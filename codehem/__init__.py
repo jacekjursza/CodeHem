@@ -2,7 +2,7 @@ from .models.enums import CodeElementType
 from .models.xpath import CodeElementXPathNode
 from .models.code_element import CodeElementsResult
 from .main import CodeHem
-from .languages.registry import registry
+from .core.registry import registry
 
 # Initialize registry components
 registry.initialize_components()
