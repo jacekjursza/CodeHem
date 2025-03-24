@@ -5,7 +5,8 @@ import argparse
 import sys
 import os
 import json
-from .main import CodeHem
+
+from codehem import CodeHem
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress

@@ -1,4 +1,0 @@
-{
-  "class_name": "MyClass",
-  "expected_decorators": ["@register('category')", "@dataclass(frozen=True)"]
-}

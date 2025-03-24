@@ -1,6 +1,8 @@
+from codehem.languages.registry import handler
 from codehem.models.enums import CodeElementType
 from codehem.models.language_handler import LanguageHandler
 
+@handler
 class PythonPropertySetterHandler(LanguageHandler):
     """Handler for Python property setter elements."""
     language_code = 'python'

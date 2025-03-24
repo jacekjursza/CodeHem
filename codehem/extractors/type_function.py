@@ -1,5 +1,5 @@
 """
-Generic class extractor that uses language-specific handlers.
+Function extractor that uses language-specific handlers.
 """
 from typing import Dict, List, Optional, Any
 import re
@@ -12,13 +12,13 @@ from codehem.languages.registry import extractor
 logger = logging.getLogger(__name__)
 
 @extractor
-class ClassExtractor(BaseExtractor):
-    """Class extractor using language-specific handlers."""
+class FunctionExtractor(BaseExtractor):
+    """Function extractor using language-specific handlers."""
 
     @property
     def element_type(self) -> CodeElementType:
         """Get the element type this extractor handles."""
-        return CodeElementType.CLASS
+        return CodeElementType.FUNCTION
 
     def supports_language(self, language_code: str) -> bool:
         """Check if this extractor supports the given language."""
@@ -26,14 +26,14 @@ class ClassExtractor(BaseExtractor):
 
     def extract(self, code: str, context: Optional[Dict[str, Any]]=None) -> List[Dict]:
         """
-        Extract classes from the provided code.
+        Extract functions from the provided code.
         
         Args:
             code: The source code to extract from
             context: Optional context information for the extraction
             
         Returns:
-            List of extracted classes as dictionaries
+            List of extracted functions as dictionaries
         """
         context = context or {}
         language_code = context.get('language_code', 'python').lower()
@@ -47,45 +47,45 @@ class ClassExtractor(BaseExtractor):
     def _extract_with_patterns(self, code: str, handler: LanguageHandler, context: Dict[str, Any]) -> List[Dict]:
         """Extract using TreeSitter first, fall back to regex if needed."""
         if handler.tree_sitter_query:
-            classes = self._extract_with_tree_sitter(code, handler, context)
-            if classes:
-                return classes
+            functions = self._extract_with_tree_sitter(code, handler, context)
+            if functions:
+                return functions
         if handler.regexp_pattern:
             return self._extract_with_regex(code, handler, context)
         return []
 
     def _extract_with_tree_sitter(self, code: str, handler: LanguageHandler, context: Dict[str, Any]) -> List[Dict]:
-        """Extract classes using TreeSitter."""
+        """Extract functions using TreeSitter."""
         ast_handler = self._get_ast_handler(handler.language_code)
         if not ast_handler:
             return []
         try:
             (tree, code_bytes) = ast_handler.parse(code)
             query_results = ast_handler.execute_query(handler.tree_sitter_query, tree, code_bytes)
-            classes = []
+            functions = []
             for match in query_results:
-                class_def = None
-                class_name = None
+                function_def = None
+                function_name = None
                 for (node, node_type) in match:
-                    if node_type == 'class_def':
-                        class_def = node
-                    elif node_type == 'class_name':
-                        class_name = node
-                if class_def and class_name:
-                    name = ast_handler.get_node_text(class_name, code_bytes)
-                    content = ast_handler.get_node_text(class_def, code_bytes)
-                    classes.append({'type': 'class', 'name': name, 'content': content, 'range': {'start': {'line': class_def.start_point[0], 'column': class_def.start_point[1]}, 'end': {'line': class_def.end_point[0], 'column': class_def.end_point[1]}}})
-            return classes
+                    if node_type == 'function_def':
+                        function_def = node
+                    elif node_type == 'function_name':
+                        function_name = node
+                if function_def and function_name:
+                    name = ast_handler.get_node_text(function_name, code_bytes)
+                    content = ast_handler.get_node_text(function_def, code_bytes)
+                    functions.append({'type': 'function', 'name': name, 'content': content, 'range': {'start': {'line': function_def.start_point[0], 'column': function_def.start_point[1]}, 'end': {'line': function_def.end_point[0], 'column': function_def.end_point[1]}}})
+            return functions
         except Exception as e:
             logger.debug(f'TreeSitter extraction error: {e}')
             return []
 
     def _extract_with_regex(self, code: str, handler: LanguageHandler, context: Dict[str, Any]) -> List[Dict]:
-        """Extract classes using regex."""
+        """Extract functions using regex."""
         try:
             pattern = handler.regexp_pattern
             matches = re.finditer(pattern, code, re.DOTALL)
-            classes = []
+            functions = []
             for match in matches:
                 name = match.group(1)
                 content = match.group(0)
@@ -97,8 +97,8 @@ class ClassExtractor(BaseExtractor):
                 lines_total = code[:end_pos].count('\n')
                 last_newline_end = code[:end_pos].rfind('\n')
                 end_column = end_pos - last_newline_end - 1 if last_newline_end >= 0 else end_pos
-                classes.append({'type': 'class', 'name': name, 'content': content, 'range': {'start': {'line': lines_before, 'column': start_column}, 'end': {'line': lines_total, 'column': end_column}}})
-            return classes
+                functions.append({'type': 'function', 'name': name, 'content': content, 'range': {'start': {'line': lines_before, 'column': start_column}, 'end': {'line': lines_total, 'column': end_column}}})
+            return functions
         except Exception as e:
             logger.debug(f'Regex extraction error: {e}')
             return []

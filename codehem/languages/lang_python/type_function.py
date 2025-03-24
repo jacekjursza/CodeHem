@@ -1,7 +1,9 @@
 """Handler for Python function elements."""
+from codehem.languages.registry import handler
 from codehem.models.enums import CodeElementType
 from codehem.models.language_handler import LanguageHandler
 
+@handler
 class PythonFunctionHandler(LanguageHandler):
     """Handler for Python function elements."""
     language_code = 'python'

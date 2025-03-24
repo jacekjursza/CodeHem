@@ -1,3 +1,0 @@
-"""
-Python property test fixtures.
-"""

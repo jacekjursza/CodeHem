@@ -3,7 +3,8 @@ TypeScript language module for CodeHem.
 """
 from typing import List, Optional
 import re
-from ..base import BaseLanguageDetector, BaseLanguageService
+from ..language_service import BaseLanguageService
+from ..language_detector import BaseLanguageDetector
 from ..lang_javascript import JavaScriptLanguageService
 from ...models.code_element import CodeElementsResult, CodeElement
 from ...models.range import CodeRange

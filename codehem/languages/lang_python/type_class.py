@@ -2,20 +2,18 @@ import re
 from typing import Optional, Tuple
 from codehem.models.enums import CodeElementType
 from codehem.models.language_handler import LanguageHandler
+from codehem.languages.registry import handler
 
+@handler
 class PythonClassHandler(LanguageHandler):
     """Handler for Python class elements."""
     language_code = 'python'
     element_type = CodeElementType.CLASS
-    tree_sitter_query = """
-    (class_definition
-      name: (identifier) @class_name
-      body: (block) @body) @class_def
-    """
-    regexp_pattern = r'class\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s*\([^)]*\))?\s*:(.*?)(?=\n(?:class|def|\Z))'
+    tree_sitter_query = '\n    (class_definition\n      name: (identifier) @class_name\n      body: (block) @body) @class_def\n    '
+    regexp_pattern = 'class\\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*\\([^)]*\\))?\\s*:(.*?)(?=\\n(?:class|def|\\Z))'
     custom_extract = False
 
-    def find_element(self, code: str, name: str, parent_name: Optional[str] = None) -> Tuple[int, int]:
+    def find_element(self, code: str, name: str, parent_name: Optional[str]=None) -> Tuple[int, int]:
         """
         Find a class in the code.
         
@@ -27,30 +25,21 @@ class PythonClassHandler(LanguageHandler):
         Returns:
             Tuple of (start_line, end_line) or (0, 0) if not found
         """
-        pattern = r'class\s+' + re.escape(name) + r'(?:\s*\([^)]*\))?\s*:'
+        pattern = 'class\\s+' + re.escape(name) + '(?:\\s*\\([^)]*\\))?\\s*:'
         match = re.search(pattern, code)
         if not match:
             return (0, 0)
-            
-        # Get start line
         start_line = code[:match.start()].count('\n') + 1
-        
-        # Find the end of the class
         remaining_code = code[match.end():]
-        
-        # Find the next class or function at the same indentation level
-        next_def = re.search(r'(?:^|\n)class|(?:^|\n)def', remaining_code)
+        next_def = re.search('(?:^|\\n)class|(?:^|\\n)def', remaining_code)
         if next_def:
             end_offset = next_def.start()
             end_line = start_line + remaining_code[:end_offset].count('\n')
         else:
-            # If no next definition, class extends to the end of the file
             end_line = start_line + remaining_code.count('\n')
-            
         return (start_line, end_line)
-    
-    def upsert_element(self, original_code: str, name: str, new_code: str, 
-                       parent_name: Optional[str] = None) -> str:
+
+    def upsert_element(self, original_code: str, name: str, new_code: str, parent_name: Optional[str]=None) -> str:
         """
         Add or replace a class in the code.
         
@@ -63,26 +52,21 @@ class PythonClassHandler(LanguageHandler):
         Returns:
             Modified code
         """
-        # Find class position
         position = self.find_element(original_code, name, None)
-        
         if position[0] > 0:
-            # Class exists, replace it
             lines = original_code.splitlines(True)
-            result = ''.join(lines[:position[0]-1])
+            result = ''.join(lines[:position[0] - 1])
             result += new_code
             if not new_code.endswith('\n'):
                 result += '\n'
             result += ''.join(lines[position[1]:])
             return result
         else:
-            # Class doesn't exist, add it
-            if original_code and not original_code.endswith('\n'):
+            if original_code and (not original_code.endswith('\n')):
                 original_code += '\n'
-                
             return original_code + '\n' + new_code + '\n'
-    
-    def format_element(self, content: str, indent_level: int = 0) -> str:
+
+    def format_element(self, content: str, indent_level: int=0) -> str:
         """
         Format a Python class.
         
@@ -96,11 +80,9 @@ class PythonClassHandler(LanguageHandler):
         indent = '    ' * indent_level
         lines = content.splitlines()
         result = []
-        
         for line in lines:
             if line.strip():
                 result.append(indent + line.lstrip())
             else:
                 result.append(line)
-                
         return '\n'.join(result)

@@ -1,4 +1,0 @@
-## class_name: NonExistentClass
-
-def some_function():
-    return "No class here"

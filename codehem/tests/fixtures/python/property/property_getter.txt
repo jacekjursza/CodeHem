@@ -1,7 +1,0 @@
-## start_line: 3
-## end_line: 5
-## property_name: value
-
-@property
-def value(self):
-    return self._value

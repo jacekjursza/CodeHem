@@ -4,11 +4,11 @@ Base extractor interface that all extractors must implement.
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-
 from codehem.core.engine.ast_handler import ASTHandler
 from codehem.core.engine.languages import LANGUAGES, get_parser
+from codehem.languages import registry
 from codehem.models.enums import CodeElementType
-from codehem.languages.registry import registry
+
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +28,8 @@ class BaseExtractor(ABC):
 
     def _load_handlers(self):
         """Load all language-specific handlers using the language registry."""
-
         for language_code in registry.get_supported_languages():
-            handler = registry.get_handler(language_code, self.element_type)
+            handler = registry.get_handler(language_code, self.element_type.value)
             if handler:
                 self.handlers[language_code] = handler
                 logger.debug(f'Registered {language_code} {self.element_type} handler from registry')

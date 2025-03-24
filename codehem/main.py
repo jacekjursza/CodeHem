@@ -16,7 +16,7 @@ from .models.enums import CodeElementType
 from .models.xpath import CodeElementXPathNode
 
 
-class CodeHem2:
+class CodeHem:
     """
     Main entry point for CodeHem2.
     Provides language-agnostic interface for code manipulation.
@@ -37,7 +37,7 @@ class CodeHem2:
             raise ValueError(f'Unsupported language: {language_code}')
 
     @classmethod
-    def from_file_path(cls, file_path: str) -> 'CodeHem2':
+    def from_file_path(cls, file_path: str) -> 'CodeHem':
         """
         Create a CodeHem2 instance based on file extension.
         
@@ -56,7 +56,7 @@ class CodeHem2:
         return cls(language_service.language_code)
 
     @classmethod
-    def from_raw_code(cls, code: str) -> 'CodeHem2':
+    def from_raw_code(cls, code: str) -> 'CodeHem':
         """
         Create a CodeHem2 instance by detecting language from code.
         

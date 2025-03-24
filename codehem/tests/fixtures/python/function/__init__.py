@@ -1,3 +1,0 @@
-"""
-Python function test fixtures.
-"""

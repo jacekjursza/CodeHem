@@ -1,4 +1,0 @@
-{
-  "child_class": "Child",
-  "expected_parents": ["module.Parent"]
-}

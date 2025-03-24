@@ -1,7 +1,11 @@
 from .models.enums import CodeElementType
 from .models.xpath import CodeElementXPathNode
 from .models.code_element import CodeElementsResult
-from .main import CodeHem2
+from .main import CodeHem
+from .languages.registry import registry
+
+# Initialize registry components
+registry.initialize_components()
 
 __version__ = '0.1.6.1'
-__all__ = ['CodeHem2', 'CodeElementType', 'CodeElementXPathNode', 'CodeElementsResult']
+__all__ = ['CodeHem', 'CodeElementType', 'CodeElementXPathNode', 'CodeElementsResult']

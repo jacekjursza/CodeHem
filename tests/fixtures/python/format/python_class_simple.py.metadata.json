@@ -1,4 +1,0 @@
-{
-  "original": "class MyClass:\n    def method(self):\n        print(\"Hello\")\n    ",
-  "expected": "class MyClass:\n    def method(self):\n        print(\"Hello\")\n    "
-}

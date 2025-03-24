@@ -1,4 +1,0 @@
-{
-  "original": "def function():\n  if True:\n    print(\"Hello\")\n      print(\"Indented more\")\n    ",
-  "expected": "def function():\n    if True:\n        print(\"Hello\")\n            print(\"Indented more\")\n    "
-}

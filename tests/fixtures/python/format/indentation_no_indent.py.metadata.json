@@ -1,4 +1,0 @@
-{
-  "original": "no indentation\nat all\nin this code\n    ",
-  "expected": "no indentation\nat all\nin this code\n    "
-}

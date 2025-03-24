@@ -1,9 +1,11 @@
 """
 JavaScript language module for CodeHem.
 """
-from typing import List, Optional
+
+from typing import List, Optional, Tuple
 import re
-from ..base import BaseLanguageDetector, BaseLanguageService
+from ..language_service import BaseLanguageService
+from ..language_detector import BaseLanguageDetector
 from ...models.code_element import CodeElementsResult, CodeElement
 from ...models.range import CodeRange
 from ...models.enums import CodeElementType
@@ -49,13 +51,31 @@ class JavaScriptLanguageService(BaseLanguageService):
     def file_extensions(self) -> List[str]:
         return ['.js', '.jsx']
 
+    @property
+    def supported_element_types(self) -> List[str]:
+        return [
+            CodeElementType.CLASS.value,
+            CodeElementType.FUNCTION.value,
+            CodeElementType.METHOD.value,
+            CodeElementType.IMPORT.value
+        ]
+
+    def can_handle(self, code: str) -> bool:
+        """Check if this service can handle the given code."""
+        return self.get_confidence_score(code) > 0.5
+
+    def get_confidence_score(self, code: str) -> float:
+        """Calculate confidence score for JavaScript code."""
+        detector = JavaScriptLanguageDetector()
+        return detector.detect_confidence(code)
+
     def detect_element_type(self, code: str) -> str:
         """
         Detect the type of JavaScript code element.
-        
+
         Args:
             code: The code to analyze
-            
+
         Returns:
             Element type string (from CodeElementType)
         """
@@ -74,57 +94,20 @@ class JavaScriptLanguageService(BaseLanguageService):
 
     def extract(self, code: str) -> CodeElementsResult:
         """Extract code elements from JavaScript source code."""
-        from ...extractor import Extractor
-        extractor = Extractor('javascript')
-        raw_elements = extractor.extract_all(code)
-        result = CodeElementsResult()
-        for func in raw_elements.get('functions', []):
-            element = self._convert_to_code_element(func)
-            result.elements.append(element)
-        for cls in raw_elements.get('classes', []):
-            class_element = self._convert_to_code_element(cls)
-            methods = extractor.extract_methods(code, cls.get('name'))
-            for method in methods:
-                method_element = self._convert_to_code_element(method)
-                method_element.parent_name = cls.get('name')
-                class_element.children.append(method_element)
-            result.elements.append(class_element)
-        for imp in raw_elements.get('imports', []):
-            import_element = self._convert_to_code_element(imp)
-            result.elements.append(import_element)
-        return result
+        return self._base_extract(code)
 
-    def _convert_to_code_element(self, raw_element: dict) -> CodeElement:
-        """Convert raw extractor output to CodeElement."""
-        element_type_str = raw_element.get('type', 'unknown')
-        name = raw_element.get('name', '')
-        content = raw_element.get('content', '')
-        element_type = CodeElementType.UNKNOWN
-        if element_type_str == 'function':
-            element_type = CodeElementType.FUNCTION
-        elif element_type_str == 'class':
-            element_type = CodeElementType.CLASS
-        elif element_type_str == 'method':
-            element_type = CodeElementType.METHOD
-        elif element_type_str == 'import':
-            element_type = CodeElementType.IMPORT
-        range_data = raw_element.get('range')
-        code_range = None
-        if range_data:
-            code_range = CodeRange(start_line=range_data['start']['line'], start_column=range_data.get('start', {}).get('column', 0), end_line=range_data['end']['line'], end_column=range_data.get('end', {}).get('column', 0))
-        return CodeElement(type=element_type, name=name, content=content, range=code_range, parent_name=raw_element.get('class_name'), children=[])
 
     def upsert_element(self, original_code: str, element_type: str, name: str, new_code: str, parent_name: Optional[str]=None) -> str:
         """
         Add or replace a JavaScript code element.
-        
+
         Args:
             original_code: Original source code
             element_type: Type of element to add/replace
             name: Name of the element
             new_code: New content for the element
             parent_name: Name of parent element (e.g., class name for methods)
-            
+
         Returns:
             Modified code
         """
@@ -161,6 +144,13 @@ class JavaScriptLanguageService(BaseLanguageService):
                     return original_code[:class_content_end] + '\n  ' + new_code + '\n' + original_code[class_content_end:]
         return original_code
 
+    def resolve_xpath(self, xpath: str) -> Tuple[str, Optional[str]]:
+        """Resolve an XPath expression to element name and parent name."""
+        parts = xpath.split('.')
+        if len(parts) == 1:
+            return parts[0], None
+        return parts[-1], parts[-2]
+
     def _find_closing_brace(self, code: str, start_pos: int) -> int:
         """Find the position of the closing brace that matches the opening brace."""
         stack = []
@@ -174,6 +164,10 @@ class JavaScriptLanguageService(BaseLanguageService):
                 if not stack:
                     return i
         return -1
+
+
+
+
 detector = JavaScriptLanguageDetector()
 service = JavaScriptLanguageService()
 
