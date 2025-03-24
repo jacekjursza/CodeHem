@@ -5,7 +5,7 @@ import tree_sitter_python
 from tree_sitter import Language, Parser
 import sys
 
-from codehem.core2.engine.languages import get_parser
+from codehem.core.engine.languages import get_parser
 
 # Initialize tree-sitter
 

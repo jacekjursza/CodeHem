@@ -1,5 +1,8 @@
 import unittest
-from codehem.core.models import CodeElementsResult, CodeElement, CodeElementType, CodeRange
+from codehem.core.models import CodeElementType
+from codehem.models.range import CodeRange
+from codehem import CodeElementsResult
+from codehem.models.code_element import CodeElement
 from codehem.main import CodeHem
 
 class TestCodeHemFilter(unittest.TestCase):

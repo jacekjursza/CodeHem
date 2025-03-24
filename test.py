@@ -1,7 +1,8 @@
 import rich
 
-from codehem import CodeHem
-from codehem.core2.codehem2 import CodeHem2
+from codehem.languages import registrations
+
+from codehem.main import CodeHem2
 
 my_test_code = '''
 class MyClass:

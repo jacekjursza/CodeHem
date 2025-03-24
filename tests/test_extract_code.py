@@ -1,6 +1,7 @@
 import unittest
 
-from codehem.core.models import CodeElementsResult, CodeElementType, MetaElementType
+from codehem.core.models import CodeElementType, MetaElementType
+from codehem import CodeElementsResult
 from codehem.main import CodeHem
 
 class TestExtractCodeElements(unittest.TestCase):

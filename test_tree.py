@@ -6,7 +6,7 @@ from tree_sitter import Language, Parser, Query
 import json
 import re
 
-from codehem.core2.engine.languages import get_parser
+from codehem.core.engine.languages import get_parser
 
 # Initialize tree-sitter
 PY_LANGUAGE = Language(tree_sitter_python.language())

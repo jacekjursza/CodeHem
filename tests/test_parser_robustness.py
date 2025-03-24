@@ -1,7 +1,8 @@
 import unittest
 from codehem.main import CodeHem
 from codehem.core import ASTHandler
-from codehem.core.models import CodeElementsResult, CodeElementType
+from codehem.core.models import CodeElementType
+from codehem import CodeElementsResult
 from tree_sitter import Node
 
 class TestParserRobustness(unittest.TestCase):
