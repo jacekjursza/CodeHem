@@ -80,37 +80,12 @@ class LanguageService(ABC):
         from codehem.core.extraction import ExtractionService
         extractor = ExtractionService(self.language_code)
         result = extractor.extract_elements(code)
-        # Apply any language-specific extraction
         result = self.extract_language_specific(code, result)
         logger.debug(f'Completed extraction with {len(result.elements)} elements')
         return result
 
     def extract_language_specific(self, code: str, current_result: CodeElementsResult) -> CodeElementsResult:
         return current_result
-
-    def upsert_element(self, original_code: str, element_type: str, name: str, new_code: str, parent_name: Optional[str]=None) -> str:
-        """
-        Add or replace a code element.
-
-        Args:
-            original_code: Original source code
-            element_type: Type of element to add/replace
-            name: Name of the element
-            new_code: New content for the element
-            parent_name: Name of parent element (e.g., class name for methods)
-
-        Returns:
-            Modified code
-        """
-        handler = None
-        handlers = self.get_manipulator(self.language_code)
-        for h in handlers:
-            if h.element_type.value == element_type:
-                handler = h
-                break
-        if handler:
-            return handler.upsert_element(original_code, name, new_code, parent_name)
-        return original_code
 
     def resolve_xpath(self, xpath: str) -> Tuple[str, Optional[str]]:
         """Resolve an XPath expression to element name and parent name."""

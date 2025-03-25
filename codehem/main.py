@@ -3,19 +3,13 @@ CodeHem2 main class for language-agnostic code manipulation.
 """
 import os
 from typing import List, Optional, Tuple
-
 from .core.engine.xpath_parser import XPathParser
 from .core.extraction import ExtractionService
-from .languages import (
-    get_language_service,
-    get_language_service_for_code,
-    get_language_service_for_file,
-    get_supported_languages,
-)
+from .core.manipulation import ManipulationService
+from .languages import get_language_service, get_language_service_for_code, get_language_service_for_file, get_supported_languages
 from .models.code_element import CodeElement, CodeElementsResult
 from .models.enums import CodeElementType
 from .models.xpath import CodeElementXPathNode
-
 
 class CodeHem:
     """
@@ -26,17 +20,18 @@ class CodeHem:
     def __init__(self, language_code: str):
         """
         Initialize CodeHem2 for a specific language.
-        
+
         Args:
-            language_code: Language code (e.g., 'python', 'typescript')
-            
+        language_code: Language code (e.g., 'python', 'typescript')
+
         Raises:
-            ValueError: If the language is not supported
+        ValueError: If the language is not supported
         """
         self.language_service = get_language_service(language_code)
-        self.extraction_service = ExtractionService(language_code)
         if not self.language_service:
             raise ValueError(f'Unsupported language: {language_code}')
+        self.extraction = ExtractionService(language_code)
+        self.manipulation = ManipulationService(language_code)
 
     @classmethod
     def from_file_path(cls, file_path: str) -> 'CodeHem':
@@ -125,35 +120,32 @@ class CodeHem:
     def upsert_element(self, original_code: str, element_type: str, name: str, new_code: str, parent_name: Optional[str]=None) -> str:
         """
         Add or replace an element in the code.
-        
+
         Args:
-            original_code: Original source code
-            element_type: Type of element to add/replace (from CodeElementType)
-            name: Name of the element
-            new_code: New content for the element
-            parent_name: Name of parent element (e.g., class name for methods)
-            
+        original_code: Original source code
+        element_type: Type of element to add/replace (from CodeElementType)
+        name: Name of the element
+        new_code: New content for the element
+        parent_name: Name of parent element (e.g., class name for methods)
+
         Returns:
-            Modified code
+        Modified code
         """
-        return self.language_service.upsert_element(original_code, element_type, name, new_code, parent_name)
+        return self.manipulation.upsert_element(original_code, element_type, name, new_code, parent_name)
 
     def upsert_element_by_xpath(self, original_code: str, xpath: str, new_code: str) -> str:
         """
         Add or replace an element in the code using XPath expression.
-        
+
         Args:
-            original_code: Original source code
-            xpath: XPath expression (e.g., 'ClassName.method_name', 'ClassName[interface].method_name[property_getter]')
-            new_code: New content for the element
-            
+        original_code: Original source code
+        xpath: XPath expression (e.g., 'ClassName.method_name', 'ClassName[interface].method_name[property_getter]')
+        new_code: New content for the element
+
         Returns:
-            Modified code
+        Modified code
         """
-        (element_name, parent_name, element_type) = XPathParser.get_element_info(xpath)
-        if not element_type:
-            element_type = self.detect_element_type(new_code)
-        return self.upsert_element(original_code, element_type, element_name, new_code, parent_name)
+        return self.manipulation.upsert_element_by_xpath(original_code, xpath, new_code)
 
     def find_by_xpath(self, code: str, xpath: str) -> Tuple[int, int]:
         """
@@ -166,7 +158,7 @@ class CodeHem:
         Returns:
             Tuple of (start_line, end_line) or (0, 0) if not found
         """
-        return self.extraction_service.find_by_xpath(code, xpath)
+        return self.extraction.find_by_xpath(code, xpath)
 
     def extract(self, code: str) -> CodeElementsResult:
         """
@@ -178,7 +170,7 @@ class CodeHem:
         Returns:
             CodeElementsResult containing extracted elements
         """
-        return self.extraction_service.extract_all(code)
+        return self.extraction.extract_all(code)
 
     @staticmethod
     def filter(elements: CodeElementsResult, xpath: str='') -> Optional[CodeElement]:
@@ -241,4 +233,3 @@ class CodeHem:
             XPath expression string
         """
         return XPathParser.to_string(nodes)
-

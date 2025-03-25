@@ -3,7 +3,7 @@ Base extractor interface that all extractors must implement.
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from codehem.core.engine.ast_handler import ASTHandler
 from codehem.core.engine.languages import LANGUAGES, get_parser
@@ -32,23 +32,33 @@ class BaseExtractor(ABC):
 
     def extract(
         self, code: str, context: Optional[Dict[str, Any]] = None
-    ) -> List[Dict]:
+    ) -> Union[List[Dict], Dict]:
         """
-        Extract decorators from the provided code.
+        Extract decorators from the provided code and filter results based on context.
 
         Args:
             code: The source code to extract from
             context: Optional context information for the extraction
 
         Returns:
-            List of extracted decorators as dictionaries
+            Filtered list of extracted decorators as dictionaries
         """
         context = context or {}
 
         if self.descriptor.custom_extract:
-            return self.descriptor.extract(code, context)
+            result = self.descriptor.extract(code, context)
+        else:
+            result = self._extract_with_patterns(code, self.descriptor, context)
 
-        return self._extract_with_patterns(code, self.descriptor, context)
+        # Filter result based on context
+        if context:
+            result = [
+                item
+                for item in result
+                if all(item.get(k) == v for k, v in context.items())
+            ]
+        return result
+
 
     @abstractmethod
     def _extract_with_patterns(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:

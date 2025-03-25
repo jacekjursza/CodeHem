@@ -437,27 +437,40 @@ class ExtractionService:
     def _process_class_element(self, class_data: Dict) -> CodeElement:
         """
         Process class data and create a class CodeElement with all its children (including methods).
-        
+
         Args:
-            class_data: Raw class data
-            
+        class_data: Raw class data
+
         Returns:
-            Class CodeElement with children
+        Class CodeElement with children
         """
         logger.debug(f"Processing class: {class_data.get('name')}")
         class_element = CodeElement.from_dict(class_data)
-        
-        # Process class decorators
         cls_decorators = class_data.get('decorators', [])
         for dec_element in self._process_decorators(class_element, cls_decorators):
             class_element.children.append(dec_element)
-        
-        # Process methods
+
+        # Collect methods by name to handle duplicates 
+        # (prefer decorated version if both exist)
         methods = class_data.get('methods', [])
+        method_map = {}
+
         for method_data in methods:
+            method_name = method_data.get('name')
+            is_decorated = '@' in method_data.get('content', '')
+
+            # Skip if we already have a decorated version of this method
+            if method_name in method_map and not is_decorated:
+                continue
+
+            # Replace existing method if this one is decorated
+            method_map[method_name] = method_data
+
+        # Process unique methods
+        for method_data in method_map.values():
             method_element = self._process_method_element(method_data, class_element.name)
             class_element.children.append(method_element)
-            
+
         return class_element
         
     def extract_all(self, code: str) -> CodeElementsResult:

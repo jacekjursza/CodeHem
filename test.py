@@ -38,8 +38,11 @@ def my_function(x: int) -> int:
 
 new_version = '''
 def greet(self) -> str:
+    print("Hello, World!")
     return f"Hello, {self.name}!!!!!!!!!!!"
 '''
+
+
 
 def test_services():
     ch = CodeHem('python')
@@ -68,8 +71,8 @@ def test_extractors():
     rich.print(elements)
     print("----------------------------------")
 
-    # result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
-    # rich.print(result)
+    result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
+    rich.print(result)
 
 
 if __name__ == "__main__":

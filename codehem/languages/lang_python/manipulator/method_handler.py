@@ -1,5 +1,8 @@
 import re
 from typing import Optional, Tuple
+
+import rich
+
 from codehem.models.enums import CodeElementType
 from codehem.core.registry import element_type_descriptor, manipulator
 from codehem.languages.lang_python.manipulator.base import PythonBaseManipulator
@@ -30,32 +33,10 @@ class PythonMethodManipulator(PythonBaseManipulator):
             result.append(f'{method_indent}{line}')
         return '\n'.join(result)
 
-    def find_element(self, code: str, method_name: str, parent_name: Optional[str]=None) -> Tuple[int, int]:
-        """Find a method in Python code"""
-        # Create an extraction service for more advanced search capabilities
-        extraction_service = ExtractionService(self.LANGUAGE_CODE)
-        
-        if not parent_name:
-            # We need to find the parent class for the method
-            # Extract all classes and check their methods
-            classes = extraction_service.extract_classes(code)
-            for cls in classes:
-                cls_name = cls.get('name')
-                methods = extraction_service.extract_methods(code, cls_name)
-                for method in methods:
-                    if method.get('name') == method_name:
-                        parent_name = cls_name
-                        break
-                if parent_name:
-                    break
-            if not parent_name:
-                return (0, 0)
-        
-        return extraction_service.find_element(code, self.ELEMENT_TYPE.value, method_name, parent_name)
-
     def replace_element(self, original_code: str, method_name: str, new_element: str, parent_name: Optional[str]=None) -> str:
         """Replace a method in Python code"""
         (start_line, end_line) = self.find_element(original_code, method_name, parent_name)
+
         if start_line == 0 and end_line == 0:
             if parent_name:
                 return self.add_element(original_code, new_element, parent_name)

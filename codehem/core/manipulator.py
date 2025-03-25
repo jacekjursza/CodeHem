@@ -12,12 +12,14 @@ class BaseManipulator:
     def __init__(self, extractor: BaseExtractor):
         self.extractor = extractor
 
-    def get_indentation(self, line: str) -> str:
+    @staticmethod
+    def get_indentation(line: str) -> str:
         """Extract indentation from a line"""
         match = re.match('^(\\s*)', line)
         return match.group(1) if match else ''
 
-    def apply_indentation(self, content: str, indent: str) -> str:
+    @staticmethod
+    def apply_indentation(content: str, indent: str) -> str:
         """Apply consistent indentation to a block of content"""
         lines = content.splitlines()
         result = []
@@ -33,9 +35,12 @@ class BaseManipulator:
         indent = ' ' * (4 * indent_level)
         return self.apply_indentation(element_code.strip(), indent)
 
-    def find_element(self, code: str, element_name: str, parent_name: Optional[str] = None) -> Tuple[int, int]:
-        """Find line numbers for an element in code"""
-        # This should be implemented by specific handlers
+    def find_element(self, code: str, method_name: str, parent_name: Optional[str]=None) -> Tuple[int, int]:
+        """Find a method in Python code"""
+        results = self.extractor.extract(code, context={'class_name': parent_name, 'name': method_name})
+        if results and len(results) == 1:
+            result = results[0]
+            return result['range']['start']['line'], result['range']['end']['line']
         return 0, 0
 
     @staticmethod
