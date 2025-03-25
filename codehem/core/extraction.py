@@ -305,65 +305,133 @@ class ExtractionService:
     def _process_function_element(self, function_data: Dict) -> CodeElement:
         """
         Process function data and create a function CodeElement with all its children.
-        
+
         Args:
-            function_data: Raw function data
-            
+        function_data: Raw function data
+
         Returns:
-            Function CodeElement with children
+        Function CodeElement with children
         """
-        logger.debug(f"Processing function: {function_data.get('name')}")
+        func_name = function_data.get('name', 'unknown')
+        logger.debug(f"Processing function: {func_name}")
+
+        # Create function element
         func_element = CodeElement.from_dict(function_data)
-        
-        # Process parameters
+
+        # Process parameters directly
         parameters = function_data.get('parameters', [])
-        for param_element in self._process_parameters(func_element, parameters):
-            func_element.children.append(param_element)
-        
-        # Process return value
+        logger.debug(f"Function {func_name} has {len(parameters)} parameters")
+        for param in parameters:
+            param_name = param.get('name')
+            param_type = param.get('type')
+            if param_name:
+                param_element = CodeElement(
+                    type=CodeElementType.PARAMETER,
+                    name=param_name,
+                    content=param_name,
+                    parent_name=func_name,
+                    value_type=param_type,
+                    additional_data={'optional': param.get('optional', False), 'default': param.get('default')}
+                )
+                func_element.children.append(param_element)
+
+        # Process return info
         return_info = function_data.get('return_info', {})
-        return_element = self._process_return_value(func_element, return_info)
-        if return_element:
+        return_type = return_info.get('return_type')
+        return_values = return_info.get('return_values', [])
+        if return_type or return_values:
+            return_element = CodeElement(
+                type=CodeElementType.RETURN_VALUE,
+                name=f'{func_name}_return',
+                content=return_type if return_type else '',
+                parent_name=func_name,
+                value_type=return_type,
+                additional_data={'values': return_values}
+            )
             func_element.children.append(return_element)
-        
-        # Process decorators
+
+        # Process decorators directly
         decorators = function_data.get('decorators', [])
-        for dec_element in self._process_decorators(func_element, decorators):
-            func_element.children.append(dec_element)
-            
+        logger.debug(f"Function {func_name} has {len(decorators)} decorators")
+        for dec in decorators:
+            dec_name = dec.get('name')
+            dec_content = dec.get('content')
+            if dec_name:
+                decorator_element = CodeElement(
+                    type=CodeElementType.DECORATOR,
+                    name=dec_name,
+                    content=dec_content,
+                    parent_name=func_name
+                )
+                func_element.children.append(decorator_element)
+
         return func_element
     
     def _process_method_element(self, method_data: Dict, parent_name: str) -> CodeElement:
         """
         Process method data and create a method CodeElement with all its children.
-        
+
         Args:
-            method_data: Raw method data
-            parent_name: Name of the parent class
-            
+        method_data: Raw method data
+        parent_name: Name of the parent class
+
         Returns:
-            Method CodeElement with children
+        Method CodeElement with children
         """
-        logger.debug(f"Processing method: {method_data.get('name')} in class {parent_name}")
+        method_name = method_data.get('name', 'unknown')
+        logger.debug(f"Processing method: {method_name} in class {parent_name}")
+
+        # Create method element
         method_element = CodeElement.from_dict(method_data)
         method_element.parent_name = parent_name
-        
-        # Process method parameters
+
+        # Process parameters directly
         parameters = method_data.get('parameters', [])
-        for param_element in self._process_parameters(method_element, parameters):
-            method_element.children.append(param_element)
-        
-        # Process method return value
+        logger.debug(f"Method {method_name} has {len(parameters)} parameters")
+        for param in parameters:
+            param_name = param.get('name')
+            param_type = param.get('type')
+            if param_name:
+                param_element = CodeElement(
+                    type=CodeElementType.PARAMETER,
+                    name=param_name,
+                    content=param_name,
+                    parent_name=f'{parent_name}.{method_name}',
+                    value_type=param_type,
+                    additional_data={'optional': param.get('optional', False), 'default': param.get('default')}
+                )
+                method_element.children.append(param_element)
+
+        # Process return info
         return_info = method_data.get('return_info', {})
-        return_element = self._process_return_value(method_element, return_info)
-        if return_element:
+        return_type = return_info.get('return_type')
+        return_values = return_info.get('return_values', [])
+        if return_type or return_values:
+            return_element = CodeElement(
+                type=CodeElementType.RETURN_VALUE,
+                name=f'{method_name}_return',
+                content=return_type if return_type else '',
+                parent_name=f'{parent_name}.{method_name}',
+                value_type=return_type,
+                additional_data={'values': return_values}
+            )
             method_element.children.append(return_element)
-        
-        # Process method decorators
-        method_decorators = method_data.get('decorators', [])
-        for dec_element in self._process_decorators(method_element, method_decorators):
-            method_element.children.append(dec_element)
-            
+
+        # Process decorators directly
+        decorators = method_data.get('decorators', [])
+        logger.debug(f"Method {method_name} has {len(decorators)} decorators")
+        for dec in decorators:
+            dec_name = dec.get('name')
+            dec_content = dec.get('content')
+            if dec_name:
+                decorator_element = CodeElement(
+                    type=CodeElementType.DECORATOR,
+                    name=dec_name,
+                    content=dec_content,
+                    parent_name=f'{parent_name}.{method_name}'
+                )
+                method_element.children.append(decorator_element)
+
         return method_element
     
     def _process_class_element(self, class_data: Dict) -> CodeElement:
