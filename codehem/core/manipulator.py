@@ -1,9 +1,16 @@
 import re
 from typing import Tuple, Optional
 
+from codehem.extractors.base import BaseExtractor
+
 
 class BaseManipulator:
     """Base handler for Python manipulators with common formatting utilities"""
+    LANGUAGE_CODE = ''
+    ELEMENT_TYPE = ''
+
+    def __init__(self, extractor: BaseExtractor):
+        self.extractor = extractor
 
     def get_indentation(self, line: str) -> str:
         """Extract indentation from a line"""
@@ -26,13 +33,13 @@ class BaseManipulator:
         indent = ' ' * (4 * indent_level)
         return self.apply_indentation(element_code.strip(), indent)
 
-    def find_element(self, code: str, element_name: str,
-                     parent_name: Optional[str] = None) -> Tuple[int, int]:
+    def find_element(self, code: str, element_name: str, parent_name: Optional[str] = None) -> Tuple[int, int]:
         """Find line numbers for an element in code"""
         # This should be implemented by specific handlers
         return 0, 0
 
-    def replace_lines(self, original_code: str, start_line: int,
+    @staticmethod
+    def replace_lines(original_code: str, start_line: int,
                       end_line: int, new_content: str) -> str:
         """Replace lines between start_line and end_line with new_content"""
         if start_line <= 0 or end_line < start_line:

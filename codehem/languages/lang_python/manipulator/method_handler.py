@@ -2,14 +2,14 @@ import re
 from typing import Optional, Tuple
 
 from codehem.models.enums import CodeElementType
-from codehem.core.registry import handler
+from codehem.core.registry import element_type_descriptor, manipulator
 from codehem.languages.lang_python.manipulator.base import PythonBaseManipulator
 from codehem.core.finder.factory import get_code_finder
 
-@handler
+@manipulator
 class PythonMethodManipulator(PythonBaseManipulator):
-    language_code = 'python'
-    element_type = CodeElementType.METHOD
+    LANGUAGE_CODE = 'python'
+    ELEMENT_TYPE = CodeElementType.METHOD
     
     def __init__(self):
         self.finder = get_code_finder('python')

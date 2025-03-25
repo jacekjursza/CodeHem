@@ -1,9 +1,9 @@
-from codehem.core.registry import handler
+from codehem.core.registry import element_type_descriptor
 from codehem.models.enums import CodeElementType
-from codehem.models.language_handler import LanguageHandler
+from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 
-@handler
-class PythonStaticPropertyHandler(LanguageHandler):
+@element_type_descriptor
+class PythonStaticPropertyHandlerElementType(ElementTypeLanguageDescriptor):
     """Handler for Python static property elements."""
     language_code = 'python'
     element_type = CodeElementType.STATIC_PROPERTY

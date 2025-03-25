@@ -1,10 +1,10 @@
 """Handler for Python import elements."""
-from codehem.core.registry import handler
+from codehem.core.registry import element_type_descriptor
 from codehem.models.enums import CodeElementType
-from codehem.models.language_handler import LanguageHandler
+from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 
-@handler
-class PythonImportHandler(LanguageHandler):
+@element_type_descriptor
+class PythonImportHandlerElementType(ElementTypeLanguageDescriptor):
     """Handler for Python import elements."""
     language_code = 'python'
     element_type = CodeElementType.IMPORT

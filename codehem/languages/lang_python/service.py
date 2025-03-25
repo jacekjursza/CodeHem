@@ -10,9 +10,7 @@ from codehem.core.registry import language_service
 class PythonLanguageService(LanguageService):
     """Python language service implementation."""
 
-    @property
-    def language_code(self) -> str:
-        return 'python'
+    LANGUAGE_CODE = 'python'
 
     @property
     def file_extensions(self) -> List[str]:
@@ -72,7 +70,7 @@ class PythonLanguageService(LanguageService):
             return
         if not element.content:
             return
-        decorator_extractor = extractor.get_extractor('decorator')
+        decorator_extractor = extractor.get_descriptor('decorator')
         if not decorator_extractor:
             return
         decorators = decorator_extractor.extract(element.content, {'language_code': self.language_code})

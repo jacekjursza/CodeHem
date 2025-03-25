@@ -1,12 +1,11 @@
-from dataclasses import dataclass, field
-from typing import Optional, Dict, List, Any
-from pydantic import BaseModel, Field
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
-from codehem.core.manipulator import BaseManipulator
 from codehem.models.enums import CodeElementType
 
+
 @dataclass
-class LanguageHandler:
+class ElementTypeLanguageDescriptor:
     """Abstract base class for language handlers.
     
     Provides patterns (tree_sitter_query and regexp_pattern) for element finding,

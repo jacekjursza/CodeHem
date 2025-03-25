@@ -6,7 +6,7 @@ import re
 import logging
 from codehem.extractors.base import BaseExtractor
 from codehem.models.enums import CodeElementType
-from codehem.models.language_handler import LanguageHandler
+from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.core.registry import extractor
 logger = logging.getLogger(__name__)
 
@@ -14,10 +14,12 @@ logger = logging.getLogger(__name__)
 class FunctionExtractor(BaseExtractor):
     """Function extractor using language-specific handlers."""
 
+    ELEMENT_TYPE = CodeElementType.FUNCTION
+
     @property
     def element_type(self) -> CodeElementType:
         """Get the element type this extractor handles."""
-        return CodeElementType.FUNCTION
+        return self.ELEMENT_TYPE
 
     def supports_language(self, language_code: str) -> bool:
         """Check if this extractor supports the given language."""
@@ -43,7 +45,7 @@ class FunctionExtractor(BaseExtractor):
             return handler.extract(code, context)
         return self._extract_with_patterns(code, handler, context)
 
-    def _extract_with_patterns(self, code: str, handler: LanguageHandler, context: Dict[str, Any]) -> List[Dict]:
+    def _extract_with_patterns(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extract using TreeSitter first, fall back to regex if needed."""
         if handler.tree_sitter_query:
             functions = self._extract_with_tree_sitter(code, handler, context)
@@ -53,9 +55,9 @@ class FunctionExtractor(BaseExtractor):
             return self._extract_with_regex(code, handler, context)
         return []
 
-    def _extract_with_tree_sitter(self, code: str, handler: LanguageHandler, context: Dict[str, Any]) -> List[Dict]:
+    def _extract_with_tree_sitter(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extract functions using TreeSitter."""
-        ast_handler = self._get_ast_handler(handler.language_code)
+        ast_handler = self._get_ast_handler()
         if not ast_handler:
             return []
         try:
@@ -232,7 +234,7 @@ class FunctionExtractor(BaseExtractor):
             'return_values': return_values
         }
 
-    def _extract_with_regex(self, code: str, handler: LanguageHandler, context: Dict[str, Any]) -> List[Dict]:
+    def _extract_with_regex(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extract functions using regex."""
         try:
             pattern = handler.regexp_pattern

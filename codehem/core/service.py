@@ -3,12 +3,13 @@ Base interfaces for language implementations.
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Union, Type
 from codehem import CodeElementType
-from codehem.core.registry import registry
-from codehem.manipulator import BaseManipulator
+from codehem.extractors.base import BaseExtractor
+
+from codehem.core.manipulator import BaseManipulator
 from codehem.models.code_element import CodeElement, CodeElementsResult
-from codehem.models.language_handler import LanguageHandler
+from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 
 logger = logging.getLogger(__name__)
 
@@ -17,27 +18,45 @@ class LanguageService(ABC):
     Base class for language-specific services.
     Defines the interface for language-specific operations and combines finder, formatter, and manipulator.
     """
+    LANGUAGE_CODE: str
 
-    def __init__(self):
-        self.extractors: Dict[str, LanguageHandler] = {}
+    def __init__(self,
+                 extractors: Dict[str, Type[BaseExtractor]],
+                 manipulators: Dict[str, Type[BaseManipulator]],
+                 element_type_descriptors: Dict[str, Dict[str, ElementTypeLanguageDescriptor]]):
+
+        self.extractors: Dict[str, BaseExtractor] = {}
         self.manipulators: Dict[str, BaseManipulator] = {}
+        self.element_type_descriptors: Dict[str, ElementTypeLanguageDescriptor] = {}
 
-    def get_extractor(self, element_type: str) -> Optional[LanguageHandler]:
+        for element_type_name, extractor_class in extractors.items():
+            descriptor = element_type_descriptors[self.language_code].get(element_type_name)
+            if descriptor:
+                self.element_type_descriptors[element_type_name] = descriptor
+
+                if extractor_class:
+                    self.extractors[element_type_name] = extractor_class(self.language_code, descriptor)
+
+                manipulator_class = manipulators.get(f"{self.language_code}_{element_type_name}")
+                if manipulator_class and extractor_class:
+                    self.manipulators[element_type_name] = manipulator_class(self.extractors[element_type_name])
+
+    @property
+    def language_code(self) -> str:
+        return self.LANGUAGE_CODE
+
+    def get_element_descriptor(self, element_type: Union[str, CodeElementType]) -> Optional[ElementTypeLanguageDescriptor]:
         """Get an extractor class by element type."""
         if hasattr(element_type, 'value'):
             element_type = element_type.value
-        return self.extractors.get(element_type.lower())
+        return self.element_type_descriptors.get(element_type.lower())
 
-    def get_manipulator(self, language_code: str) -> List[BaseManipulator]:
+    def get_manipulator(self, element_type: str) -> BaseManipulator:
         """Get all handlers for a specific language."""
-        language_code = language_code.lower()
-        return list(self.manipulators.get(language_code, {}).values())
+        return self.manipulators.get(element_type.lower())
 
-    @property
-    @abstractmethod
-    def language_code(self) -> str:
-        """Get the language code (e.g., 'python', 'typescript')."""
-        pass
+    def get_extractor(self, element_type: str):
+        return self.extractors.get(element_type.lower())
 
     @property
     @abstractmethod
@@ -88,8 +107,9 @@ class LanguageService(ABC):
         Returns:
             Modified code
         """
+
         handler = None
-        handlers = registry.get_manipulator(self.language_code)
+        handlers = self.get_manipulator(self.language_code)
         for h in handlers:
             if h.element_type.value == element_type:
                 handler = h
@@ -194,11 +214,11 @@ class LanguageService(ABC):
         Returns:
             CodeElementsResult containing extracted elements
         """
-        from codehem.extractor import Extractor
+        from codehem.core.extraction import ExtractionService
 
         try:
-            extractor = Extractor(self.language_code)
-            raw_elements = extractor.extract_all(code)
+            extractor = ExtractionService(self.language_code)
+            raw_elements = extractor.extract_file(code)
             result = CodeElementsResult()
             
             # Process imports

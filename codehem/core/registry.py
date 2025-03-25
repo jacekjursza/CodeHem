@@ -5,9 +5,13 @@ Uses decorator-based self-registration for automatic component discovery.
 import importlib
 import logging
 import os
+import traceback
 from typing import Any, List, Optional, Type
 import rich
-from codehem.models.language_handler import LanguageHandler
+
+from codehem.core.service import LanguageService
+from codehem.extractors.base import BaseExtractor
+from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 
 
 logger = logging.getLogger(__name__)
@@ -32,9 +36,11 @@ class Registry:
         """Initialize empty registries for different component types."""
         self.language_detectors = {}
         self.language_services = {}
+        self.all_descriptors = {}
         self.all_extractors = {}
         self.all_manipulators = {}
         self.discovered_modules = set()
+        self.language_service_instances = {}
         self._initialized = False
 
     def register_language_detector(self, cls):
@@ -45,32 +51,36 @@ class Registry:
         rich.print(f"Registered language detector: {cls.__name__} for {language_code}")
         return cls
 
-    def register_language_service(self, cls):
+    def register_language_service(self, cls: Type[LanguageService]):
         """Register a language service class."""
-        instance = cls()
-        language_code = instance.language_code.lower()
-        self.language_services[language_code] = instance
-        rich.print(f"Registered language service: {cls.__name__} for {language_code}")
+        self.language_services[cls.LANGUAGE_CODE] = cls
+        rich.print(f"Registered language service: {cls.__name__} for {cls.LANGUAGE_CODE}")
         return cls
 
-    def register_extractor(self, cls: Type[LanguageHandler]):
-        """Register an extractor class."""
-        instance = cls()
-        element_type = instance.element_type.value.lower()
-        language_code = instance.language_code.lower()
-        self.language_services[language_code].extractors[element_type] = instance
-        self.all_extractors[f"{language_code}__{element_type}"] = instance
-        rich.print(f"Registered extractor: {cls.__name__} for {element_type}")
+    def register_extractor(self, cls: Type[BaseExtractor]):
+        """Register an extractor class - extractor is language agnostic and needs descriptor for specific language"""
+        self.all_extractors[cls.ELEMENT_TYPE] = cls
+        rich.print(f"Registered extractor: {cls.__name__} for {cls.ELEMENT_TYPE}")
         return cls
 
     def register_manipulator(self, cls):
         """Register a language-specific handler."""
+        self.all_manipulators[f"{cls.LANGUAGE_CODE}_{cls.ELEMENT_TYPE}"] = cls
+        rich.print(f"Registered manipulator: {cls.__name__} for {cls.ELEMENT_TYPE}")
+        return cls
+
+    def register_element_type_descriptor(self, cls):
+        """Register a language-specific handler."""
         instance = cls()
         language_code = instance.language_code.lower()
         element_type = instance.element_type.value.lower()
-        self.language_services[language_code].manipulators[element_type] = instance
-        self.all_manipulators[f"{language_code}__{element_type}"] = instance
-        rich.print(f"Registered handler: {cls.__name__} for {language_code}/{element_type}")
+
+        if language_code not in self.all_descriptors:
+            self.all_descriptors[language_code] = {}
+
+        self.all_descriptors[language_code][element_type] = instance
+
+        rich.print(f"Registered descriptor: {cls.__name__} for {language_code}/{element_type}")
         return cls
 
     def get_language_detector(self, language_code: str) -> Optional[Any]:
@@ -79,7 +89,16 @@ class Registry:
 
     def get_language_service(self, language_code: str) -> Optional[Any]:
         """Get a language service by code."""
-        return self.language_services.get(language_code.lower())
+        language_code = language_code.lower()
+        if language_code not in self.language_service_instances:
+            language_service_cls = self.language_services.get(language_code)
+            if language_service_cls:
+                self.language_service_instances[language_code] = language_service_cls(self.all_extractors, self.all_manipulators, self.all_descriptors)
+            else:
+                rich.print(f"No language service found for {language_code}")
+                return None
+
+        return self.language_service_instances.get(language_code.lower(), None)
 
     def get_supported_languages(self) -> List[str]:
         """Get a list of all supported language codes."""
@@ -113,6 +132,7 @@ class Registry:
                             rich.print(f"Imported module: {module_name}")
                         except Exception as e:
                             logger.warning(f"Error importing module {module_name}: {e}")
+                            print(traceback.format_exc())
                 
                 # If it's a directory and recursive is True, process it as a subpackage
                 elif os.path.isdir(full_path) and recursive:
@@ -145,7 +165,7 @@ class Registry:
 # Create a singleton registry instance
 registry = Registry()
 
-# Decorator functions for self-registration
+
 def language_detector(cls):
     """Decorator to register a language detector."""
     return registry.register_language_detector(cls)
@@ -158,6 +178,10 @@ def extractor(cls):
     """Decorator to register an extractor."""
     return registry.register_extractor(cls)
 
-def handler(cls):
-    """Decorator to register a language handler."""
+def manipulator(cls):
+    """Decorator to register a manipulator."""
     return registry.register_manipulator(cls)
+
+def element_type_descriptor(cls):
+    """Decorator to register a language handler."""
+    return registry.register_element_type_descriptor(cls)

@@ -32,14 +32,12 @@ def test_registry():
     # Check extractors
     logger.info("Registered Extractors:")
     for code, extractor in registry.all_extractors.items():
-        logger.info(f"  {code}: {extractor.__name__}")
+        logger.info(f"  {code}: {extractor.__class__.__name__}")
     
     # Check handlers
     logger.info("Registered Manipulators:")
-    # for lang, handlers in registry.all_manipulators.items():
-    #     logger.info(f"  {lang}:")
-    #     for element_type, handler in handlers.items():
-    #         logger.info(f"    {element_type}: {handler.__class__.__name__}")
+    for lang, handlers in registry.all_manipulators.items():
+        logger.info(f"  {lang}: {handlers.__class__.__name__}")
 
     logger.info("")
 
@@ -57,7 +55,7 @@ class MyClass:
 
     @mydecorator
     def other(self, x: int, y: str) -> str:
-        return f"This is other: {x} {y}"."
+        return f"This is other: {x} {y}."
 
 def my_function(x: int) -> int:
     return x + 1

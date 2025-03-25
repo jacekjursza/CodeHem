@@ -6,18 +6,21 @@ import re
 import logging
 from codehem.extractors.base import BaseExtractor
 from codehem.models.enums import CodeElementType
-from codehem.models.language_handler import LanguageHandler
+from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.core.registry import extractor
 logger = logging.getLogger(__name__)
+
 
 @extractor
 class MethodExtractor(BaseExtractor):
     """Method extractor using language-specific handlers."""
 
+    ELEMENT_TYPE = CodeElementType.METHOD
+
     @property
     def element_type(self) -> CodeElementType:
         """Get the element type this extractor handles."""
-        return CodeElementType.METHOD
+        return self.ELEMENT_TYPE
 
     def supports_language(self, language_code: str) -> bool:
         """Check if this extractor supports the given language."""
@@ -51,7 +54,7 @@ class MethodExtractor(BaseExtractor):
             return filtered_methods
         return methods
 
-    def _extract_with_patterns(self, code: str, handler: LanguageHandler, context: Dict[str, Any]) -> List[Dict]:
+    def _extract_with_patterns(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extract using TreeSitter first, fall back to regex if needed."""
         if handler.tree_sitter_query:
             methods = self._extract_with_tree_sitter(code, handler, context)
@@ -61,9 +64,9 @@ class MethodExtractor(BaseExtractor):
             return self._extract_with_regex(code, handler, context)
         return []
 
-    def _extract_with_tree_sitter(self, code: str, handler: LanguageHandler, context: Dict[str, Any]) -> List[Dict]:
+    def _extract_with_tree_sitter(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extract methods using TreeSitter."""
-        ast_handler = self._get_ast_handler(handler.language_code)
+        ast_handler = self._get_ast_handler()
         if not ast_handler:
             return []
         try:
@@ -363,7 +366,7 @@ class MethodExtractor(BaseExtractor):
             'return_values': return_values
         }
 
-    def _extract_with_regex(self, code: str, handler: LanguageHandler, context: Dict[str, Any]) -> List[Dict]:
+    def _extract_with_regex(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extract methods using regex."""
         class_name = context.get('class_name')
         if class_name:

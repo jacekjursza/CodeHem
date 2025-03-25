@@ -8,11 +8,11 @@ from codehem.core.registry import registry
 from codehem.core.service import LanguageService
 
 
-def get_language_service(language_code: str) -> Optional[Any]:
+def get_language_service(language_code: str) -> Optional[LanguageService]:
     """Get language service for the specified language code."""
     return registry.get_language_service(language_code.lower())
 
-def get_language_service_for_file(file_path: str) -> Optional[Any]:
+def get_language_service_for_file(file_path: str) -> Optional[LanguageService]:
     """Get language service for the specified file based on its extension."""
     import os
     (_, ext) = os.path.splitext(file_path)

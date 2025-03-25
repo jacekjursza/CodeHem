@@ -5,6 +5,7 @@ import os
 from typing import List, Optional, Tuple
 
 from .core.engine.xpath_parser import XPathParser
+from .core.extraction import ExtractionService
 from .languages import (
     get_language_service,
     get_language_service_for_code,
@@ -33,6 +34,7 @@ class CodeHem:
             ValueError: If the language is not supported
         """
         self.language_service = get_language_service(language_code)
+        self.extraction_service = ExtractionService(language_code)
         if not self.language_service:
             raise ValueError(f'Unsupported language: {language_code}')
 
@@ -164,7 +166,7 @@ class CodeHem:
         Returns:
             Tuple of (start_line, end_line) or (0, 0) if not found
         """
-        return self.language_service.finder.find_by_xpath(code, xpath)
+        return self.extraction_service.find_by_xpath(code, xpath)
 
     def extract(self, code: str) -> CodeElementsResult:
         """
@@ -176,7 +178,7 @@ class CodeHem:
         Returns:
             CodeElementsResult containing extracted elements
         """
-        return self.language_service.extract(code)
+        return self.extraction_service.extract_file(code)
 
     @staticmethod
     def filter(elements: CodeElementsResult, xpath: str='') -> Optional[CodeElement]:
