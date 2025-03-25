@@ -13,37 +13,12 @@ logger = logging.getLogger(__name__)
 @extractor
 class FunctionExtractor(BaseExtractor):
     """Function extractor using language-specific handlers."""
-
     ELEMENT_TYPE = CodeElementType.FUNCTION
 
     @property
     def element_type(self) -> CodeElementType:
         """Get the element type this extractor handles."""
         return self.ELEMENT_TYPE
-
-    def supports_language(self, language_code: str) -> bool:
-        """Check if this extractor supports the given language."""
-        return language_code.lower() in self.handlers
-
-    def extract(self, code: str, context: Optional[Dict[str, Any]]=None) -> List[Dict]:
-        """
-        Extract functions from the provided code.
-        
-        Args:
-            code: The source code to extract from
-            context: Optional context information for the extraction
-            
-        Returns:
-            List of extracted functions as dictionaries
-        """
-        context = context or {}
-        language_code = context.get('language_code', 'python').lower()
-        if not self.supports_language(language_code):
-            return []
-        handler = self.handlers[language_code]
-        if handler.custom_extract:
-            return handler.extract(code, context)
-        return self._extract_with_patterns(code, handler, context)
 
     def _extract_with_patterns(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extract using TreeSitter first, fall back to regex if needed."""
@@ -73,24 +48,9 @@ class FunctionExtractor(BaseExtractor):
                     if function_node:
                         (start_line, end_line) = ast_handler.get_node_range(function_node)
                         content = ast_handler.get_node_text(function_node, code_bytes)
-                        
-                        # Extract parameters information
                         parameters = self._extract_parameters(function_node, code_bytes, ast_handler)
-                        
-                        # Extract return type information
                         return_info = self._extract_return_info(function_node, code_bytes, ast_handler)
-                        
-                        functions.append({
-                            'type': 'function', 
-                            'name': func_name, 
-                            'content': content, 
-                            'range': {
-                                'start': {'line': start_line, 'column': function_node.start_point[1]}, 
-                                'end': {'line': end_line, 'column': function_node.end_point[1]}
-                            },
-                            'parameters': parameters,
-                            'return_info': return_info
-                        })
+                        functions.append({'type': 'function', 'name': func_name, 'content': content, 'range': {'start': {'line': start_line, 'column': function_node.start_point[1]}, 'end': {'line': end_line, 'column': function_node.end_point[1]}}, 'parameters': parameters, 'return_info': return_info})
             return functions
         except Exception as e:
             logger.debug(f'TreeSitter extraction error: {str(e)}')
@@ -109,73 +69,49 @@ class FunctionExtractor(BaseExtractor):
             List of parameter dictionaries with name, type, and default value
         """
         parameters = []
-        
-        # Find parameters node
         params_node = None
         for child_idx in range(function_node.named_child_count):
             child = function_node.named_child(child_idx)
             if child.type == 'parameters':
                 params_node = child
                 break
-        
         if not params_node:
             return parameters
-        
-        # Process each parameter
         for child_idx in range(params_node.named_child_count):
             child = params_node.named_child(child_idx)
-            
             if child.type == 'identifier':
-                # Simple parameter (e.g., x)
                 name = ast_handler.get_node_text(child, code_bytes)
                 parameters.append({'name': name, 'type': None})
-                
             elif child.type == 'typed_parameter':
-                # Parameter with type annotation (e.g., x: int)
                 name_node = child.child_by_field_name('name')
                 type_node = child.child_by_field_name('type')
-                
                 if name_node:
                     name = ast_handler.get_node_text(name_node, code_bytes)
                     param_dict = {'name': name, 'type': None}
-                    
                     if type_node:
                         param_dict['type'] = ast_handler.get_node_text(type_node, code_bytes)
-                    
                     parameters.append(param_dict)
-                
             elif child.type == 'default_parameter':
-                # Parameter with default value (e.g., x=10)
                 name_node = child.child_by_field_name('name')
                 value_node = child.child_by_field_name('value')
-                
                 if name_node:
                     name = ast_handler.get_node_text(name_node, code_bytes)
                     param_dict = {'name': name, 'type': None, 'optional': True}
-                    
                     if value_node:
                         param_dict['default'] = ast_handler.get_node_text(value_node, code_bytes)
-                    
                     parameters.append(param_dict)
-                
             elif child.type == 'typed_default_parameter':
-                # Parameter with type and default value (e.g., x: int = 10)
                 name_node = child.child_by_field_name('name')
                 type_node = child.child_by_field_name('type')
                 value_node = child.child_by_field_name('value')
-                
                 if name_node:
                     name = ast_handler.get_node_text(name_node, code_bytes)
                     param_dict = {'name': name, 'type': None, 'optional': True}
-                    
                     if type_node:
                         param_dict['type'] = ast_handler.get_node_text(type_node, code_bytes)
-                    
                     if value_node:
                         param_dict['default'] = ast_handler.get_node_text(value_node, code_bytes)
-                    
                     parameters.append(param_dict)
-        
         return parameters
 
     def _extract_return_info(self, function_node, code_bytes, ast_handler) -> Dict:
@@ -192,47 +128,32 @@ class FunctionExtractor(BaseExtractor):
         """
         return_type = None
         return_values = []
-        
-        # Get return type annotation
         return_type_node = function_node.child_by_field_name('return_type')
         if return_type_node:
             return_type = ast_handler.get_node_text(return_type_node, code_bytes)
-        
-        # Get return statements - using a more flexible query pattern
         body_node = function_node.child_by_field_name('body')
         if body_node:
             try:
-                # Using a more flexible query that doesn't rely on a specific field name
-                return_query = "(return_statement (_) @return_value)"
+                return_query = '(return_statement (_) @return_value)'
                 return_results = ast_handler.execute_query(return_query, body_node, code_bytes)
-                
-                for node, capture_name in return_results:
+                for (node, capture_name) in return_results:
                     if capture_name == 'return_value':
                         return_values.append(ast_handler.get_node_text(node, code_bytes))
             except Exception as e:
-                # If the query fails, try an alternative approach
                 try:
-                    # Alternative: Just capture the return statement and extract content manually
-                    alt_query = "(return_statement) @return_stmt"
+                    alt_query = '(return_statement) @return_stmt'
                     return_stmts = ast_handler.execute_query(alt_query, body_node, code_bytes)
-                    
-                    for node, capture_name in return_stmts:
+                    for (node, capture_name) in return_stmts:
                         if capture_name == 'return_stmt':
                             stmt_text = ast_handler.get_node_text(node, code_bytes)
-                            # Extract the value after 'return' keyword
                             if stmt_text.startswith('return '):
                                 return_values.append(stmt_text[7:].strip())
                 except Exception:
-                    # If all tree-sitter approaches fail, use regex as last resort
                     function_text = ast_handler.get_node_text(function_node, code_bytes)
-                    return_regex = r'return\s+(.+?)(?:\n|$)'
+                    return_regex = 'return\\s+(.+?)(?:\\n|$)'
                     for match in re.finditer(return_regex, function_text):
                         return_values.append(match.group(1).strip())
-        
-        return {
-            'return_type': return_type,
-            'return_values': return_values
-        }
+        return {'return_type': return_type, 'return_values': return_values}
 
     def _extract_with_regex(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extract functions using regex."""
@@ -251,9 +172,7 @@ class FunctionExtractor(BaseExtractor):
                 lines_total = code[:end_pos].count('\n')
                 last_newline_end = code[:end_pos].rfind('\n')
                 end_column = end_pos - last_newline_end - 1 if last_newline_end >= 0 else end_pos
-                
-                # Extract parameters using regex
-                param_pattern = r'def\s+\w+\s*\((.*?)\)'
+                param_pattern = 'def\\s+\\w+\\s*\\((.*?)\\)'
                 param_match = re.search(param_pattern, content)
                 parameters = []
                 if param_match:
@@ -261,46 +180,26 @@ class FunctionExtractor(BaseExtractor):
                     param_list = [p.strip() for p in params_str.split(',') if p.strip()]
                     for param in param_list:
                         param_dict = {'name': param, 'type': None}
-                        
-                        # Check for type annotation
                         if ':' in param:
-                            name_part, type_part = param.split(':', 1)
+                            (name_part, type_part) = param.split(':', 1)
                             param_dict['name'] = name_part.strip()
                             param_dict['type'] = type_part.strip()
-                        
-                        # Check for default value
                         if '=' in param_dict['name']:
-                            name_part, value_part = param_dict['name'].split('=', 1)
+                            (name_part, value_part) = param_dict['name'].split('=', 1)
                             param_dict['name'] = name_part.strip()
                             param_dict['default'] = value_part.strip()
                             param_dict['optional'] = True
-                        
                         parameters.append(param_dict)
-                
-                # Extract return type using regex
                 return_info = {'return_type': None, 'return_values': []}
-                return_type_pattern = r'def\s+\w+\s*\([^)]*\)\s*->\s*([^:]+):'
+                return_type_pattern = 'def\\s+\\w+\\s*\\([^)]*\\)\\s*->\\s*([^:]+):'
                 return_type_match = re.search(return_type_pattern, content)
                 if return_type_match:
                     return_info['return_type'] = return_type_match.group(1).strip()
-                
-                # Extract return values
-                return_pattern = r'return\s+([^;]+)'
+                return_pattern = 'return\\s+([^;]+)'
                 return_matches = re.finditer(return_pattern, content)
                 for return_match in return_matches:
                     return_info['return_values'].append(return_match.group(1).strip())
-                
-                functions.append({
-                    'type': 'function', 
-                    'name': name, 
-                    'content': content, 
-                    'range': {
-                        'start': {'line': lines_before, 'column': start_column}, 
-                        'end': {'line': lines_total, 'column': end_column}
-                    },
-                    'parameters': parameters,
-                    'return_info': return_info
-                })
+                functions.append({'type': 'function', 'name': name, 'content': content, 'range': {'start': {'line': lines_before, 'column': start_column}, 'end': {'line': lines_total, 'column': end_column}}, 'parameters': parameters, 'return_info': return_info})
             return functions
         except Exception as e:
             logger.debug(f'Regex extraction error: {e}')

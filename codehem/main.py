@@ -178,7 +178,7 @@ class CodeHem:
         Returns:
             CodeElementsResult containing extracted elements
         """
-        return self.extraction_service.extract_file(code)
+        return self.extraction_service.extract_all(code)
 
     @staticmethod
     def filter(elements: CodeElementsResult, xpath: str='') -> Optional[CodeElement]:

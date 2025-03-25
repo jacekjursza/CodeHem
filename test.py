@@ -15,31 +15,6 @@ logging.getLogger('tree_sitter').setLevel(logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
-def test_registry():
-    """Test the registry system for components."""
-    logger.info("Testing registry system...")
-    
-    # Check language detectors
-    logger.info("Registered Language Detectors:")
-    for code, detector in registry.language_detectors.items():
-        logger.info(f"  {code}: {detector.__class__.__name__}")
-    
-    # Check language services
-    logger.info("Registered Language Services:")
-    for code, service in registry.language_services.items():
-        logger.info(f"  {code}: {service.__class__.__name__}")
-    
-    # Check extractors
-    logger.info("Registered Extractors:")
-    for code, extractor in registry.all_extractors.items():
-        logger.info(f"  {code}: {extractor.__class__.__name__}")
-    
-    # Check handlers
-    logger.info("Registered Manipulators:")
-    for lang, handlers in registry.all_manipulators.items():
-        logger.info(f"  {lang}: {handlers.__class__.__name__}")
-
-    logger.info("")
 
 code = """
 from pydantic import BaseModel, Field
@@ -66,6 +41,14 @@ def greet(self) -> str:
     return f"Hello, {self.name}!!!!!!!!!!!"
 '''
 
+def test_services():
+    ch = CodeHem('python')
+    for key, extr in ch.language_service.extractors.items():
+        print(key)
+        rich.print(extr.__class__.__name__)
+        print("---------")
+
+    print("---------")
 
 def test_extractors():
     """Test the extraction functionality."""
@@ -85,10 +68,10 @@ def test_extractors():
     rich.print(elements)
     print("----------------------------------")
 
-    result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
-    rich.print(result)
+    # result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
+    # rich.print(result)
 
 
 if __name__ == "__main__":
-    test_registry()
+    test_services()
     test_extractors()

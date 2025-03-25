@@ -30,16 +30,26 @@ class BaseExtractor(ABC):
 
         return self.ast_handler
 
-    @abstractmethod
-    def extract(self, code: str, context: Optional[Dict[str, Any]]=None) -> List[Dict]:
+    def extract(
+        self, code: str, context: Optional[Dict[str, Any]] = None
+    ) -> List[Dict]:
         """
-        Extract elements from code.
-        
+        Extract decorators from the provided code.
+
         Args:
             code: The source code to extract from
             context: Optional context information for the extraction
-            
+
         Returns:
-            List of extracted elements as dictionaries
+            List of extracted decorators as dictionaries
         """
+        context = context or {}
+
+        if self.descriptor.custom_extract:
+            return self.descriptor.extract(code, context)
+
+        return self._extract_with_patterns(code, self.descriptor, context)
+
+    @abstractmethod
+    def _extract_with_patterns(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         pass

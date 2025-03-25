@@ -10,21 +10,15 @@ from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.core.registry import extractor
 logger = logging.getLogger(__name__)
 
-
 @extractor
 class MethodExtractor(BaseExtractor):
     """Method extractor using language-specific handlers."""
-
     ELEMENT_TYPE = CodeElementType.METHOD
 
     @property
     def element_type(self) -> CodeElementType:
         """Get the element type this extractor handles."""
         return self.ELEMENT_TYPE
-
-    def supports_language(self, language_code: str) -> bool:
-        """Check if this extractor supports the given language."""
-        return language_code.lower() in self.handlers
 
     def extract(self, code: str, context: Optional[Dict[str, Any]]=None) -> List[Dict]:
         """
@@ -37,15 +31,11 @@ class MethodExtractor(BaseExtractor):
         Returns:
             List of extracted methods as dictionaries
         """
+
         context = context or {}
-        language_code = context.get('language_code', 'python').lower()
         class_name = context.get('class_name')
-        if not self.supports_language(language_code):
-            return []
-        handler = self.handlers[language_code]
-        if handler.custom_extract:
-            return handler.extract(code, context)
-        methods = self._extract_with_patterns(code, handler, context)
+
+        methods = super().extract(code, context)
         if class_name and methods:
             filtered_methods = []
             for method in methods:
@@ -73,11 +63,7 @@ class MethodExtractor(BaseExtractor):
             (root, code_bytes) = ast_handler.parse(code)
             query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
             methods = []
-
-            # Process method nodes and their names
             method_nodes = {}
-
-            # First pass: collect method nodes and names
             for (node, capture_name) in query_results:
                 if capture_name == 'method_def':
                     name_node = ast_handler.find_child_by_field_name(node, 'name')
@@ -89,13 +75,9 @@ class MethodExtractor(BaseExtractor):
                     method_node = ast_handler.find_parent_of_type(node, 'function_definition')
                     if method_node:
                         method_nodes[method_name] = method_node
-
-            # Second pass: process each method
-            for method_name, method_node in method_nodes.items():
+            for (method_name, method_node) in method_nodes.items():
                 (start_line, end_line) = ast_handler.get_node_range(method_node)
                 content = ast_handler.get_node_text(method_node, code_bytes)
-
-                # Find class name
                 class_name = None
                 if context.get('class_name'):
                     class_name = context.get('class_name')
@@ -105,8 +87,6 @@ class MethodExtractor(BaseExtractor):
                         class_name_node = ast_handler.find_child_by_field_name(class_node, 'name')
                         if class_name_node:
                             class_name = ast_handler.get_node_text(class_name_node, code_bytes)
-
-                # Extract decorators
                 parent_node = method_node.parent
                 decorators = []
                 if parent_node and parent_node.type == 'decorated_definition':
@@ -121,28 +101,20 @@ class MethodExtractor(BaseExtractor):
                     content = ast_handler.get_node_text(parent_node, code_bytes)
                     start_line = parent_node.start_point[0]
                     end_line = parent_node.end_point[0]
-
-                # Extract parameters
                 parameters = []
                 params_node = ast_handler.find_child_by_field_name(method_node, 'parameters')
                 if params_node:
                     for i in range(params_node.named_child_count):
                         param_node = params_node.named_child(i)
                         if i == 0 and ast_handler.get_node_text(param_node, code_bytes) == 'self':
-                            # Skip self parameter
                             continue
-
                         param_info = self._extract_parameter(param_node, code_bytes, ast_handler)
                         if param_info:
                             parameters.append(param_info)
-
-                # Extract return type
                 return_type = None
                 return_type_node = ast_handler.find_child_by_field_name(method_node, 'return_type')
                 if return_type_node:
                     return_type = ast_handler.get_node_text(return_type_node, code_bytes)
-
-                # Extract return values
                 return_values = []
                 body_node = ast_handler.find_child_by_field_name(method_node, 'body')
                 if body_node:
@@ -155,8 +127,6 @@ class MethodExtractor(BaseExtractor):
                                 return_values.append(stmt_text[7:].strip())
                     except Exception:
                         pass
-
-                # Determine method type
                 element_type = 'method'
                 property_name = None
                 for decorator in decorators:
@@ -166,28 +136,8 @@ class MethodExtractor(BaseExtractor):
                     elif decorator.get('name', '').endswith('.setter'):
                         element_type = 'property_setter'
                         property_name = decorator.get('name').split('.')[0]
-
-                # Create method info
-                method_info = {
-                    'type': element_type,
-                    'name': method_name,
-                    'content': content,
-                    'class_name': class_name,
-                    'range': {
-                        'start': {'line': start_line, 'column': method_node.start_point[1]},
-                        'end': {'line': end_line, 'column': method_node.end_point[1]}
-                    },
-                    'decorators': decorators,
-                    'parameters': parameters,
-                    'return_info': {
-                        'return_type': return_type,
-                        'return_values': return_values
-                    },
-                    'property_name': property_name
-                }
-
+                method_info = {'type': element_type, 'name': method_name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': start_line, 'column': method_node.start_point[1]}, 'end': {'line': end_line, 'column': method_node.end_point[1]}}, 'decorators': decorators, 'parameters': parameters, 'return_info': {'return_type': return_type, 'return_values': return_values}, 'property_name': property_name}
                 methods.append(method_info)
-
             return methods
         except Exception as e:
             logger.debug(f'TreeSitter extraction error: {str(e)}')
@@ -207,7 +157,6 @@ class MethodExtractor(BaseExtractor):
         """
         decorators = []
         parent_node = method_node.parent
-        
         if parent_node and parent_node.type == 'decorated_definition':
             for child_idx in range(parent_node.named_child_count):
                 child = parent_node.named_child(child_idx)
@@ -216,12 +165,7 @@ class MethodExtractor(BaseExtractor):
                     if name_node:
                         decorator_name = ast_handler.get_node_text(name_node, code_bytes)
                         decorator_content = ast_handler.get_node_text(child, code_bytes)
-                        
-                        decorators.append({
-                            'name': decorator_name,
-                            'content': decorator_content
-                        })
-        
+                        decorators.append({'name': decorator_name, 'content': decorator_content})
         return decorators
 
     def _extract_parameters(self, method_node, code_bytes, ast_handler) -> List[Dict]:
@@ -237,77 +181,53 @@ class MethodExtractor(BaseExtractor):
             List of parameter dictionaries with name, type, and default value
         """
         parameters = []
-        
-        # Find parameters node
         params_node = None
         for child_idx in range(method_node.named_child_count):
             child = method_node.named_child(child_idx)
             if child.type == 'parameters':
                 params_node = child
                 break
-        
         if not params_node:
             return parameters
-        
-        # Process each parameter
         for child_idx in range(params_node.named_child_count):
             child = params_node.named_child(child_idx)
-            
             if child.type == 'identifier':
-                # Simple parameter (e.g., self, x)
                 name = ast_handler.get_node_text(child, code_bytes)
-                if name != 'self':  # Skip 'self' in parameter list
+                if name != 'self':
                     parameters.append({'name': name, 'type': None})
-                
             elif child.type == 'typed_parameter':
-                # Parameter with type annotation (e.g., x: int)
                 name_node = child.child_by_field_name('name')
                 type_node = child.child_by_field_name('type')
-                
                 if name_node:
                     name = ast_handler.get_node_text(name_node, code_bytes)
-                    if name != 'self':  # Skip 'self' in parameter list
+                    if name != 'self':
                         param_dict = {'name': name, 'type': None}
-                        
                         if type_node:
                             param_dict['type'] = ast_handler.get_node_text(type_node, code_bytes)
-                        
                         parameters.append(param_dict)
-                
             elif child.type == 'default_parameter':
-                # Parameter with default value (e.g., x=10)
                 name_node = child.child_by_field_name('name')
                 value_node = child.child_by_field_name('value')
-                
                 if name_node:
                     name = ast_handler.get_node_text(name_node, code_bytes)
-                    if name != 'self':  # Skip 'self' in parameter list
+                    if name != 'self':
                         param_dict = {'name': name, 'type': None, 'optional': True}
-                        
                         if value_node:
                             param_dict['default'] = ast_handler.get_node_text(value_node, code_bytes)
-                        
                         parameters.append(param_dict)
-                
             elif child.type == 'typed_default_parameter':
-                # Parameter with type and default value (e.g., x: int = 10)
                 name_node = child.child_by_field_name('name')
                 type_node = child.child_by_field_name('type')
                 value_node = child.child_by_field_name('value')
-                
                 if name_node:
                     name = ast_handler.get_node_text(name_node, code_bytes)
-                    if name != 'self':  # Skip 'self' in parameter list
+                    if name != 'self':
                         param_dict = {'name': name, 'type': None, 'optional': True}
-                        
                         if type_node:
                             param_dict['type'] = ast_handler.get_node_text(type_node, code_bytes)
-                        
                         if value_node:
                             param_dict['default'] = ast_handler.get_node_text(value_node, code_bytes)
-                        
                         parameters.append(param_dict)
-        
         return parameters
 
     def _extract_return_info(self, method_node, code_bytes, ast_handler) -> Dict:
@@ -324,47 +244,79 @@ class MethodExtractor(BaseExtractor):
         """
         return_type = None
         return_values = []
-        
-        # Get return type annotation
         return_type_node = method_node.child_by_field_name('return_type')
         if return_type_node:
             return_type = ast_handler.get_node_text(return_type_node, code_bytes)
-        
-        # Get return statements - using more robust approach
         body_node = method_node.child_by_field_name('body')
         if body_node:
             try:
-                # Using a more flexible query that doesn't rely on a specific field name
-                return_query = "(return_statement (_) @return_value)"
+                return_query = '(return_statement (_) @return_value)'
                 return_results = ast_handler.execute_query(return_query, body_node, code_bytes)
-                
-                for node, capture_name in return_results:
+                for (node, capture_name) in return_results:
                     if capture_name == 'return_value':
                         return_values.append(ast_handler.get_node_text(node, code_bytes))
             except Exception as e:
-                # If the query fails, try an alternative approach
                 try:
-                    # Alternative: Just capture the return statement and extract content manually
-                    alt_query = "(return_statement) @return_stmt"
+                    alt_query = '(return_statement) @return_stmt'
                     return_stmts = ast_handler.execute_query(alt_query, body_node, code_bytes)
-                    
-                    for node, capture_name in return_stmts:
+                    for (node, capture_name) in return_stmts:
                         if capture_name == 'return_stmt':
                             stmt_text = ast_handler.get_node_text(node, code_bytes)
-                            # Extract the value after 'return' keyword
                             if stmt_text.startswith('return '):
                                 return_values.append(stmt_text[7:].strip())
                 except Exception:
-                    # If all tree-sitter approaches fail, use regex as last resort
                     method_text = ast_handler.get_node_text(method_node, code_bytes)
-                    return_regex = r'return\s+(.+?)(?:\n|$)'
+                    return_regex = 'return\\s+(.+?)(?:\\n|$)'
                     for match in re.finditer(return_regex, method_text):
                         return_values.append(match.group(1).strip())
+        return {'return_type': return_type, 'return_values': return_values}
+
+    def _extract_parameter(self, param_node, code_bytes, ast_handler) -> Optional[Dict]:
+        """
+        Extract information about a parameter.
         
-        return {
-            'return_type': return_type,
-            'return_values': return_values
-        }
+        Args:
+            param_node: Parameter node
+            code_bytes: Source code as bytes
+            ast_handler: AST handler
+            
+        Returns:
+            Parameter information or None
+        """
+        if param_node.type == 'identifier':
+            name = ast_handler.get_node_text(param_node, code_bytes)
+            return {'name': name, 'type': None}
+        elif param_node.type == 'typed_parameter':
+            name_node = param_node.child_by_field_name('name')
+            type_node = param_node.child_by_field_name('type')
+            if name_node:
+                name = ast_handler.get_node_text(name_node, code_bytes)
+                param_dict = {'name': name, 'type': None}
+                if type_node:
+                    param_dict['type'] = ast_handler.get_node_text(type_node, code_bytes)
+                return param_dict
+        elif param_node.type == 'default_parameter':
+            name_node = param_node.child_by_field_name('name')
+            value_node = param_node.child_by_field_name('value')
+            if name_node:
+                name = ast_handler.get_node_text(name_node, code_bytes)
+                param_dict = {'name': name, 'type': None, 'optional': True}
+                if value_node:
+                    param_dict['default'] = ast_handler.get_node_text(value_node, code_bytes)
+                return param_dict
+        elif param_node.type == 'typed_default_parameter':
+            name_node = param_node.child_by_field_name('name')
+            type_node = param_node.child_by_field_name('type')
+            value_node = param_node.child_by_field_name('value')
+            if name_node:
+                name = ast_handler.get_node_text(name_node, code_bytes)
+                param_dict = {'name': name, 'type': None, 'optional': True}
+                if type_node:
+                    param_dict['type'] = ast_handler.get_node_text(type_node, code_bytes)
+                if value_node:
+                    param_dict['default'] = ast_handler.get_node_text(value_node, code_bytes)
+                return param_dict
+        return None
 
     def _extract_with_regex(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extract methods using regex."""
@@ -401,95 +353,62 @@ class MethodExtractor(BaseExtractor):
                 lines_total = code[:end_pos].count('\n')
                 last_newline_end = code[:end_pos].rfind('\n')
                 end_column = end_pos - last_newline_end - 1 if last_newline_end >= 0 else end_pos
-                
-                # Extract decorators
                 decorator_lines = []
                 method_line = None
-                for i, line in enumerate(content.splitlines()):
+                for (i, line) in enumerate(content.splitlines()):
                     if line.strip().startswith('@'):
                         decorator_lines.append(line.strip())
                     elif line.strip().startswith('def '):
                         method_line = i
                         break
-                
                 decorators = []
                 for decorator in decorator_lines:
                     name = decorator[1:].split('(')[0] if '(' in decorator else decorator[1:]
                     decorators.append({'name': name, 'content': decorator})
-                
-                # Determine if this is a property getter or setter
                 is_property = False
                 is_property_setter = False
                 property_name = None
-                
                 for decorator in decorators:
                     if decorator.get('name') == 'property':
                         is_property = True
                     elif decorator.get('name', '').endswith('.setter'):
                         is_property_setter = True
                         property_name = decorator.get('name').split('.')[0]
-                
                 element_type = 'method'
                 if is_property:
                     element_type = 'property_getter'
                 elif is_property_setter:
                     element_type = 'property_setter'
-                
-                # Extract parameters
-                param_pattern = r'def\s+\w+\s*\((.*?)\)'
+                param_pattern = 'def\\s+\\w+\\s*\\((.*?)\\)'
                 param_match = re.search(param_pattern, content)
                 parameters = []
                 if param_match:
                     params_str = param_match.group(1)
                     param_list = [p.strip() for p in params_str.split(',') if p.strip()]
                     for param in param_list:
-                        if param == 'self':  # Skip 'self' in parameter list
+                        if param == 'self':
                             continue
-                            
                         param_dict = {'name': param, 'type': None}
-                        
-                        # Check for type annotation
                         if ':' in param:
-                            name_part, type_part = param.split(':', 1)
+                            (name_part, type_part) = param.split(':', 1)
                             param_dict['name'] = name_part.strip()
                             param_dict['type'] = type_part.strip()
-                        
-                        # Check for default value
                         if '=' in param_dict['name']:
-                            name_part, value_part = param_dict['name'].split('=', 1)
+                            (name_part, value_part) = param_dict['name'].split('=', 1)
                             param_dict['name'] = name_part.strip()
                             param_dict['default'] = value_part.strip()
                             param_dict['optional'] = True
-                        
                         parameters.append(param_dict)
-                
-                # Extract return type
                 return_info = {'return_type': None, 'return_values': []}
-                return_type_pattern = r'def\s+\w+\s*\([^)]*\)\s*->\s*([^:]+):'
+                return_type_pattern = 'def\\s+\\w+\\s*\\([^)]*\\)\\s*->\\s*([^:]+):'
                 return_type_match = re.search(return_type_pattern, content)
                 if return_type_match:
                     return_info['return_type'] = return_type_match.group(1).strip()
-                
-                # Extract return values
-                return_pattern = r'return\s+([^;]+)'
+                return_pattern = 'return\\s+([^;]+)'
                 return_matches = re.finditer(return_pattern, content)
                 for return_match in return_matches:
                     return_info['return_values'].append(return_match.group(1).strip())
-                
-                methods.append({
-                    'type': element_type, 
-                    'name': name, 
-                    'content': content, 
-                    'class_name': class_name,
-                    'range': {
-                        'start': {'line': lines_before, 'column': start_column}, 
-                        'end': {'line': lines_total, 'column': end_column}
-                    },
-                    'decorators': decorators,
-                    'parameters': parameters,
-                    'return_info': return_info,
-                    'property_name': property_name
-                })
+                methods.append({'type': element_type, 'name': name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': lines_before, 'column': start_column}, 'end': {'line': lines_total, 'column': end_column}}, 'decorators': decorators, 'parameters': parameters, 'return_info': return_info, 'property_name': property_name})
             return methods
         except Exception as e:
             logger.debug(f'Regex extraction error: {e}')
