@@ -6,9 +6,7 @@ import re
 from typing import Dict, List, Optional, Any, Tuple, Union
 import os
 import logging
-
 import rich
-
 from codehem import CodeElementType
 from codehem.core.engine.xpath_parser import XPathParser
 from codehem.core.registry import registry
@@ -22,9 +20,19 @@ class ExtractionService:
     """Main extractor class that delegates to specific extractors based on language."""
 
     def __init__(self, language_code: str):
+        """
+        Initialize the extraction service for a language.
+        
+        Args:
+            language_code: The language code to extract from
+        """
         self.language_code = language_code
-        self.language_service: LanguageService = registry.get_language_service(language_code)
-        logger.debug(f'Created extractor for language: {language_code}')
+        # Get the language service in a way that avoids circular dependencies
+        self.language_service = None
+        try:
+            self.language_service = registry.get_language_service(language_code)
+        except Exception as e:
+            logger.error(f"Failed to get language service for {language_code}: {e}")
 
     def find_element(self, code: str, element_type: str, element_name: Optional[str]=None, parent_name: Optional[str]=None) -> Tuple[int, int]:
         """
@@ -40,6 +48,11 @@ class ExtractionService:
         Tuple of (start_line, end_line) or (0, 0) if not found
         """
         logger.debug(f"Finding element of type '{element_type}', name '{element_name}', parent '{parent_name}'")
+        
+        if self.language_service is None:
+            logger.error("No language service available for extraction")
+            return (0, 0)
+            
         if element_name is None and parent_name is None:
             elements = self.extract_any(code, element_type)
             if elements and len(elements) > 0:
@@ -91,6 +104,16 @@ class ExtractionService:
                             start_line = range_data.get('start', {}).get('line', 0)
                             end_line = range_data.get('end', {}).get('line', 0)
                             return (start_line, end_line)
+        # Handle TypeScript-specific element types
+        elif element_type in [CodeElementType.INTERFACE.value, CodeElementType.ENUM.value, CodeElementType.TYPE_ALIAS.value, CodeElementType.NAMESPACE.value]:
+            elements = self.extract_any(code, element_type)
+            for element in elements:
+                if element.get('name') == element_name:
+                    range_data = element.get('range', {})
+                    start_line = range_data.get('start', {}).get('line', 0)
+                    end_line = range_data.get('end', {}).get('line', 0)
+                    return (start_line, end_line)
+                    
         return (0, 0)
 
     def find_by_xpath(self, code: str, xpath: str) -> Tuple[int, int]:
@@ -105,13 +128,10 @@ class ExtractionService:
         Tuple of (start_line, end_line) or (0, 0) if not found
         """
         element_name, parent_name, element_type = XPathParser.get_element_info(xpath)
-        logger.debug(f"XPath parsed: element_name={element_name}, parent_name={parent_name}, element_type={element_type}")
-
-        if not element_name and not element_type:
+        logger.debug(f'XPath parsed: element_name={element_name}, parent_name={parent_name}, element_type={element_type}')
+        if not element_name and (not element_type):
             return (0, 0)
-
-        if element_type == CodeElementType.IMPORT.value and not element_name:
-            # For bare import xpath like [import]
+        if element_type == CodeElementType.IMPORT.value and (not element_name):
             imports = self.extract_imports(code)
             if imports and len(imports) > 0:
                 range_data = imports[0].get('range', {})
@@ -119,35 +139,24 @@ class ExtractionService:
                 end_line = range_data.get('end', {}).get('line', 0)
                 return (start_line, end_line)
             return (0, 0)
-
-        # If we have both name and type, use the find_element method
         if element_name and element_type:
             return self.find_element(code, element_type, element_name, parent_name)
-
-        # If we only have a name but no type, try different element types
-        if element_name and not element_type:
+        if element_name and (not element_type):
             if parent_name:
-                # If we have a parent, try methods, properties, etc.
-                element_types = [
-                    CodeElementType.METHOD.value,
-                    CodeElementType.PROPERTY.value,
-                    CodeElementType.PROPERTY_GETTER.value,
-                    CodeElementType.PROPERTY_SETTER.value,
-                    CodeElementType.STATIC_PROPERTY.value
-                ]
+                element_types = [CodeElementType.METHOD.value, CodeElementType.PROPERTY.value, CodeElementType.PROPERTY_GETTER.value, CodeElementType.PROPERTY_SETTER.value, CodeElementType.STATIC_PROPERTY.value]
             else:
-                # If no parent, try classes, functions, etc.
                 element_types = [
                     CodeElementType.CLASS.value, 
-                    CodeElementType.FUNCTION.value,
-                    CodeElementType.INTERFACE.value
+                    CodeElementType.FUNCTION.value, 
+                    CodeElementType.INTERFACE.value,
+                    CodeElementType.ENUM.value,
+                    CodeElementType.TYPE_ALIAS.value,
+                    CodeElementType.NAMESPACE.value
                 ]
-
             for type_to_try in element_types:
                 result = self.find_element(code, type_to_try, element_name, parent_name)
                 if result[0] > 0:
                     return result
-
         return (0, 0)
 
     @classmethod
@@ -155,7 +164,7 @@ class ExtractionService:
         """Create an extractor for a file based on its extension."""
         service = get_language_service_for_file(file_path)
         if not service:
-            (_, ext) = os.path.splitext(file_path)
+            _, ext = os.path.splitext(file_path)
             raise ValueError(f'Unsupported file extension: {ext}')
         return cls(service.language_code)
 
@@ -174,11 +183,15 @@ class ExtractionService:
 
     def get_descriptor(self, element_type_descriptor: Union[str, CodeElementType]) -> Optional[Any]:
         """Get the appropriate extractor for the given type and language."""
+        if self.language_service is None:
+            logger.error("No language service available for getting descriptor")
+            return None
+            
         descriptor = self.language_service.get_element_descriptor(element_type_descriptor)
         return descriptor
 
     @handle_extraction_errors
-    def _extract_element_type(self, code: str, element_type: str, context: Dict[str, Any] = None) -> List[Dict]:
+    def _extract_element_type(self, code: str, element_type: str, context: Dict[str, Any]=None) -> List[Dict]:
         """
         Generic method to extract a specific element type from code.
         
@@ -190,11 +203,14 @@ class ExtractionService:
         Returns:
             List of extracted elements as dictionaries
         """
+        if self.language_service is None:
+            logger.error("No language service available for extraction")
+            return []
+            
         extractor = self.language_service.get_extractor(element_type=element_type)
         if not extractor:
             logger.warning(f'Could not find extractor for {element_type} / {self.language_code}')
             return []
-
         logger.debug(f'Extracting {element_type} using {extractor.__class__.__name__}')
         results = extractor.extract(code)
         logger.debug(f'Extracted {len(results)} {element_type}s')
@@ -241,29 +257,20 @@ class ExtractionService:
         Dictionary with extracted elements categorized by type
         """
         logger.debug(f'Starting extraction for all elements')
-
-        # Extract imports - do this first since they typically appear at the top
         imports = self.extract_imports(code)
         logger.debug(f'Extracted {len(imports)} imports')
-
-        # Extract classes and functions
         classes = self.extract_classes(code)
         functions = self.extract_functions(code)
-
-        # Prepare results dictionary
         results = {'imports': imports, 'classes': classes, 'functions': functions}
-
-        # Extract methods for each class
         for cls in classes:
             class_name = cls.get('name')
             if class_name:
                 methods = self.extract_methods(code, class_name)
                 cls['methods'] = methods
                 logger.debug(f"Added {len(methods)} methods to class '{class_name}'")
-
         logger.debug(f'Completed extraction: {len(imports)} imports, {len(classes)} classes, {len(functions)} functions')
         return results
-        
+
     def _process_parameters(self, element: CodeElement, params_data: List[Dict]) -> List[CodeElement]:
         """
         Process parameter data and create parameter CodeElements.
@@ -280,20 +287,10 @@ class ExtractionService:
             param_name = param.get('name')
             param_type = param.get('type')
             if param_name:
-                param_element = CodeElement(
-                    type=CodeElementType.PARAMETER,
-                    name=param_name,
-                    content=param_name,
-                    parent_name=element.name if element.type == CodeElementType.FUNCTION else f'{element.parent_name}.{element.name}',
-                    value_type=param_type,
-                    additional_data={
-                        'optional': param.get('optional', False),
-                        'default': param.get('default')
-                    }
-                )
+                param_element = CodeElement(type=CodeElementType.PARAMETER, name=param_name, content=param_name, parent_name=element.name if element.type == CodeElementType.FUNCTION else f'{element.parent_name}.{element.name}', value_type=param_type, additional_data={'optional': param.get('optional', False), 'default': param.get('default')})
                 result.append(param_element)
         return result
-        
+
     def _process_return_value(self, element: CodeElement, return_info: Dict) -> Optional[CodeElement]:
         """
         Process return value information and create a return value CodeElement.
@@ -307,19 +304,10 @@ class ExtractionService:
         """
         return_type = return_info.get('return_type')
         return_values = return_info.get('return_values', [])
-        
-        if not return_type and not return_values:
+        if not return_type and (not return_values):
             return None
-            
-        return CodeElement(
-            type=CodeElementType.RETURN_VALUE,
-            name=f'{element.name}_return',
-            content=return_type if return_type else '',
-            parent_name=element.name if element.type == CodeElementType.FUNCTION else f'{element.parent_name}.{element.name}',
-            value_type=return_type,
-            additional_data={'values': return_values}
-        )
-        
+        return CodeElement(type=CodeElementType.RETURN_VALUE, name=f'{element.name}_return', content=return_type if return_type else '', parent_name=element.name if element.type == CodeElementType.FUNCTION else f'{element.parent_name}.{element.name}', value_type=return_type, additional_data={'values': return_values})
+
     def _process_decorators(self, element: CodeElement, decorators_data: List[Dict]) -> List[CodeElement]:
         """
         Process decorator data and create decorator CodeElements.
@@ -336,15 +324,10 @@ class ExtractionService:
             dec_name = dec.get('name')
             dec_content = dec.get('content')
             if dec_name:
-                decorator_element = CodeElement(
-                    type=CodeElementType.DECORATOR,
-                    name=dec_name,
-                    content=dec_content,
-                    parent_name=element.name if element.type != CodeElementType.METHOD else f'{element.parent_name}.{element.name}'
-                )
+                decorator_element = CodeElement(type=CodeElementType.DECORATOR, name=dec_name, content=dec_content, parent_name=element.name if element.type != CodeElementType.METHOD else f'{element.parent_name}.{element.name}')
                 result.append(decorator_element)
         return result
-    
+
     def _process_import_element(self, import_data: Dict) -> CodeElement:
         """
         Process import data and create an import CodeElement.
@@ -357,7 +340,7 @@ class ExtractionService:
         """
         logger.debug(f"Processing import: {import_data.get('name')}")
         return CodeElement.from_dict(import_data)
-    
+
     def _process_function_element(self, function_data: Dict) -> CodeElement:
         """
         Process function data and create a function CodeElement with all its children.
@@ -369,60 +352,32 @@ class ExtractionService:
         Function CodeElement with children
         """
         func_name = function_data.get('name', 'unknown')
-        logger.debug(f"Processing function: {func_name}")
-
-        # Create function element
+        logger.debug(f'Processing function: {func_name}')
         func_element = CodeElement.from_dict(function_data)
-
-        # Process parameters directly
         parameters = function_data.get('parameters', [])
-        logger.debug(f"Function {func_name} has {len(parameters)} parameters")
+        logger.debug(f'Function {func_name} has {len(parameters)} parameters')
         for param in parameters:
             param_name = param.get('name')
             param_type = param.get('type')
             if param_name:
-                param_element = CodeElement(
-                    type=CodeElementType.PARAMETER,
-                    name=param_name,
-                    content=param_name,
-                    parent_name=func_name,
-                    value_type=param_type,
-                    additional_data={'optional': param.get('optional', False), 'default': param.get('default')}
-                )
+                param_element = CodeElement(type=CodeElementType.PARAMETER, name=param_name, content=param_name, parent_name=func_name, value_type=param_type, additional_data={'optional': param.get('optional', False), 'default': param.get('default')})
                 func_element.children.append(param_element)
-
-        # Process return info
         return_info = function_data.get('return_info', {})
         return_type = return_info.get('return_type')
         return_values = return_info.get('return_values', [])
         if return_type or return_values:
-            return_element = CodeElement(
-                type=CodeElementType.RETURN_VALUE,
-                name=f'{func_name}_return',
-                content=return_type if return_type else '',
-                parent_name=func_name,
-                value_type=return_type,
-                additional_data={'values': return_values}
-            )
+            return_element = CodeElement(type=CodeElementType.RETURN_VALUE, name=f'{func_name}_return', content=return_type if return_type else '', parent_name=func_name, value_type=return_type, additional_data={'values': return_values})
             func_element.children.append(return_element)
-
-        # Process decorators directly
         decorators = function_data.get('decorators', [])
-        logger.debug(f"Function {func_name} has {len(decorators)} decorators")
+        logger.debug(f'Function {func_name} has {len(decorators)} decorators')
         for dec in decorators:
             dec_name = dec.get('name')
             dec_content = dec.get('content')
             if dec_name:
-                decorator_element = CodeElement(
-                    type=CodeElementType.DECORATOR,
-                    name=dec_name,
-                    content=dec_content,
-                    parent_name=func_name
-                )
+                decorator_element = CodeElement(type=CodeElementType.DECORATOR, name=dec_name, content=dec_content, parent_name=func_name)
                 func_element.children.append(decorator_element)
-
         return func_element
-    
+
     def _process_method_element(self, method_data: Dict, parent_name: str) -> CodeElement:
         """
         Process method data and create a method CodeElement with all its children.
@@ -435,61 +390,33 @@ class ExtractionService:
         Method CodeElement with children
         """
         method_name = method_data.get('name', 'unknown')
-        logger.debug(f"Processing method: {method_name} in class {parent_name}")
-
-        # Create method element
+        logger.debug(f'Processing method: {method_name} in class {parent_name}')
         method_element = CodeElement.from_dict(method_data)
         method_element.parent_name = parent_name
-
-        # Process parameters directly
         parameters = method_data.get('parameters', [])
-        logger.debug(f"Method {method_name} has {len(parameters)} parameters")
+        logger.debug(f'Method {method_name} has {len(parameters)} parameters')
         for param in parameters:
             param_name = param.get('name')
             param_type = param.get('type')
             if param_name:
-                param_element = CodeElement(
-                    type=CodeElementType.PARAMETER,
-                    name=param_name,
-                    content=param_name,
-                    parent_name=f'{parent_name}.{method_name}',
-                    value_type=param_type,
-                    additional_data={'optional': param.get('optional', False), 'default': param.get('default')}
-                )
+                param_element = CodeElement(type=CodeElementType.PARAMETER, name=param_name, content=param_name, parent_name=f'{parent_name}.{method_name}', value_type=param_type, additional_data={'optional': param.get('optional', False), 'default': param.get('default')})
                 method_element.children.append(param_element)
-
-        # Process return info
         return_info = method_data.get('return_info', {})
         return_type = return_info.get('return_type')
         return_values = return_info.get('return_values', [])
         if return_type or return_values:
-            return_element = CodeElement(
-                type=CodeElementType.RETURN_VALUE,
-                name=f'{method_name}_return',
-                content=return_type if return_type else '',
-                parent_name=f'{parent_name}.{method_name}',
-                value_type=return_type,
-                additional_data={'values': return_values}
-            )
+            return_element = CodeElement(type=CodeElementType.RETURN_VALUE, name=f'{method_name}_return', content=return_type if return_type else '', parent_name=f'{parent_name}.{method_name}', value_type=return_type, additional_data={'values': return_values})
             method_element.children.append(return_element)
-
-        # Process decorators directly
         decorators = method_data.get('decorators', [])
-        logger.debug(f"Method {method_name} has {len(decorators)} decorators")
+        logger.debug(f'Method {method_name} has {len(decorators)} decorators')
         for dec in decorators:
             dec_name = dec.get('name')
             dec_content = dec.get('content')
             if dec_name:
-                decorator_element = CodeElement(
-                    type=CodeElementType.DECORATOR,
-                    name=dec_name,
-                    content=dec_content,
-                    parent_name=f'{parent_name}.{method_name}'
-                )
+                decorator_element = CodeElement(type=CodeElementType.DECORATOR, name=dec_name, content=dec_content, parent_name=f'{parent_name}.{method_name}')
                 method_element.children.append(decorator_element)
-
         return method_element
-    
+
     def _process_class_element(self, class_data: Dict) -> CodeElement:
         """
         Process class data and create a class CodeElement with all its children (including methods).
@@ -505,30 +432,19 @@ class ExtractionService:
         cls_decorators = class_data.get('decorators', [])
         for dec_element in self._process_decorators(class_element, cls_decorators):
             class_element.children.append(dec_element)
-
-        # Collect methods by name to handle duplicates 
-        # (prefer decorated version if both exist)
         methods = class_data.get('methods', [])
         method_map = {}
-
         for method_data in methods:
             method_name = method_data.get('name')
             is_decorated = '@' in method_data.get('content', '')
-
-            # Skip if we already have a decorated version of this method
-            if method_name in method_map and not is_decorated:
+            if method_name in method_map and (not is_decorated):
                 continue
-
-            # Replace existing method if this one is decorated
             method_map[method_name] = method_data
-
-        # Process unique methods
         for method_data in method_map.values():
             method_element = self._process_method_element(method_data, class_element.name)
             class_element.children.append(method_element)
-
         return class_element
-        
+
     def extract_all(self, code: str) -> CodeElementsResult:
         """
         Extract all code elements and convert them to a structured CodeElementsResult.
@@ -540,25 +456,17 @@ class ExtractionService:
             CodeElementsResult containing extracted elements
         """
         try:
-            # Extract raw elements
             raw_elements = self._extract_file(code)
             result = CodeElementsResult()
-
-            # Process imports
             for import_data in raw_elements.get('imports', []):
                 import_element = self._process_import_element(import_data)
                 result.elements.append(import_element)
-            
-            # Process functions
             for function_data in raw_elements.get('functions', []):
                 function_element = self._process_function_element(function_data)
                 result.elements.append(function_element)
-            
-            # Process classes
             for class_data in raw_elements.get('classes', []):
                 class_element = self._process_class_element(class_data)
                 result.elements.append(class_element)
-            
             return result
         except Exception as e:
             logger.error(f'Error in extract_all: {str(e)}')

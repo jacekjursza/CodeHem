@@ -8,12 +8,9 @@ import os
 import traceback
 from typing import Any, List, Optional, Type
 import rich
-
 from codehem.core.service import LanguageService
 from codehem.extractors.base import BaseExtractor
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
-
-
 logger = logging.getLogger(__name__)
 
 class Registry:
@@ -48,25 +45,25 @@ class Registry:
         instance = cls()
         language_code = instance.language_code.lower()
         self.language_detectors[language_code] = instance
-        rich.print(f"Registered language detector: {cls.__name__} for {language_code}")
+        rich.print(f'Registered language detector: {cls.__name__} for {language_code}')
         return cls
 
     def register_language_service(self, cls: Type[LanguageService]):
         """Register a language service class."""
         self.language_services[cls.LANGUAGE_CODE] = cls
-        rich.print(f"Registered language service: {cls.__name__} for {cls.LANGUAGE_CODE}")
+        rich.print(f'Registered language service: {cls.__name__} for {cls.LANGUAGE_CODE}')
         return cls
 
     def register_extractor(self, cls: Type[BaseExtractor]):
         """Register an extractor class - extractor is language agnostic and needs descriptor for specific language"""
         self.all_extractors[cls.ELEMENT_TYPE] = cls
-        rich.print(f"Registered extractor: {cls.__name__} for {cls.ELEMENT_TYPE}")
+        rich.print(f'Registered extractor: {cls.__name__} for {cls.ELEMENT_TYPE}')
         return cls
 
     def register_manipulator(self, cls):
         """Register a language-specific handler."""
-        self.all_manipulators[f"{cls.LANGUAGE_CODE}_{cls.ELEMENT_TYPE}"] = cls
-        rich.print(f"Registered manipulator: {cls.__name__} for {cls.ELEMENT_TYPE}")
+        self.all_manipulators[f'{cls.LANGUAGE_CODE}_{cls.ELEMENT_TYPE}'] = cls
+        rich.print(f'Registered manipulator: {cls.__name__} for {cls.ELEMENT_TYPE}')
         return cls
 
     def register_element_type_descriptor(self, cls):
@@ -74,76 +71,70 @@ class Registry:
         instance = cls()
         language_code = instance.language_code.lower()
         element_type = instance.element_type.value.lower()
-
         if language_code not in self.all_descriptors:
             self.all_descriptors[language_code] = {}
-
         self.all_descriptors[language_code][element_type] = instance
-
-        rich.print(f"Registered descriptor: {cls.__name__} for {language_code}/{element_type}")
+        rich.print(f'Registered descriptor: {cls.__name__} for {language_code}/{element_type}')
         return cls
 
     def get_language_detector(self, language_code: str) -> Optional[Any]:
         """Get a language detector by code."""
         return self.language_detectors.get(language_code.lower())
 
-    def get_language_service(self, language_code: str) -> Optional[Any]:
+    def get_language_service(self, language_code) -> Optional[Any]:
         """Get a language service by code."""
+        # Handle invalid language_code inputs (fix circular dependency)
+        if not isinstance(language_code, str):
+            logger.error(f"Invalid language_code type: {type(language_code)}")
+            return None
+            
         language_code = language_code.lower()
         if language_code not in self.language_service_instances:
             language_service_cls = self.language_services.get(language_code)
             if language_service_cls:
-                self.language_service_instances[language_code] = language_service_cls(self.all_extractors, self.all_manipulators, self.all_descriptors)
+                try:
+                    self.language_service_instances[language_code] = language_service_cls(self.all_extractors, self.all_manipulators, self.all_descriptors)
+                except Exception as e:
+                    logger.error(f"Error initializing language service for {language_code}: {e}")
+                    return None
             else:
-                rich.print(f"No language service found for {language_code}")
+                rich.print(f'No language service found for {language_code}')
                 return None
-
         return self.language_service_instances.get(language_code.lower(), None)
 
     def get_supported_languages(self) -> List[str]:
         """Get a list of all supported language codes."""
         return list(self.language_services.keys())
 
-    def discover_modules(self, package_name="codehem", recursive=True):
+    def discover_modules(self, package_name='codehem', recursive=True):
         """
         Discover and import all modules in a package to trigger registrations.
         """
-        rich.print(f"Discovering modules in package: {package_name}")
-        
+        rich.print(f'Discovering modules in package: {package_name}')
         try:
             package = importlib.import_module(package_name)
             package_dir = os.path.dirname(package.__file__)
-            
             for item in os.listdir(package_dir):
-                # Skip __pycache__ and hidden directories
                 if item.startswith('__') or item.startswith('.'):
                     continue
-                
-                # Full path to the item
                 full_path = os.path.join(package_dir, item)
-                
-                # If it's a Python file, import it
                 if item.endswith('.py'):
-                    module_name = f"{package_name}.{item[:-3]}"
+                    module_name = f'{package_name}.{item[:-3]}'
                     if module_name not in self.discovered_modules:
                         try:
                             importlib.import_module(module_name)
                             self.discovered_modules.add(module_name)
-                            rich.print(f"Imported module: {module_name}")
+                            rich.print(f'Imported module: {module_name}')
                         except Exception as e:
-                            logger.warning(f"Error importing module {module_name}: {e}")
+                            logger.warning(f'Error importing module {module_name}: {e}')
                             print(traceback.format_exc())
-                
-                # If it's a directory and recursive is True, process it as a subpackage
                 elif os.path.isdir(full_path) and recursive:
-                    subpackage = f"{package_name}.{item}"
-                    # Check if it's a Python package (has __init__.py)
-                    if os.path.exists(os.path.join(full_path, "__init__.py")):
+                    subpackage = f'{package_name}.{item}'
+                    if os.path.exists(os.path.join(full_path, '__init__.py')):
                         self.discover_modules(subpackage, recursive)
-        
         except Exception as e:
-            logger.error(f"Error discovering modules in {package_name}: {e}")
-    
+            logger.error(f'Error discovering modules in {package_name}: {e}')
+
     def initialize_components(self):
         """
         Discover and initialize all components.
@@ -151,20 +142,10 @@ class Registry:
         """
         if self._initialized:
             return
-        # Discover and import all modules to trigger registrations
         self.discover_modules()
         self._initialized = True
-
-        rich.print(f"Components initialized: "
-                   f"{len(self.language_detectors)} detectors, "
-                   f"{len(self.language_services)} services, "
-                   f"{len(self.all_extractors)} extractors, "
-                   f"{len(self.all_manipulators)} languages with handlers")
-
-
-# Create a singleton registry instance
+        rich.print(f'Components initialized: {len(self.language_detectors)} detectors, {len(self.language_services)} services, {len(self.all_extractors)} extractors, {len(self.all_manipulators)} languages with handlers')
 registry = Registry()
-
 
 def language_detector(cls):
     """Decorator to register a language detector."""

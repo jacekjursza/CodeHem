@@ -3,7 +3,6 @@ Core data models for the CodeHem code manipulation library.
 """
 from enum import Enum
 
-
 class CodeElementType(str, Enum):
     """Types of code elements that can be identified and manipulated"""
     CLASS = 'class'
@@ -27,4 +26,8 @@ class CodeElementType(str, Enum):
     TYPE_HINT = 'type_hint'
     FILE = 'file'
     DOCSTRING = 'docstring'
+    # TypeScript-specific element types
+    TYPE_ALIAS = 'type_alias'
+    ENUM = 'enum'
+    NAMESPACE = 'namespace'
     UNKNOWN = 'unknown'
