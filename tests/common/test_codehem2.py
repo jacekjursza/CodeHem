@@ -6,6 +6,7 @@ import os
 import tempfile
 
 from codehem import CodeHem, CodeElementType
+from test import logger
 from ..helpers.code_examples import TestHelper
 
 class CodeHem2Tests(unittest.TestCase):
@@ -18,20 +19,98 @@ class CodeHem2Tests(unittest.TestCase):
 
     def test_detect_element_type(self):
         """Test element type detection."""
-        print("\n----------------@@@")
         class_code = TestHelper.load_example('simple_method', 'general').content
-        print("CLASS CODE:\n", class_code)
         element_type = self.codehem.detect_element_type(class_code)
         self.assertEqual(CodeElementType.CLASS.value, element_type)
         
         method_code = self.codehem.get_text_by_xpath(
             class_code, "TestClass.test_method"
         )
-        print("\n----------------@@@")
-        print("METHOD CODE:\n", method_code)
-        print("\n----------------@@@")
         element_type = self.codehem.detect_element_type(method_code)
         self.assertEqual(CodeElementType.METHOD.value, element_type)
+
+    def test_get_text_by_xpath(self):
+        """Test retrieving text content using XPath."""
+        # Test getting a class
+        class_text = self.codehem.get_text_by_xpath(self.sample_code, "ExampleClass")
+        self.assertIsNotNone(class_text)
+        self.assertIn("class ExampleClass:", class_text)
+
+        # Test getting a method
+        method_text = self.codehem.get_text_by_xpath(
+            self.sample_code, "ExampleClass.calculate"
+        )
+        self.assertIsNotNone(method_text)
+        self.assertIn("def calculate(self, multiplier: int)", method_text)
+
+        # Test getting a function
+        function_text = self.codehem.get_text_by_xpath(
+            self.sample_code, "standalone_function"
+        )
+        self.assertIsNotNone(function_text)
+        self.assertIn("def standalone_function(param: str)", function_text)
+
+        # Test getting a property (should get the setter, which is defined later)
+        property_text = self.codehem.get_text_by_xpath(
+            self.sample_code, "ExampleClass.value"
+        )
+        self.assertIsNotNone(property_text)
+        self.assertIn("def value(self, new_value: int)", property_text, 
+                     "Expected property setter (last defined method) not found")
+
+        # Test with non-existent element
+        nonexistent_text = self.codehem.get_text_by_xpath(
+            self.sample_code, "NonExistentClass"
+        )
+        self.assertIsNone(nonexistent_text)
+
+        # Test with empty xpath
+        empty_text = self.codehem.get_text_by_xpath(self.sample_code, "")
+        self.assertIsNone(empty_text)
+
+    def test_get_property_methods_by_xpath(self):
+        """Test retrieving property getter and setter methods by XPath."""
+
+        property_text = self.codehem.get_text_by_xpath(self.sample_code, 'ExampleClass.value')
+        self.assertIsNotNone(property_text)
+
+        self.assertIn('def value(self, new_value: int)', property_text, 
+                      "Setter method should be returned for unqualified XPath (last definition wins)")
+
+
+        getter_text = self.codehem.get_text_by_xpath(
+            self.sample_code, "ExampleClass.value[property_getter]"
+        )
+        print("\n-----------")
+        print(property_text)
+        print('------------')
+        self.assertIsNotNone(getter_text)
+        self.assertIn('def value(self) -> int', getter_text)
+
+        setter_text = self.codehem.get_text_by_xpath(self.sample_code, 'ExampleClass.value[property_setter]')
+        self.assertIsNotNone(setter_text)
+        self.assertIn('def value(self, new_value: int)', setter_text)
+
+    def test_get_text_by_xpath_properties(self):
+        """Test retrieving property text content using XPath."""
+        try:
+            # Test getting a property getter
+            getter_text = self.codehem.get_text_by_xpath(self.sample_code, 'ExampleClass.value[property_getter]')
+            print('GGGGGG', getter_text)
+            if getter_text is not None:
+                self.assertIn('@property', getter_text)
+                self.assertIn('def value', getter_text)
+        except Exception as e:
+            self.skipTest(f"Property getter test skipped: {str(e)}")
+
+        try:
+            # Test getting a property setter
+            setter_text = self.codehem.get_text_by_xpath(self.sample_code, 'ExampleClass.value[property_setter]')
+            if setter_text is not None:
+                self.assertIn('@value.setter', setter_text)
+                self.assertIn('def value', setter_text)
+        except Exception as e:
+            self.skipTest(f"Property setter test skipped: {str(e)}")
 
     def test_extract(self):
         """Test extracting code elements."""

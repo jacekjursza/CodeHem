@@ -28,62 +28,45 @@ class XPathParser:
     
     # Cache valid type names once
     _VALID_TYPES = {t.value for t in CodeElementType}
-    
+
     @staticmethod
     def parse(xpath: str) -> List[CodeElementXPathNode]:
         """
         Parse an XPath expression into a list of CodeElementXPathNode objects.
-        
+
         Args:
-            xpath: XPath-like expression (e.g., 'FILE.MyClass.my_method')
-            
+        xpath: XPath-like expression (e.g., 'FILE.MyClass.my_method')
+
         Returns:
-            List of CodeElementXPathNode objects representing the path
+        List of CodeElementXPathNode objects representing the path
         """
         if not xpath:
             return []
-            
-        # Handle special case: FILE as root element
-        if xpath.startswith(f"{XPathParser.ROOT_ELEMENT}."):
-            parts = [XPathParser.ROOT_ELEMENT] + xpath[len(XPathParser.ROOT_ELEMENT)+1:].split('.')
+        if xpath.startswith(f'{XPathParser.ROOT_ELEMENT}.'):
+            parts = [XPathParser.ROOT_ELEMENT] + xpath[len(XPathParser.ROOT_ELEMENT) + 1:].split('.')
         else:
             parts = xpath.split('.')
-            
         result = []
-        
-        # Process each part
         for part in parts:
             if not part:
-                continue  # Skip empty parts
-                
-            # Special case for FILE root element
+                continue
             if part == XPathParser.ROOT_ELEMENT:
                 result.append(CodeElementXPathNode(type=CodeElementType.FILE.value))
                 continue
-                
-            # Handle node with type specification in brackets
-            type_match = re.match(r'^(?:([^[\]]+))?(?:\[([^[\]]+)\])?$', part)
+            type_match = re.match('^(?:([^[\\]]+))?(?:\\[([^[\\]]+)\\])?$', part)
             if not type_match:
-                logger.warning(f"Invalid XPath part: {part}")
+                logger.warning(f'Invalid XPath part: {part}')
                 continue
-                
             name, type_str = type_match.groups()
-            
-            # Validate type if present
-            if type_str and type_str not in XPathParser._VALID_TYPES:
-                logger.warning(f"Invalid element type in XPath: {type_str}")
-                # Still create the node, but with a warning
-            
-            # Create node
+
+            # Special case for 'all' to avoid warning
+            if type_str and type_str != 'all' and type_str not in XPathParser._VALID_TYPES:
+                logger.warning(f'Invalid element type in XPath: {type_str}')
+
             node = CodeElementXPathNode(name=name, type=type_str)
-            
-            # Only add if node has a name or type
             if node.is_valid:
                 result.append(node)
-            
-        # Infer types for nodes without explicit type
         XPathParser._infer_types(result)
-        
         return result
     
 

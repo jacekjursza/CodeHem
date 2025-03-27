@@ -129,8 +129,11 @@ class ExtractionService:
         """
         element_name, parent_name, element_type = XPathParser.get_element_info(xpath)
         logger.debug(f'XPath parsed: element_name={element_name}, parent_name={parent_name}, element_type={element_type}')
+
         if not element_name and (not element_type):
             return (0, 0)
+
+        # Special case for import with no name
         if element_type == CodeElementType.IMPORT.value and (not element_name):
             imports = self.extract_imports(code)
             if imports and len(imports) > 0:
@@ -139,18 +142,78 @@ class ExtractionService:
                 end_line = range_data.get('end', {}).get('line', 0)
                 return (start_line, end_line)
             return (0, 0)
+
+        # Special case for the [all] qualifier
+        if element_type == 'all':
+            # Find the element first without the 'all' qualifier
+            temp_xpath = xpath.replace('[all]', '')
+            start_line, end_line = self.find_by_xpath(code, temp_xpath)
+            if start_line == 0:
+                return (0, 0)
+
+            # Now adjust the start_line to include decorators
+            lines = code.splitlines()
+            adjusted_start = start_line
+
+            # Look for decorators above the element
+            for i in range(start_line - 2, max(0, start_line - 10), -1):
+                if i >= len(lines):
+                    continue
+                line = lines[i].strip()
+                if line.startswith('@'):
+                    # Found a decorator, adjust the start line
+                    adjusted_start = i + 1
+                elif line and not line.startswith('#'):
+                    # Found non-decorator and non-comment line, stop looking
+                    break
+
+            return (adjusted_start, end_line)
+
+        # If specific element_type is provided, use it directly
         if element_name and element_type:
             return self.find_element(code, element_type, element_name, parent_name)
+
+        # For method without explicit type, find the last defined method with that name
+        if element_name and parent_name and (not element_type):
+            all_elements = self._extract_file(code)
+            last_method = None
+            latest_line = -1  # Start with -1 to ensure any found method is considered
+
+            # Find the last defined method with this name
+            for cls in all_elements.get('classes', []):
+                if cls.get('name') == parent_name:
+                    for method in cls.get('methods', []):
+                        if method.get('name') == element_name:
+                            method_start_line = method.get('range', {}).get('start', {}).get('line', 0)
+                            # Always update if we find a method with the target name - this ensures
+                            # we consistently select the last defined method by source order
+                            if method_start_line > latest_line:
+                                latest_line = method_start_line
+                                last_method = method
+
+            if last_method:
+                range_data = last_method.get('range', {})
+                start_line = range_data.get('start', {}).get('line', 0)
+                end_line = range_data.get('end', {}).get('line', 0)
+                return (start_line, end_line)
+
+        # Try other element types in order
         if element_name and (not element_type):
             if parent_name:
-                element_types = [CodeElementType.METHOD.value, CodeElementType.PROPERTY.value, CodeElementType.PROPERTY_GETTER.value, CodeElementType.PROPERTY_SETTER.value, CodeElementType.STATIC_PROPERTY.value]
+                element_types = [
+                    CodeElementType.METHOD.value, 
+                    CodeElementType.PROPERTY.value, 
+                    CodeElementType.PROPERTY_GETTER.value, 
+                    CodeElementType.PROPERTY_SETTER.value, 
+                    CodeElementType.STATIC_PROPERTY.value
+                ]
             else:
                 element_types = [
                     CodeElementType.CLASS.value, 
                     CodeElementType.FUNCTION.value, 
-                    CodeElementType.INTERFACE.value,
-                    CodeElementType.ENUM.value,
-                    CodeElementType.TYPE_ALIAS.value,
+                    CodeElementType.INTERFACE.value, 
+                    CodeElementType.ENUM.value, 
+                    CodeElementType.TYPE_ALIAS.value, 
                     CodeElementType.NAMESPACE.value
                 ]
             for type_to_try in element_types:

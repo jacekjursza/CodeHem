@@ -94,6 +94,15 @@ class MethodExtractor(BaseExtractor):
                                         if child.type == 'identifier':
                                             decorator_name = ast_handler.get_node_text(child, code_bytes)
                                             break
+                                        elif child.type == 'attribute':
+                                            # Handle property.setter style decorators
+                                            obj_node = ast_handler.find_child_by_field_name(child, 'object')
+                                            attr_node = ast_handler.find_child_by_field_name(child, 'attribute')
+                                            if obj_node and attr_node:
+                                                obj_name = ast_handler.get_node_text(obj_node, code_bytes)
+                                                attr_name = ast_handler.get_node_text(attr_node, code_bytes)
+                                                decorator_name = f"{obj_name}.{attr_name}"
+                                                break
                                 decorator_nodes[method_name].append({'name': decorator_name, 'content': decorator_content})
                 elif capture_name == 'method_name':
                     method_name = ast_handler.get_node_text(node, code_bytes)
@@ -144,8 +153,6 @@ class MethodExtractor(BaseExtractor):
                 decorators = decorator_nodes.get(method_name, [])
                 method_info = {'type': 'method', 'name': method_name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': method_node.start_point[0] + 1, 'column': method_node.start_point[1]}, 'end': {'line': method_node.end_point[0] + 1, 'column': method_node.end_point[1]}}, 'decorators': decorators, 'parameters': parameters, 'return_info': {'return_type': return_type, 'return_values': return_values}}
                 methods.append(method_info)
-
-            # Handle decorated methods (similar code but with updated line position calculation)
             for method_name, decorated_node in decorated_methods.items():
                 def_node = ast_handler.find_child_by_field_name(decorated_node, 'definition')
                 if not def_node:
@@ -202,8 +209,29 @@ class MethodExtractor(BaseExtractor):
                                     if sub_child.type == 'identifier':
                                         decorator_name = ast_handler.get_node_text(sub_child, code_bytes)
                                         break
+                                    elif sub_child.type == 'attribute':
+                                        # Handle property.setter style decorators
+                                        obj_node = ast_handler.find_child_by_field_name(sub_child, 'object')
+                                        attr_node = ast_handler.find_child_by_field_name(sub_child, 'attribute')
+                                        if obj_node and attr_node:
+                                            obj_name = ast_handler.get_node_text(obj_node, code_bytes)
+                                            attr_name = ast_handler.get_node_text(attr_node, code_bytes)
+                                            decorator_name = f"{obj_name}.{attr_name}"
+                                            break
                             decorators.append({'name': decorator_name, 'content': decorator_content})
-                method_info = {'type': 'method', 'name': method_name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': decorated_node.start_point[0] + 1, 'column': decorated_node.start_point[1]}, 'end': {'line': decorated_node.end_point[0] + 1, 'column': decorated_node.end_point[1]}}, 'decorators': decorators, 'parameters': parameters, 'return_info': {'return_type': return_type, 'return_values': return_values}}
+
+                # Detect property getter and setter methods
+                method_type = 'method'
+                for decorator in decorators:
+                    dec_name = decorator.get('name', '')
+                    if dec_name == 'property':
+                        method_type = 'property_getter'
+                        break
+                    elif dec_name and '.' in dec_name and dec_name.endswith('.setter'):
+                        method_type = 'property_setter'
+                        break
+
+                method_info = {'type': method_type, 'name': method_name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': decorated_node.start_point[0] + 1, 'column': decorated_node.start_point[1]}, 'end': {'line': decorated_node.end_point[0] + 1, 'column': decorated_node.end_point[1]}}, 'decorators': decorators, 'parameters': parameters, 'return_info': {'return_type': return_type, 'return_values': return_values}}
                 methods.append(method_info)
             return methods
         except Exception as e:

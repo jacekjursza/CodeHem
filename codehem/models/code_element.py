@@ -18,7 +18,6 @@ class CodeElement(BaseModel):
     children: List['CodeElement'] = Field(default_factory=list)
 
     @staticmethod
-    @staticmethod
     def from_dict(raw_element: dict) -> 'CodeElement':
         element_type_str = raw_element.get('type', 'unknown')
         name = raw_element.get('name', '')
