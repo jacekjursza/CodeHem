@@ -9,6 +9,12 @@ class PythonClassHandlerElementType(ElementTypeLanguageDescriptor):
     """Handler for Python class elements."""
     language_code = 'python'
     element_type = CodeElementType.CLASS
-    tree_sitter_query = '\n    (class_definition\n      name: (identifier) @class_name\n      body: (block) @body) @class_def\n    '
-    regexp_pattern = 'class\\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*\\([^)]*\\))?\\s*:(.*?)(?=\\n(?:class|def|\\Z))'
+    # Fixed tree-sitter query to properly match Python classes
+    tree_sitter_query = """
+    (class_definition
+      name: (identifier) @class_name
+      body: (block) @body) @class_def
+    """
+    # Fixed regex to properly match Python classes
+    regexp_pattern = 'class\\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*\\([^)]*\\))?\\s*:'
     custom_extract = False

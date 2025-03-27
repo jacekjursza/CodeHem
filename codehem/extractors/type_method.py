@@ -54,15 +54,13 @@ class MethodExtractor(BaseExtractor):
         if not ast_handler:
             return []
         try:
-            (root, code_bytes) = ast_handler.parse(code)
+            root, code_bytes = ast_handler.parse(code)
             query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
             methods = []
             method_nodes = {}
             decorated_methods = {}
             decorator_nodes = {}
-
-            # First pass: collect method nodes, decorated method nodes, and decorator nodes
-            for (node, capture_name) in query_results:
+            for node, capture_name in query_results:
                 if capture_name == 'method_def':
                     name_node = ast_handler.find_child_by_field_name(node, 'name')
                     if name_node:
@@ -76,7 +74,6 @@ class MethodExtractor(BaseExtractor):
                             method_name = ast_handler.get_node_text(name_node, code_bytes)
                             decorated_methods[method_name] = node
                 elif capture_name == 'decorator':
-                    # Keep a reference to this decorator
                     parent = node.parent
                     if parent and parent.type == 'decorated_definition':
                         def_node = ast_handler.find_child_by_field_name(parent, 'definition')
@@ -92,16 +89,12 @@ class MethodExtractor(BaseExtractor):
                                 if name_node:
                                     decorator_name = ast_handler.get_node_text(name_node, code_bytes)
                                 elif node.named_child_count > 0:
-                                    # If no field named 'name', try to get first named child
                                     for i in range(node.named_child_count):
                                         child = node.named_child(i)
                                         if child.type == 'identifier':
                                             decorator_name = ast_handler.get_node_text(child, code_bytes)
                                             break
-                                decorator_nodes[method_name].append({
-                                    'name': decorator_name,
-                                    'content': decorator_content
-                                })
+                                decorator_nodes[method_name].append({'name': decorator_name, 'content': decorator_content})
                 elif capture_name == 'method_name':
                     method_name = ast_handler.get_node_text(node, code_bytes)
                     parent = node.parent
@@ -111,10 +104,7 @@ class MethodExtractor(BaseExtractor):
                             decorated_methods[method_name] = grand_parent
                         else:
                             method_nodes[method_name] = parent
-
-            # Process regular methods
-            for (method_name, method_node) in method_nodes.items():
-                (start_line, end_line) = ast_handler.get_node_range(method_node)
+            for method_name, method_node in method_nodes.items():
                 content = ast_handler.get_node_text(method_node, code_bytes)
                 class_name = None
                 if context.get('class_name'):
@@ -125,7 +115,6 @@ class MethodExtractor(BaseExtractor):
                         class_name_node = ast_handler.find_child_by_field_name(class_node, 'name')
                         if class_name_node:
                             class_name = ast_handler.get_node_text(class_name_node, code_bytes)
-
                 parameters = []
                 params_node = ast_handler.find_child_by_field_name(method_node, 'parameters')
                 if params_node:
@@ -136,55 +125,32 @@ class MethodExtractor(BaseExtractor):
                         param_info = self._extract_parameter(param_node, code_bytes, ast_handler)
                         if param_info:
                             parameters.append(param_info)
-
                 return_type = None
                 return_type_node = ast_handler.find_child_by_field_name(method_node, 'return_type')
                 if return_type_node:
                     return_type = ast_handler.get_node_text(return_type_node, code_bytes)
-
                 return_values = []
                 body_node = ast_handler.find_child_by_field_name(method_node, 'body')
                 if body_node:
                     try:
                         return_query = '(return_statement) @return_stmt'
                         return_results = ast_handler.execute_query(return_query, body_node, code_bytes)
-                        for (return_node, _) in return_results:
+                        for return_node, _ in return_results:
                             stmt_text = ast_handler.get_node_text(return_node, code_bytes)
                             if stmt_text.startswith('return '):
                                 return_values.append(stmt_text[7:].strip())
                     except Exception:
                         pass
-
-                # Get any decorators for this method
                 decorators = decorator_nodes.get(method_name, [])
-
-                method_info = {
-                    'type': 'method',
-                    'name': method_name,
-                    'content': content,
-                    'class_name': class_name,
-                    'range': {
-                        'start': {'line': start_line, 'column': method_node.start_point[1]},
-                        'end': {'line': end_line, 'column': method_node.end_point[1]}
-                    },
-                    'decorators': decorators,
-                    'parameters': parameters,
-                    'return_info': {'return_type': return_type, 'return_values': return_values}
-                }
+                method_info = {'type': 'method', 'name': method_name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': method_node.start_point[0] + 1, 'column': method_node.start_point[1]}, 'end': {'line': method_node.end_point[0] + 1, 'column': method_node.end_point[1]}}, 'decorators': decorators, 'parameters': parameters, 'return_info': {'return_type': return_type, 'return_values': return_values}}
                 methods.append(method_info)
 
-            # Process decorated methods
-            for (method_name, decorated_node) in decorated_methods.items():
-                # Find the definition node (actual function)
+            # Handle decorated methods (similar code but with updated line position calculation)
+            for method_name, decorated_node in decorated_methods.items():
                 def_node = ast_handler.find_child_by_field_name(decorated_node, 'definition')
                 if not def_node:
                     continue
-
-                # Get the full content including decorators
-                (start_line, end_line) = ast_handler.get_node_range(decorated_node)
                 content = ast_handler.get_node_text(decorated_node, code_bytes)
-
-                # Find class name
                 class_name = None
                 if context.get('class_name'):
                     class_name = context.get('class_name')
@@ -194,8 +160,6 @@ class MethodExtractor(BaseExtractor):
                         class_name_node = ast_handler.find_child_by_field_name(class_node, 'name')
                         if class_name_node:
                             class_name = ast_handler.get_node_text(class_name_node, code_bytes)
-
-                # Extract parameters
                 parameters = []
                 params_node = ast_handler.find_child_by_field_name(def_node, 'parameters')
                 if params_node:
@@ -206,31 +170,23 @@ class MethodExtractor(BaseExtractor):
                         param_info = self._extract_parameter(param_node, code_bytes, ast_handler)
                         if param_info:
                             parameters.append(param_info)
-
-                # Extract return type
                 return_type = None
                 return_type_node = ast_handler.find_child_by_field_name(def_node, 'return_type')
                 if return_type_node:
                     return_type = ast_handler.get_node_text(return_type_node, code_bytes)
-
-                # Extract return values
                 return_values = []
                 body_node = ast_handler.find_child_by_field_name(def_node, 'body')
                 if body_node:
                     try:
                         return_query = '(return_statement) @return_stmt'
                         return_results = ast_handler.execute_query(return_query, body_node, code_bytes)
-                        for (return_node, _) in return_results:
+                        for return_node, _ in return_results:
                             stmt_text = ast_handler.get_node_text(return_node, code_bytes)
                             if stmt_text.startswith('return '):
                                 return_values.append(stmt_text[7:].strip())
                     except Exception:
                         pass
-
-                # Get decorators for this method
                 decorators = decorator_nodes.get(method_name, [])
-
-                # If we don't have decorators in our map, extract them directly
                 if not decorators:
                     for i in range(decorated_node.named_child_count):
                         child = decorated_node.named_child(i)
@@ -241,32 +197,14 @@ class MethodExtractor(BaseExtractor):
                             if name_node:
                                 decorator_name = ast_handler.get_node_text(name_node, code_bytes)
                             elif child.named_child_count > 0:
-                                # Try to get the first named child
                                 for j in range(child.named_child_count):
                                     sub_child = child.named_child(j)
                                     if sub_child.type == 'identifier':
                                         decorator_name = ast_handler.get_node_text(sub_child, code_bytes)
                                         break
-                            decorators.append({
-                                'name': decorator_name,
-                                'content': decorator_content
-                            })
-
-                method_info = {
-                    'type': 'method',
-                    'name': method_name,
-                    'content': content,
-                    'class_name': class_name,
-                    'range': {
-                        'start': {'line': start_line, 'column': decorated_node.start_point[1]},
-                        'end': {'line': end_line, 'column': decorated_node.end_point[1]}
-                    },
-                    'decorators': decorators,
-                    'parameters': parameters,
-                    'return_info': {'return_type': return_type, 'return_values': return_values}
-                }
+                            decorators.append({'name': decorator_name, 'content': decorator_content})
+                method_info = {'type': 'method', 'name': method_name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': decorated_node.start_point[0] + 1, 'column': decorated_node.start_point[1]}, 'end': {'line': decorated_node.end_point[0] + 1, 'column': decorated_node.end_point[1]}}, 'decorators': decorators, 'parameters': parameters, 'return_info': {'return_type': return_type, 'return_values': return_values}}
                 methods.append(method_info)
-
             return methods
         except Exception as e:
             logger.debug(f'TreeSitter extraction error: {str(e)}')
@@ -469,31 +407,70 @@ class MethodExtractor(BaseExtractor):
             methods = []
             for match in matches:
                 name = match.group(1)
-                content = match.group(0)
+                signature = match.group(0)
                 if class_name:
                     start_pos = class_match.start(1) + match.start()
-                    end_pos = class_match.start(1) + match.end()
+                    sig_end_pos = class_match.start(1) + match.end()
                 else:
                     start_pos = match.start()
-                    end_pos = match.end()
-                lines_before = code[:start_pos].count('\n')
+                    sig_end_pos = match.end()
+
+                # Get the indentation level of the method definition
+                code_lines = code.splitlines()
+                method_line_num = code[:start_pos].count('\n')
+                method_indent = self.get_indentation(signature) if signature.startswith(' ') else ''
+
+                # Parse the method body based on indentation
+                content_lines = [signature]
+
+                # Find the end of the method by analyzing indentation
+                method_end_line = method_line_num
+                for i, line in enumerate(code_lines[method_line_num + 1:], method_line_num + 1):
+                    if i >= len(code_lines):
+                        break
+
+                    line_indent = self.get_indentation(line)
+                    # Skip empty lines
+                    if not line.strip():
+                        content_lines.append(line)
+                        continue
+
+                    # If indentation is less than or equal to method indentation and not an empty line,
+                    # we've exited the method
+                    if len(line_indent) <= len(method_indent):
+                        break
+
+                    # Still in the method body
+                    content_lines.append(line)
+                    method_end_line = i
+
+                # Combine the method signature and body
+                content = '\n'.join(content_lines)
+
+                # Calculate start line (1-indexed)
+                start_line = method_line_num + 1
+
+                # Calculate end line (1-indexed)
+                end_line = method_end_line + 1
+
+                # Get column positions
                 last_newline = code[:start_pos].rfind('\n')
                 start_column = start_pos - last_newline - 1 if last_newline >= 0 else start_pos
-                lines_total = code[:end_pos].count('\n')
-                last_newline_end = code[:end_pos].rfind('\n')
-                end_column = end_pos - last_newline_end - 1 if last_newline_end >= 0 else end_pos
+                end_column = len(code_lines[method_end_line]) if method_end_line < len(code_lines) else 0
+
+                # Extract decorators
                 decorator_lines = []
-                method_line = None
-                for (i, line) in enumerate(content.splitlines()):
+                for i, line in enumerate(content.splitlines()):
                     if line.strip().startswith('@'):
                         decorator_lines.append(line.strip())
                     elif line.strip().startswith('def '):
-                        method_line = i
                         break
+
                 decorators = []
                 for decorator in decorator_lines:
                     name = decorator[1:].split('(')[0] if '(' in decorator else decorator[1:]
                     decorators.append({'name': name, 'content': decorator})
+
                 is_property = False
                 is_property_setter = False
                 property_name = None
@@ -503,11 +480,13 @@ class MethodExtractor(BaseExtractor):
                     elif decorator.get('name', '').endswith('.setter'):
                         is_property_setter = True
                         property_name = decorator.get('name').split('.')[0]
+
                 element_type = 'method'
                 if is_property:
                     element_type = 'property_getter'
                 elif is_property_setter:
                     element_type = 'property_setter'
+
                 param_pattern = 'def\\s+\\w+\\s*\\((.*?)\\)'
                 param_match = re.search(param_pattern, content)
                 parameters = []
@@ -519,25 +498,42 @@ class MethodExtractor(BaseExtractor):
                             continue
                         param_dict = {'name': param, 'type': None}
                         if ':' in param:
-                            (name_part, type_part) = param.split(':', 1)
+                            name_part, type_part = param.split(':', 1)
                             param_dict['name'] = name_part.strip()
                             param_dict['type'] = type_part.strip()
                         if '=' in param_dict['name']:
-                            (name_part, value_part) = param_dict['name'].split('=', 1)
+                            name_part, value_part = param_dict['name'].split('=', 1)
                             param_dict['name'] = name_part.strip()
                             param_dict['default'] = value_part.strip()
                             param_dict['optional'] = True
                         parameters.append(param_dict)
+
+                # Extract return information correctly from the method body only
                 return_info = {'return_type': None, 'return_values': []}
                 return_type_pattern = 'def\\s+\\w+\\s*\\([^)]*\\)\\s*->\\s*([^:]+):'
                 return_type_match = re.search(return_type_pattern, content)
                 if return_type_match:
                     return_info['return_type'] = return_type_match.group(1).strip()
-                return_pattern = 'return\\s+([^;]+)'
+
+                return_pattern = 'return\\s+([^\\n;]+)'
                 return_matches = re.finditer(return_pattern, content)
                 for return_match in return_matches:
                     return_info['return_values'].append(return_match.group(1).strip())
-                methods.append({'type': element_type, 'name': name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': lines_before, 'column': start_column}, 'end': {'line': lines_total, 'column': end_column}}, 'decorators': decorators, 'parameters': parameters, 'return_info': return_info, 'property_name': property_name})
+
+                methods.append({
+                    'type': element_type, 
+                    'name': name, 
+                    'content': content, 
+                    'class_name': class_name, 
+                    'range': {
+                        'start': {'line': start_line, 'column': start_column}, 
+                        'end': {'line': end_line, 'column': end_column}
+                    }, 
+                    'decorators': decorators, 
+                    'parameters': parameters, 
+                    'return_info': return_info, 
+                    'property_name': property_name
+                })
             return methods
         except Exception as e:
             logger.debug(f'Regex extraction error: {e}')

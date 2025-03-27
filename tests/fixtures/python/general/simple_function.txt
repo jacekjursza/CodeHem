@@ -1,0 +1,7 @@
+## function_name: test_function
+## start_line: 2
+## end_line: 4
+
+def test_function(arg):
+    """A simple test function."""
+    return arg * 2

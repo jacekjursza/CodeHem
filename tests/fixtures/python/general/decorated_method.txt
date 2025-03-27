@@ -1,0 +1,10 @@
+## class_name: DecoratedClass
+## method_name: decorated_method
+## decorators: decorator1, decorator2
+
+class DecoratedClass:
+    
+    @decorator1
+    @decorator2
+    def decorated_method(self, arg):
+        return f"Decorated {arg}"

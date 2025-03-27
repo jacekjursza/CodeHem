@@ -3,13 +3,16 @@ Main entry point for code manipulation functionality.
 Acts as a facade for the various manipulation strategies.
 """
 import logging
-from typing import Dict, List, Optional, Any, Tuple, Union
+from typing import Optional
+
 from codehem import CodeElementType
 from codehem.core.engine.xpath_parser import XPathParser
 from codehem.core.registry import registry
 from codehem.core.service import LanguageService
-from codehem.languages import get_language_service_for_file, get_language_service_for_code
-from codehem.models.code_element import CodeElement, CodeElementsResult
+from codehem.languages import (
+    get_language_service_for_code,
+    get_language_service_for_file,
+)
 
 logger = logging.getLogger(__name__)
 

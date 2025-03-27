@@ -1,0 +1,10 @@
+## function_name: outer_function
+## nested_function_name: inner_function
+
+def outer_function(arg):
+    """Function with a nested function."""
+    
+    def inner_function(x):
+        return x * 2
+    
+    return inner_function(arg)

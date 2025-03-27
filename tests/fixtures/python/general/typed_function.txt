@@ -1,0 +1,6 @@
+## function_name: typed_function
+## return_type: str
+## param_types: int, float, str
+
+def typed_function(a: int, b: float, c: str) -> str:
+    return f"{a} {b} {c}"

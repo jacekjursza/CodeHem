@@ -8,9 +8,10 @@ class PythonImportHandlerElementType(ElementTypeLanguageDescriptor):
     """Handler for Python import elements."""
     language_code = 'python'
     element_type = CodeElementType.IMPORT
-    tree_sitter_query = """
+    tree_sitter_query = '''
     (import_statement) @import
     (import_from_statement) @import_from
-    """
-    regexp_pattern = '(?:import\\s+([a-zA-Z_][a-zA-Z0-9_.*]+)(?:\\s+as\\s+[a-zA-Z_][a-zA-Z0-9_]*)?|from\\s+([a-zA-Z_][a-zA-Z0-9_.*]+)\\s+import\\s+(?:[a-zA-Z_][a-zA-Z0-9_]*(?:\\s+as\\s+[a-zA-Z_][a-zA-Z0-9_]*)?(?:\\s*,\\s*[a-zA-Z_][a-zA-Z0-9_]*(?:\\s+as\\s+[a-zA-Z_][a-zA-Z0-9_]*)?)*|\\*))'
+    '''
+    # Simplified regex pattern for better matching
+    regexp_pattern = '(import\\s+[^\\n;]+|from\\s+[^\\n;]+\\s+import\\s+[^\\n;]+)'
     custom_extract = False

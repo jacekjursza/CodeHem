@@ -35,5 +35,5 @@ class PythonDecoratorHandlerElementType(ElementTypeLanguageDescriptor):
             lines_total = code[:end_pos].count('\n')
             last_newline_end = code[:end_pos].rfind('\n')
             end_column = end_pos - last_newline_end - 1 if last_newline_end >= 0 else end_pos
-            results.append({'type': 'decorator', 'name': decorator_name, 'content': content, 'parent_name': target_name, 'range': {'start': {'line': lines_before, 'column': start_column}, 'end': {'line': lines_total, 'column': end_column}}})
+            results.append({'type': 'decorator', 'name': decorator_name, 'content': content, 'parent_name': target_name, 'range': {'start': {'line': lines_before + 1, 'column': start_column}, 'end': {'line': lines_total + 1, 'column': end_column}}})
         return results

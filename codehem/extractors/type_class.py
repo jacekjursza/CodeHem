@@ -36,11 +36,11 @@ class ClassExtractor(BaseExtractor):
         if not ast_handler:
             return []
         try:
-            (root, code_bytes) = ast_handler.parse(code)
+            root, code_bytes = ast_handler.parse(code)
             query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
             classes = []
             class_nodes = {}
-            for (node, capture_name) in query_results:
+            for node, capture_name in query_results:
                 if capture_name == 'class_def':
                     class_def = node
                     name_node = ast_handler.find_child_by_field_name(class_def, 'name')
@@ -52,13 +52,13 @@ class ClassExtractor(BaseExtractor):
                     parent_node = ast_handler.find_parent_of_type(node, 'class_definition')
                     if parent_node:
                         class_nodes[class_name] = parent_node
-            for (class_name, class_def) in class_nodes.items():
+            for class_name, class_def in class_nodes.items():
                 content = ast_handler.get_node_text(class_def, code_bytes)
                 decorators = self._extract_decorators(class_def, code_bytes, ast_handler)
                 methods = self._extract_methods(class_def, code_bytes, ast_handler, class_name)
                 properties = self._extract_properties(class_def, code_bytes, ast_handler)
                 static_properties = self._extract_static_properties(class_def, code_bytes, ast_handler, class_name)
-                classes.append({'type': 'class', 'name': class_name, 'content': content, 'range': {'start': {'line': class_def.start_point[0], 'column': class_def.start_point[1]}, 'end': {'line': class_def.end_point[0], 'column': class_def.end_point[1]}}, 'decorators': decorators, 'members': {'methods': methods, 'properties': properties, 'static_properties': static_properties}})
+                classes.append({'type': 'class', 'name': class_name, 'content': content, 'range': {'start': {'line': class_def.start_point[0] + 1, 'column': class_def.start_point[1]}, 'end': {'line': class_def.end_point[0] + 1, 'column': class_def.end_point[1]}}, 'decorators': decorators, 'members': {'methods': methods, 'properties': properties, 'static_properties': static_properties}})
             return classes
         except Exception as e:
             logger.debug(f'TreeSitter extraction error: {str(e)}')
@@ -345,7 +345,7 @@ class ClassExtractor(BaseExtractor):
                         elif line and (not line.startswith('#')):
                             break
                         i -= 1
-                classes.append({'type': 'class', 'name': name, 'content': content, 'range': {'start': {'line': lines_before, 'column': start_column}, 'end': {'line': lines_total, 'column': end_column}}, 'decorators': decorators, 'members': {'methods': [], 'properties': [], 'static_properties': []}})
+                classes.append({'type': 'class', 'name': name, 'content': content, 'range': {'start': {'line': lines_before + 1, 'column': start_column}, 'end': {'line': lines_total + 1, 'column': end_column}}, 'decorators': decorators, 'members': {'methods': [], 'properties': [], 'static_properties': []}})
             return classes
         except Exception as e:
             logger.debug(f'Regex extraction error: {e}')

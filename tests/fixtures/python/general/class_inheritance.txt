@@ -1,0 +1,10 @@
+## class_name: ChildClass
+## parent_class: ParentClass
+
+class ParentClass:
+    def parent_method(self):
+        return "Parent method"
+
+class ChildClass(ParentClass):
+    def child_method(self):
+        return "Child method"

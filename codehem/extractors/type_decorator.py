@@ -113,7 +113,7 @@ class DecoratorExtractor(BaseExtractor):
                 lines_total = code[:end_pos].count('\n')
                 last_newline_end = code[:end_pos].rfind('\n')
                 end_column = end_pos - last_newline_end - 1 if last_newline_end >= 0 else end_pos
-                decorators.append({'type': 'decorator', 'name': name, 'content': content, 'parent_name': parent_name, 'range': {'start': {'line': lines_before, 'column': start_column}, 'end': {'line': lines_total, 'column': end_column}}})
+                decorators.append({'type': 'decorator', 'name': name, 'content': content, 'parent_name': parent_name, 'range': {'start': {'line': lines_before + 1, 'column': start_column}, 'end': {'line': lines_total + 1, 'column': end_column}}})
             return decorators
         except Exception as e:
             logger.debug(f'Regex extraction error: {e}')

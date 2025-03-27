@@ -20,7 +20,7 @@ class PythonMethodManipulator(PythonBaseManipulator):
         if not lines:
             return ''
         result = []
-        method_line_idx = next((i for (i, line) in enumerate(lines) if line.strip().startswith('def ')), 0)
+        method_line_idx = next((i for i, line in enumerate(lines) if line.strip().startswith('def ')), 0)
         for i in range(method_line_idx):
             result.append(f'{indent}{lines[i].strip()}')
         result.append(f'{indent}{lines[method_line_idx].strip()}')
@@ -69,7 +69,7 @@ class PythonMethodManipulator(PythonBaseManipulator):
         if not parent_name:
             return original_code
         extraction_service = ExtractionService(self.LANGUAGE_CODE)
-        (class_start, class_end) = extraction_service.find_element(original_code, CodeElementType.CLASS.value, parent_name)
+        class_start, class_end = extraction_service.find_element(original_code, CodeElementType.CLASS.value, parent_name)
         if class_start == 0:
             return original_code
         lines = original_code.splitlines()

@@ -31,48 +31,66 @@ class ExtractionService:
         Find a specific element in the code based on type, name, and parent.
 
         Args:
-            code: Source code as string
-            element_type: Type of element to find (e.g., 'function', 'class', 'method')
-            element_name: Optional name of the element to find
-            parent_name: Optional name of the parent element (e.g., class name for methods)
+        code: Source code as string
+        element_type: Type of element to find (e.g., 'function', 'class', 'method')
+        element_name: Optional name of the element to find
+        parent_name: Optional name of the parent element (e.g., class name for methods)
 
         Returns:
-            Tuple of (start_line, end_line) or (0, 0) if not found
+        Tuple of (start_line, end_line) or (0, 0) if not found
         """
         logger.debug(f"Finding element of type '{element_type}', name '{element_name}', parent '{parent_name}'")
         if element_name is None and parent_name is None:
             elements = self.extract_any(code, element_type)
             if elements and len(elements) > 0:
                 first_element = elements[0]
-                return (first_element.get('start_line', 0), first_element.get('end_line', 0))
+                range_data = first_element.get('range', {})
+                start_line = range_data.get('start', {}).get('line', 0)
+                end_line = range_data.get('end', {}).get('line', 0)
+                return (start_line, end_line)
             return (0, 0)
         if element_type == CodeElementType.METHOD.value and parent_name:
             methods = self.extract_methods(code, parent_name)
             for method in methods:
                 if method.get('name') == element_name:
-                    return (method.get('start_line', 0), method.get('end_line', 0))
+                    range_data = method.get('range', {})
+                    start_line = range_data.get('start', {}).get('line', 0)
+                    end_line = range_data.get('end', {}).get('line', 0)
+                    return (start_line, end_line)
         elif element_type == CodeElementType.FUNCTION.value:
             functions = self.extract_functions(code)
             for func in functions:
                 if func.get('name') == element_name:
-                    return (func.get('start_line', 0), func.get('end_line', 0))
+                    range_data = func.get('range', {})
+                    start_line = range_data.get('start', {}).get('line', 0)
+                    end_line = range_data.get('end', {}).get('line', 0)
+                    return (start_line, end_line)
         elif element_type == CodeElementType.CLASS.value:
             classes = self.extract_classes(code)
             for cls in classes:
                 if cls.get('name') == element_name:
-                    return (cls.get('start_line', 0), cls.get('end_line', 0))
+                    range_data = cls.get('range', {})
+                    start_line = range_data.get('start', {}).get('line', 0)
+                    end_line = range_data.get('end', {}).get('line', 0)
+                    return (start_line, end_line)
         elif element_type == CodeElementType.IMPORT.value:
             imports = self.extract_imports(code)
             for imp in imports:
                 if imp.get('name') == element_name:
-                    return (imp.get('start_line', 0), imp.get('end_line', 0))
+                    range_data = imp.get('range', {})
+                    start_line = range_data.get('start', {}).get('line', 0)
+                    end_line = range_data.get('end', {}).get('line', 0)
+                    return (start_line, end_line)
         elif element_type in [CodeElementType.PROPERTY.value, CodeElementType.PROPERTY_GETTER.value, CodeElementType.PROPERTY_SETTER.value, CodeElementType.STATIC_PROPERTY.value] and parent_name:
             all_elements = self._extract_file(code)
             for cls in all_elements.get('classes', []):
                 if cls.get('name') == parent_name:
                     for prop in cls.get('methods', []):
                         if prop.get('name') == element_name and prop.get('type') == element_type:
-                            return (prop.get('start_line', 0), prop.get('end_line', 0))
+                            range_data = prop.get('range', {})
+                            start_line = range_data.get('start', {}).get('line', 0)
+                            end_line = range_data.get('end', {}).get('line', 0)
+                            return (start_line, end_line)
         return (0, 0)
 
     def find_by_xpath(self, code: str, xpath: str) -> Tuple[int, int]:
@@ -80,28 +98,56 @@ class ExtractionService:
         Find an element in the code using an XPath-like expression.
 
         Args:
-            code: Source code as string
-            xpath: XPath-like expression (e.g., 'ClassName.method_name')
+        code: Source code as string
+        xpath: XPath-like expression (e.g., 'ClassName.method_name')
 
         Returns:
-            Tuple of (start_line, end_line) or (0, 0) if not found
+        Tuple of (start_line, end_line) or (0, 0) if not found
         """
-        (element_name, parent_name, element_type) = XPathParser.get_element_info(xpath)
-        if not element_name and (not element_type):
+        element_name, parent_name, element_type = XPathParser.get_element_info(xpath)
+        logger.debug(f"XPath parsed: element_name={element_name}, parent_name={parent_name}, element_type={element_type}")
+
+        if not element_name and not element_type:
             return (0, 0)
-        if element_type == CodeElementType.IMPORT.value and (not element_name):
-            return self.extract_any(code, element_type)
+
+        if element_type == CodeElementType.IMPORT.value and not element_name:
+            # For bare import xpath like [import]
+            imports = self.extract_imports(code)
+            if imports and len(imports) > 0:
+                range_data = imports[0].get('range', {})
+                start_line = range_data.get('start', {}).get('line', 0)
+                end_line = range_data.get('end', {}).get('line', 0)
+                return (start_line, end_line)
+            return (0, 0)
+
+        # If we have both name and type, use the find_element method
         if element_name and element_type:
-            return self.extract_any(code, element_type, element_name, parent_name)
-        if element_name and (not element_type):
+            return self.find_element(code, element_type, element_name, parent_name)
+
+        # If we only have a name but no type, try different element types
+        if element_name and not element_type:
             if parent_name:
-                element_types = [CodeElementType.METHOD.value, CodeElementType.PROPERTY.value, CodeElementType.PROPERTY_GETTER.value, CodeElementType.PROPERTY_SETTER.value, CodeElementType.STATIC_PROPERTY.value]
+                # If we have a parent, try methods, properties, etc.
+                element_types = [
+                    CodeElementType.METHOD.value,
+                    CodeElementType.PROPERTY.value,
+                    CodeElementType.PROPERTY_GETTER.value,
+                    CodeElementType.PROPERTY_SETTER.value,
+                    CodeElementType.STATIC_PROPERTY.value
+                ]
             else:
-                element_types = [CodeElementType.CLASS.value, CodeElementType.FUNCTION.value, CodeElementType.INTERFACE.value]
+                # If no parent, try classes, functions, etc.
+                element_types = [
+                    CodeElementType.CLASS.value, 
+                    CodeElementType.FUNCTION.value,
+                    CodeElementType.INTERFACE.value
+                ]
+
             for type_to_try in element_types:
                 result = self.find_element(code, type_to_try, element_name, parent_name)
                 if result[0] > 0:
                     return result
+
         return (0, 0)
 
     @classmethod
@@ -185,26 +231,36 @@ class ExtractionService:
     def _extract_file(self, code: str) -> Dict[str, List[Dict]]:
         """
         Extract all code elements from the provided code.
-        
+
         This is a private method that performs raw extraction.
-        
+
         Args:
-            code: Source code as string
-            
+        code: Source code as string
+
         Returns:
-            Dictionary with extracted elements categorized by type
+        Dictionary with extracted elements categorized by type
         """
         logger.debug(f'Starting extraction for all elements')
+
+        # Extract imports - do this first since they typically appear at the top
         imports = self.extract_imports(code)
+        logger.debug(f'Extracted {len(imports)} imports')
+
+        # Extract classes and functions
         classes = self.extract_classes(code)
         functions = self.extract_functions(code)
+
+        # Prepare results dictionary
         results = {'imports': imports, 'classes': classes, 'functions': functions}
+
+        # Extract methods for each class
         for cls in classes:
             class_name = cls.get('name')
             if class_name:
                 methods = self.extract_methods(code, class_name)
                 cls['methods'] = methods
                 logger.debug(f"Added {len(methods)} methods to class '{class_name}'")
+
         logger.debug(f'Completed extraction: {len(imports)} imports, {len(classes)} classes, {len(functions)} functions')
         return results
         
@@ -476,10 +532,10 @@ class ExtractionService:
     def extract_all(self, code: str) -> CodeElementsResult:
         """
         Extract all code elements and convert them to a structured CodeElementsResult.
-        
+
         Args:
             code: Source code as string
-            
+
         Returns:
             CodeElementsResult containing extracted elements
         """
@@ -487,7 +543,7 @@ class ExtractionService:
             # Extract raw elements
             raw_elements = self._extract_file(code)
             result = CodeElementsResult()
-            
+
             # Process imports
             for import_data in raw_elements.get('imports', []):
                 import_element = self._process_import_element(import_data)

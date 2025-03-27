@@ -15,12 +15,17 @@ def get_language_service(language_code: str) -> Optional[LanguageService]:
 def get_language_service_for_file(file_path: str) -> Optional[LanguageService]:
     """Get language service for the specified file based on its extension."""
     import os
-    (_, ext) = os.path.splitext(file_path)
+    _, ext = os.path.splitext(file_path)
     if not ext:
         return None
-    for service in registry.language_services.values():
-        if ext.lower() in service.file_extensions:
+
+    # Need to iterate through language services using instances, not classes
+    for language_code, service_cls in list(registry.language_services.items()):
+        # Get an instance of the service
+        service = registry.get_language_service(language_code)
+        if service and ext.lower() in service.file_extensions:
             return service
+
     return None
 
 def get_language_service_for_code(code: str) -> Optional[LanguageService]:

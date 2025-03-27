@@ -8,11 +8,7 @@ class PythonFunctionHandlerElementType(ElementTypeLanguageDescriptor):
     """Handler for Python function elements."""
     language_code = 'python'
     element_type = CodeElementType.FUNCTION
-    tree_sitter_query = """
-    (function_definition
-      name: (identifier) @function_name
-      parameters: (parameters) @params
-      body: (block) @body) @function_def
-    """
-    regexp_pattern = 'def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\((?!.*?self)[^)]*\\)(?:\\s*->.*?)?\\s*:(.*?)(?=\\n(?:def|class)|$)'
+    tree_sitter_query = '\n    (function_definition\n      name: (identifier) @function_name\n      parameters: (parameters) @params\n      body: (block) @body) @function_def\n    '
+    # Update regex to stop at the end of the indented block, not at the next function/class or end-of-file
+    regexp_pattern = 'def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\((?!.*?self)[^)]*\\)(?:\\s*->.*?)?\\s*:'
     custom_extract = False

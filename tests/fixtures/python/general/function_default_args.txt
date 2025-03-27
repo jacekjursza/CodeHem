@@ -1,0 +1,9 @@
+## function_name: default_args_function
+## default_args: b=10, c="default", d=None
+
+def default_args_function(a, b=10, c="default", d=None):
+    """Function with default arguments."""
+    result = a + b
+    if d is not None:
+        result += d
+    return result, c

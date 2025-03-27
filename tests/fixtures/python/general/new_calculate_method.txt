@@ -1,0 +1,6 @@
+
+def calculate(self, multiplier: int, offset: int = 0) -> int:
+    """Calculate with multiplier and offset."""
+    return self._value * multiplier + offset
+
+## name: calculate

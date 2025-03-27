@@ -1,0 +1,8 @@
+## module_name: simple_module
+
+"""
+A simple module for testing.
+"""
+
+def module_function():
+    return "Module function"

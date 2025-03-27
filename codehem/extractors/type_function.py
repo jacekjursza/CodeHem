@@ -36,21 +36,21 @@ class FunctionExtractor(BaseExtractor):
         if not ast_handler:
             return []
         try:
-            (root, code_bytes) = ast_handler.parse(code)
+            root, code_bytes = ast_handler.parse(code)
             query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
             functions = []
-            for (node, capture_name) in query_results:
+            for node, capture_name in query_results:
                 if capture_name == 'function_def':
                     function_def = node
                 elif capture_name == 'func_name':
                     func_name = ast_handler.get_node_text(node, code_bytes)
                     function_node = ast_handler.find_parent_of_type(node, 'function_definition')
                     if function_node:
-                        (start_line, end_line) = ast_handler.get_node_range(function_node)
+                        start_line, end_line = ast_handler.get_node_range(function_node)
                         content = ast_handler.get_node_text(function_node, code_bytes)
                         parameters = self._extract_parameters(function_node, code_bytes, ast_handler)
                         return_info = self._extract_return_info(function_node, code_bytes, ast_handler)
-                        functions.append({'type': 'function', 'name': func_name, 'content': content, 'range': {'start': {'line': start_line, 'column': function_node.start_point[1]}, 'end': {'line': end_line, 'column': function_node.end_point[1]}}, 'parameters': parameters, 'return_info': return_info})
+                        functions.append({'type': 'function', 'name': func_name, 'content': content, 'range': {'start': {'line': function_node.start_point[0] + 1, 'column': function_node.start_point[1]}, 'end': {'line': function_node.end_point[0] + 1, 'column': function_node.end_point[1]}}, 'parameters': parameters, 'return_info': return_info})
             return functions
         except Exception as e:
             logger.debug(f'TreeSitter extraction error: {str(e)}')
@@ -163,15 +163,51 @@ class FunctionExtractor(BaseExtractor):
             functions = []
             for match in matches:
                 name = match.group(1)
-                content = match.group(0)
+                signature = match.group(0)
                 start_pos = match.start()
-                end_pos = match.end()
-                lines_before = code[:start_pos].count('\n')
+                sig_end_pos = match.end()
+
+                # Get the indentation level of the function definition
+                code_lines = code.splitlines()
+                func_line_num = code[:start_pos].count('\n')
+                func_indent = self.get_indentation(signature) if signature.startswith(' ') else ''
+
+                # Parse the function body based on indentation
+                content_lines = [signature]
+
+                # Find the end of the function by analyzing indentation
+                function_end_line = func_line_num
+                for i, line in enumerate(code_lines[func_line_num + 1:], func_line_num + 1):
+                    line_indent = self.get_indentation(line)
+                    # Skip empty lines
+                    if not line.strip():
+                        content_lines.append(line)
+                        continue
+
+                    # If indentation is less than or equal to function indentation and not an empty line,
+                    # we've exited the function
+                    if len(line_indent) <= len(func_indent):
+                        break
+
+                    # Still in the function body
+                    content_lines.append(line)
+                    function_end_line = i
+
+                # Combine the function signature and body
+                content = '\n'.join(content_lines)
+
+                # Calculate start line (1-indexed)
+                start_line = func_line_num + 1
+
+                # Calculate end line (1-indexed)
+                end_line = function_end_line + 1
+
+                # Get column positions
                 last_newline = code[:start_pos].rfind('\n')
                 start_column = start_pos - last_newline - 1 if last_newline >= 0 else start_pos
-                lines_total = code[:end_pos].count('\n')
-                last_newline_end = code[:end_pos].rfind('\n')
-                end_column = end_pos - last_newline_end - 1 if last_newline_end >= 0 else end_pos
+                end_column = len(code_lines[function_end_line]) if function_end_line < len(code_lines) else 0
+
+                # Extract parameters
                 param_pattern = 'def\\s+\\w+\\s*\\((.*?)\\)'
                 param_match = re.search(param_pattern, content)
                 parameters = []
@@ -181,25 +217,40 @@ class FunctionExtractor(BaseExtractor):
                     for param in param_list:
                         param_dict = {'name': param, 'type': None}
                         if ':' in param:
-                            (name_part, type_part) = param.split(':', 1)
+                            name_part, type_part = param.split(':', 1)
                             param_dict['name'] = name_part.strip()
                             param_dict['type'] = type_part.strip()
                         if '=' in param_dict['name']:
-                            (name_part, value_part) = param_dict['name'].split('=', 1)
+                            name_part, value_part = param_dict['name'].split('=', 1)
                             param_dict['name'] = name_part.strip()
                             param_dict['default'] = value_part.strip()
                             param_dict['optional'] = True
                         parameters.append(param_dict)
+
+                # Extract return information correctly from the function body only
                 return_info = {'return_type': None, 'return_values': []}
                 return_type_pattern = 'def\\s+\\w+\\s*\\([^)]*\\)\\s*->\\s*([^:]+):'
                 return_type_match = re.search(return_type_pattern, content)
                 if return_type_match:
                     return_info['return_type'] = return_type_match.group(1).strip()
-                return_pattern = 'return\\s+([^;]+)'
+
+                return_pattern = 'return\\s+([^\\n;]+)'
                 return_matches = re.finditer(return_pattern, content)
                 for return_match in return_matches:
                     return_info['return_values'].append(return_match.group(1).strip())
-                functions.append({'type': 'function', 'name': name, 'content': content, 'range': {'start': {'line': lines_before, 'column': start_column}, 'end': {'line': lines_total, 'column': end_column}}, 'parameters': parameters, 'return_info': return_info})
+
+                # Create function info with correct boundaries
+                functions.append({
+                    'type': 'function', 
+                    'name': name, 
+                    'content': content, 
+                    'range': {
+                        'start': {'line': start_line, 'column': start_column}, 
+                        'end': {'line': end_line, 'column': end_column}
+                    }, 
+                    'parameters': parameters, 
+                    'return_info': return_info
+                })
             return functions
         except Exception as e:
             logger.debug(f'Regex extraction error: {e}')

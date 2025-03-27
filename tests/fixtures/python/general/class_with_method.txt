@@ -1,0 +1,9 @@
+## class_name: TestClass
+## method_name: original_method
+
+class TestClass:
+    def __init__(self):
+        self.value = 10
+    
+    def original_method(self, param):
+        return param * self.value

@@ -1,0 +1,13 @@
+## class_names: Class1, Class2, Class3
+
+class Class1:
+    def method1(self):
+        pass
+
+class Class2:
+    def method2(self):
+        pass
+
+class Class3:
+    def method3(self):
+        pass

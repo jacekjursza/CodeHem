@@ -1,0 +1,5 @@
+
+def new_method(self, param: str) -> str:
+    return f"Method called with {param}"
+
+## name: new_method

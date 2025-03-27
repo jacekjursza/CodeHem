@@ -1,0 +1,19 @@
+## class_name: SpecialMethodsClass
+## special_methods: __init__, __str__, __eq__, __getitem__
+
+class SpecialMethodsClass:
+    def __init__(self, value):
+        self.value = value
+    
+    def __str__(self):
+        return f"SpecialMethodsClass({self.value})"
+    
+    def __eq__(self, other):
+        if not isinstance(other, SpecialMethodsClass):
+            return False
+        return self.value == other.value
+    
+    def __getitem__(self, key):
+        if key == 'value':
+            return self.value
+        raise KeyError(key)

@@ -18,52 +18,50 @@ class CodeElement(BaseModel):
     children: List['CodeElement'] = Field(default_factory=list)
 
     @staticmethod
+    @staticmethod
     def from_dict(raw_element: dict) -> 'CodeElement':
-        element_type_str = raw_element.get("type", "unknown")
-        name = raw_element.get("name", "")
-        content = raw_element.get("content", "")
-
-        # Map element type
+        element_type_str = raw_element.get('type', 'unknown')
+        name = raw_element.get('name', '')
+        content = raw_element.get('content', '')
         element_type = CodeElementType.UNKNOWN
-        if element_type_str == "function":
+        if element_type_str == 'function':
             element_type = CodeElementType.FUNCTION
-        elif element_type_str == "class":
+        elif element_type_str == 'class':
             element_type = CodeElementType.CLASS
-        elif element_type_str == "method":
+        elif element_type_str == 'method':
             element_type = CodeElementType.METHOD
-        elif element_type_str == "property_getter":
+        elif element_type_str == 'property_getter':
             element_type = CodeElementType.PROPERTY_GETTER
-        elif element_type_str == "property_setter":
+        elif element_type_str == 'property_setter':
             element_type = CodeElementType.PROPERTY_SETTER
-        elif element_type_str == "import":
+        elif element_type_str == 'import':
             element_type = CodeElementType.IMPORT
-        elif element_type_str == "decorator":
+        elif element_type_str == 'decorator':
             element_type = CodeElementType.DECORATOR
-        elif element_type_str == "property":
+        elif element_type_str == 'property':
             element_type = CodeElementType.PROPERTY
-        elif element_type_str == "static_property":
+        elif element_type_str == 'static_property':
             element_type = CodeElementType.STATIC_PROPERTY
-
-        # Parse range data
-        range_data = raw_element.get("range")
+        range_data = raw_element.get('range')
         code_range = None
         if range_data:
-            code_range = CodeRange(
-                start_line=range_data["start"]["line"],
-                start_column=range_data.get("start", {}).get("column", 0),
-                end_line=range_data["end"]["line"],
-                end_column=range_data.get("end", {}).get("column", 0),
-            )
+            # Ensure line numbers are 1-indexed
+            start_line = range_data['start']['line']
+            end_line = range_data['end']['line']
 
-        # Create the element
-        element = CodeElement(
-            type=element_type,
-            name=name,
-            content=content,
-            range=code_range,
-            parent_name=raw_element.get("class_name"),
-            children=[],
-        )
+            # Ensure we don't convert already 1-indexed values
+            if isinstance(start_line, int) and start_line == 0:
+                start_line = 1
+            if isinstance(end_line, int) and end_line == 0:
+                end_line = 1
+
+            code_range = CodeRange(
+                start_line=start_line, 
+                start_column=range_data.get('start', {}).get('column', 0),
+                end_line=end_line, 
+                end_column=range_data.get('end', {}).get('column', 0)
+            )
+        element = CodeElement(type=element_type, name=name, content=content, range=code_range, parent_name=raw_element.get('class_name'), children=[])
         return element
 
     @property
