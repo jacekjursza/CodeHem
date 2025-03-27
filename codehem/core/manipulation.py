@@ -40,24 +40,29 @@ class ManipulationService:
         Add or replace a code element.
 
         Args:
-            original_code: Original source code
-            element_type: Type of element to add/replace (from CodeElementType)
-            name: Name of the element
-            new_code: New content for the element
-            parent_name: Name of parent element (e.g., class name for methods)
-            
+        original_code: Original source code
+        element_type: Type of element to add/replace (from CodeElementType)
+        name: Name of the element
+        new_code: New content for the element
+        parent_name: Name of parent element (e.g., class name for methods)
+
         Returns:
-            Modified code
+        Modified code
         """
         logger.debug(f"Upserting element of type '{element_type}', name '{name}', parent '{parent_name}'")
         manipulator = self.language_service.get_manipulator(element_type)
-        print("MANIPULATOR: ", manipulator)
+
         if manipulator:
+            logger.debug(f"Found manipulator: {manipulator.__class__.__name__}")
             if hasattr(manipulator, 'replace_element'):
                 return manipulator.replace_element(original_code, name, new_code, parent_name)
-            logger.warning(f"Manipulator for {element_type} does not implement replace_element method")
+            logger.warning(f'Manipulator for {element_type} does not implement replace_element method')
         else:
-            logger.warning(f"No manipulator found for element type: {element_type}")
+            logger.error(f'No manipulator found for element type: {element_type} in {self.language_code}')
+            # Try to debug why manipulator is not found
+            all_manipulators = getattr(self.language_service, 'manipulators', {})
+            logger.error(f'Available manipulators: {list(all_manipulators.keys())}')
+
         return original_code
 
     def upsert_element_by_xpath(self, original_code: str, xpath: str, new_code: str) -> str:

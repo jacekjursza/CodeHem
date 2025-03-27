@@ -39,22 +39,37 @@ class PythonLanguageService(LanguageService):
             Element type string (from CodeElementType)
         """
         code = code.strip()
-        if re.match('class\\s+\\w+', code):
+
+        # Check for method first (more specific than function)
+        if re.search("def\\s+\\w+\\s*\\(\\s*(?:self|cls)[\\s,)]", code):
+            return CodeElementType.METHOD.value
+
+        # Check for class definition
+        if re.match("class\\s+\\w+", code):
             return CodeElementType.CLASS.value
-        if re.search('@property', code):
+
+        # Check for property getter/setter
+        if re.search("@property", code):
             return CodeElementType.PROPERTY_GETTER.value
-        if re.search('@\\w+\\.setter', code):
+        if re.search("@\\w+\\.setter", code):
             return CodeElementType.PROPERTY_SETTER.value
-        if re.match('def\\s+\\w+', code):
-            if re.search('def\\s+\\w+\\s*\\(\\s*(?:self|cls)[\\s,)]', code):
-                return CodeElementType.METHOD.value
+
+        # Check for function (after method)
+        if re.match("def\\s+\\w+", code):
             return CodeElementType.FUNCTION.value
-        if re.match('(?:import|from)\\s+\\w+', code):
+
+        # Check for imports
+        if re.match("(?:import|from)\\s+\\w+", code):
             return CodeElementType.IMPORT.value
-        if re.match('[A-Z][A-Z0-9_]*\\s*=', code):
+
+        # Check for static property
+        if re.match("[A-Z][A-Z0-9_]*\\s*=", code):
             return CodeElementType.STATIC_PROPERTY.value
-        if re.match('self\\.\\w+\\s*=', code):
+
+        # Check for instance property
+        if re.match("self\\.\\w+\\s*=", code):
             return CodeElementType.PROPERTY.value
+
         return CodeElementType.UNKNOWN.value
 
     def _extract_and_attach_decorators(self, code: str, element, extractor) -> None:

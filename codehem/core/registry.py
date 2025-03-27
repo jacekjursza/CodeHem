@@ -62,7 +62,8 @@ class Registry:
 
     def register_manipulator(self, cls):
         """Register a language-specific handler."""
-        self.all_manipulators[f'{cls.LANGUAGE_CODE}_{cls.ELEMENT_TYPE}'] = cls
+        key = f'{cls.LANGUAGE_CODE}_{cls.ELEMENT_TYPE.value.lower()}'
+        self.all_manipulators[key] = cls
         rich.print(f'Registered manipulator: {cls.__name__} for {cls.ELEMENT_TYPE}')
         return cls
 
@@ -82,25 +83,39 @@ class Registry:
         return self.language_detectors.get(language_code.lower())
 
     def get_language_service(self, language_code) -> Optional[Any]:
-        """Get a language service by code."""
-        # Handle invalid language_code inputs (fix circular dependency)
+        """Get a language service by code, injecting dependencies."""
         if not isinstance(language_code, str):
-            logger.error(f"Invalid language_code type: {type(language_code)}")
+            logger.error(f'Invalid language_code type: {type(language_code)}')
             return None
-            
+
         language_code = language_code.lower()
+
         if language_code not in self.language_service_instances:
             language_service_cls = self.language_services.get(language_code)
+
             if language_service_cls:
                 try:
-                    self.language_service_instances[language_code] = language_service_cls(self.all_extractors, self.all_manipulators, self.all_descriptors)
+                    # Get formatter class for this language
+                    formatter_class = None
+                    if language_code == 'python':
+                        from codehem.languages.lang_python.formatting.python_formatter import PythonFormatter
+                        formatter_class = PythonFormatter
+                    # Add other language formatters as needed
+
+                    # Initialize language service with components
+                    self.language_service_instances[language_code] = language_service_cls(
+                        extractors=self.all_extractors,
+                        manipulators=self.all_manipulators,
+                        element_type_descriptors=self.all_descriptors,
+                        formatter_class=formatter_class
+                    )
                 except Exception as e:
-                    logger.error(f"Error initializing language service for {language_code}: {e}")
+                    logger.error(f'Error initializing language service for {language_code}: {e}')
                     return None
             else:
-                rich.print(f'No language service found for {language_code}')
                 return None
-        return self.language_service_instances.get(language_code.lower(), None)
+
+        return self.language_service_instances.get(language_code)
 
     def get_supported_languages(self) -> List[str]:
         """Get a list of all supported language codes."""

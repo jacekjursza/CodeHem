@@ -1,106 +1,53 @@
-import re
+"""
+Python method manipulator implementation.
+"""
+import logging
 from typing import Optional, Tuple
 
-import rich
-
 from codehem.models.enums import CodeElementType
-from codehem.core.registry import element_type_descriptor, manipulator
-from codehem.languages.lang_python.manipulator.base import PythonBaseManipulator
-from codehem.core.extraction import ExtractionService
+from codehem.core.registry import manipulator
+from codehem.languages.lang_python.manipulator.base import PythonManipulatorBase
+
+logger = logging.getLogger(__name__)
 
 @manipulator
-class PythonMethodManipulator(PythonBaseManipulator):
-    LANGUAGE_CODE = 'python'
+class PythonMethodManipulator(PythonManipulatorBase):
+    """Manipulator for Python methods."""
     ELEMENT_TYPE = CodeElementType.METHOD
 
-    def format_element(self, element_code: str, indent_level: int=0) -> str:
-        """Format a Python method definition"""
-        indent = ' ' * (4 * indent_level)
-        lines = element_code.strip().splitlines()
-        if not lines:
-            return ''
-        result = []
-        method_line_idx = next((i for i, line in enumerate(lines) if line.strip().startswith('def ')), 0)
-        for i in range(method_line_idx):
-            result.append(f'{indent}{lines[i].strip()}')
-        result.append(f'{indent}{lines[method_line_idx].strip()}')
-        method_indent = indent + '    '
-        for i in range(method_line_idx + 1, len(lines)):
-            line = lines[i].strip()
-            if not line:
-                result.append('')
-                continue
-            result.append(f'{method_indent}{line}')
-        return '\n'.join(result)
-
-    def replace_element(self, original_code: str, method_name: str, new_element: str, parent_name: Optional[str]=None) -> str:
-        """Replace a method in Python code"""
-        (start_line, end_line) = self.find_element(original_code, method_name, parent_name)
-
-        if start_line == 0 and end_line == 0:
-            if parent_name:
-                return self.add_element(original_code, new_element, parent_name)
-            return original_code
-        lines = original_code.splitlines()
-        adjusted_start = start_line
-        for i in range(start_line - 2, -1, -1):
-            if i < 0 or i >= len(lines):
-                continue
-            line = lines[i].strip()
-            if line.startswith('@'):
-                adjusted_start = i + 1
-            elif line and (not line.startswith('#')):
-                break
-        class_line = 0
-        if parent_name:
-            extraction_service = ExtractionService(self.LANGUAGE_CODE)
-            (class_start, _) = extraction_service.find_element(original_code, CodeElementType.CLASS.value, parent_name)
-            if class_start > 0:
-                class_line = class_start - 1
-        class_indent = ''
-        if class_line < len(lines):
-            class_indent = self.get_indentation(lines[class_line])
-        method_indent_level = len(class_indent) // 4 + 1
-        formatted_method = self.format_element(new_element, method_indent_level)
-        return self.replace_lines(original_code, adjusted_start, end_line, formatted_method)
-
     def add_element(self, original_code: str, new_element: str, parent_name: Optional[str]=None) -> str:
-        """Add a method to a Python class"""
+        """Add a method to a Python class."""
         if not parent_name:
+            logger.error("Cannot add method without parent class name.")
             return original_code
-        extraction_service = ExtractionService(self.LANGUAGE_CODE)
-        class_start, class_end = extraction_service.find_element(original_code, CodeElementType.CLASS.value, parent_name)
+
+        try:
+            class_start, class_end = self.extraction_service.find_element(
+                original_code, CodeElementType.CLASS.value, parent_name
+            )
+        except Exception as e:
+            logger.error(f"Error finding parent class '{parent_name}': {e}")
+            return original_code
+
         if class_start == 0:
+            logger.error(f"Parent class '{parent_name}' not found.")
             return original_code
-        lines = original_code.splitlines()
-        class_indent = ''
-        if class_start - 1 < len(lines):
-            class_indent = self.get_indentation(lines[class_start - 1])
-        method_indent_level = len(class_indent) // 4 + 1
+
+        # Calculate indentation based on parent class
+        method_indent_level = self.get_element_indent_level(original_code, class_start, parent_name)
         formatted_method = self.format_element(new_element, method_indent_level)
+
+        # Determine insertion point (typically end of class)
+        lines = original_code.splitlines()
         insertion_point = class_end
         if insertion_point > len(lines):
             insertion_point = len(lines)
+
+        # Insert method with appropriate spacing
         result_lines = lines[:insertion_point]
         if result_lines and result_lines[-1].strip():
-            result_lines.append('')
+            result_lines.append('')  # Add blank line before method if needed
         result_lines.append(formatted_method)
         result_lines.extend(lines[insertion_point:])
-        return '\n'.join(result_lines)
 
-    def remove_element(self, original_code: str, method_name: str, parent_name: Optional[str]=None) -> str:
-        """Remove a method from a Python class"""
-        (start_line, end_line) = self.find_element(original_code, method_name, parent_name)
-        if start_line == 0 and end_line == 0:
-            return original_code
-        lines = original_code.splitlines()
-        adjusted_start = start_line
-        for i in range(start_line - 2, -1, -1):
-            if i < 0 or i >= len(lines):
-                continue
-            line = lines[i].strip()
-            if line.startswith('@'):
-                adjusted_start = i + 1
-            elif line and (not line.startswith('#')):
-                break
-        return self.replace_lines(original_code, adjusted_start, end_line, '')
+        return '\n'.join(result_lines)
