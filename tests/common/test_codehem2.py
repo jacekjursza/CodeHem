@@ -18,11 +18,18 @@ class CodeHem2Tests(unittest.TestCase):
 
     def test_detect_element_type(self):
         """Test element type detection."""
-        class_code = TestHelper.load_example('simple_class', 'general').content
+        print("\n----------------@@@")
+        class_code = TestHelper.load_example('simple_method', 'general').content
+        print("CLASS CODE:\n", class_code)
         element_type = self.codehem.detect_element_type(class_code)
         self.assertEqual(CodeElementType.CLASS.value, element_type)
         
-        method_code = TestHelper.load_example('simple_method', 'general').content
+        method_code = self.codehem.get_text_by_xpath(
+            class_code, "TestClass.test_method"
+        )
+        print("\n----------------@@@")
+        print("METHOD CODE:\n", method_code)
+        print("\n----------------@@@")
         element_type = self.codehem.detect_element_type(method_code)
         self.assertEqual(CodeElementType.METHOD.value, element_type)
 

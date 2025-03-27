@@ -27,7 +27,7 @@ class PythonLanguageService(LanguageService):
             CodeElementType.PROPERTY.value,
             CodeElementType.PROPERTY_GETTER.value,
             CodeElementType.PROPERTY_SETTER.value,
-            CodeElementType.STATIC_PROPERTY.value
+            CodeElementType.STATIC_PROPERTY.value,
         ]
 
     def detect_element_type(self, code: str) -> str:
@@ -40,13 +40,16 @@ class PythonLanguageService(LanguageService):
         """
         code = code.strip()
 
-        # Check for method first (more specific than function)
-        if re.search("def\\s+\\w+\\s*\\(\\s*(?:self|cls)[\\s,)]", code):
-            return CodeElementType.METHOD.value
-
-        # Check for class definition
-        if re.match("class\\s+\\w+", code):
+        # First check if this is a full class definition
+        # Look for class declaration at the beginning of the content
+        if re.match(r"^\s*class\s+\w+", code):
             return CodeElementType.CLASS.value
+
+        # Check for method (inside a class, with self/cls parameter)
+        if re.search(r"def\s+\w+\s*\(\s*(?:self|cls)[,\s)]", code) and not re.match(
+            r"^\s*class\s+", code
+        ):
+            return CodeElementType.METHOD.value
 
         # Check for property getter/setter
         if re.search("@property", code):
@@ -54,8 +57,10 @@ class PythonLanguageService(LanguageService):
         if re.search("@\\w+\\.setter", code):
             return CodeElementType.PROPERTY_SETTER.value
 
-        # Check for function (after method)
-        if re.match("def\\s+\\w+", code):
+        # Check for standalone function (no self/cls parameter)
+        if re.match(r"^\s*def\s+\w+", code) and not re.search(
+            r"def\s+\w+\s*\(\s*(?:self|cls)[,\s)]", code
+        ):
             return CodeElementType.FUNCTION.value
 
         # Check for imports

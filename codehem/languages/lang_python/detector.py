@@ -26,6 +26,7 @@ class PythonLanguageDetector(BaseLanguageDetector):
         strong_patterns = [
             "def\\s+\\w+\\s*\\(",  # Function definition
             "class\\s+\\w+\\s*:",  # Class definition
+            "def\\s+\\w+\\s*\\([^)]*\\)\\s*:",  # Complete function signature with colon
         ]
 
         # Medium indicators (medium scores)
@@ -35,6 +36,7 @@ class PythonLanguageDetector(BaseLanguageDetector):
             ":\\s*\\n",  # Block indicator
             "__\\w+__",  # Dunder methods/attributes
             "@\\w+",  # Decorators
+            "pass\\b",  # Pass statement - very Python-specific
         ]
 
         # Weak indicators (low scores)
@@ -42,6 +44,9 @@ class PythonLanguageDetector(BaseLanguageDetector):
             "#.*?\\n",  # Comments
             '""".*?"""',  # Docstrings (multiline)
             "'''.*?'''",  # Docstrings (multiline, alt)
+            "\\bif\\s+.+?:",  # If statements
+            "\\bfor\\s+.+?:",  # For loops
+            "\\bwhile\\s+.+?:",  # While loops
         ]
 
         # Anti-patterns (negative scores)
@@ -77,15 +82,15 @@ class PythonLanguageDetector(BaseLanguageDetector):
             if re.search(pattern, code):
                 score -= 15
 
-        # Special case for minimal function definitions
-        if re.search("def\\s+\\w+\\s*\\([^)]*\\)\\s*:", code):
-            score += 25  # Extra boost for definitive Python construct
+        # For minimal function definitions with pass (like 'def foo(): pass')
+        if re.search("def\\s+\\w+\\s*\\([^)]*\\)\\s*:\\s*pass", code):
+            score += 40  # Very strong boost for definitive minimal Python construct
 
-        # Normalize score between 0 and 1, with a minimum threshold of 0.3 for minimal code
-        confidence = max(0.0, min(1.0, score / max_score))
+        # Normalize score between 0 and 1, with a floor of 0.3 for minimal code
+        normalized_score = max(0.0, min(1.0, score / max_score))
 
-        # For very small snippets that match Python syntax, set a minimum confidence
+        # For very small snippets that match Python patterns, set a minimum confidence
         if len(code.strip()) < 50 and score > 0:
-            confidence = max(confidence, 0.6)
+            return max(normalized_score, 0.7)  # Higher threshold for small snippets
 
-        return confidence
+        return normalized_score

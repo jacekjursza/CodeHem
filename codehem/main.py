@@ -159,6 +159,27 @@ class CodeHem:
             Tuple of (start_line, end_line) or (0, 0) if not found
         """
         return self.extraction.find_by_xpath(code, xpath)
+        
+    def get_text_by_xpath(self, code: str, xpath: str) -> Optional[str]:
+        """
+        Get the text content of an element using an XPath expression.
+        
+        Args:
+            code: Source code as string
+            xpath: XPath expression (e.g., 'ClassName.method_name', 'ClassName[interface].method_name[property_getter]')
+            
+        Returns:
+            Text content of the element, or None if not found
+        """
+        start_line, end_line = self.find_by_xpath(code, xpath)
+        if start_line == 0 and end_line == 0:
+            return None
+            
+        lines = code.splitlines()
+        if start_line > len(lines) or end_line > len(lines):
+            return None
+            
+        return "\n".join(lines[start_line-1:end_line])
 
     def extract(self, code: str) -> CodeElementsResult:
         """
@@ -186,7 +207,7 @@ class CodeHem:
         """
         if not xpath or not elements or (not hasattr(elements, 'elements')):
             return None
-        (element_name, parent_name, element_type) = XPathParser.get_element_info(xpath)
+        element_name, parent_name, element_type = XPathParser.get_element_info(xpath)
         if xpath.lower() == 'imports' or (element_type == CodeElementType.IMPORT.value and (not element_name)):
             for element in elements.elements:
                 if element.type == CodeElementType.IMPORT:

@@ -5,7 +5,7 @@
 ## expected_parameters: self, arg1, arg2
 
 class TestClass:
-    
+
     def test_method(self, arg1, arg2):
         """Test method with two arguments."""
         return arg1 + arg2
