@@ -1,8 +1,9 @@
 import logging
-import sys
+
 import rich
+
 from codehem import CodeHem
-from codehem.core.registry import registry
+
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(name)s:%(message)s')
 logging.getLogger('tree_sitter').setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ def my_function(x: int) -> int:
 new_version = '''
 def greet(self) -> str:
     print("Hello, World!")
-    return f"Hello, {self.name}!!!!!!!!!!!!"
+    return f"@Hello, {self.name}!!!!!!!!!!!!"
 '''
 
 def test_services():
@@ -60,6 +61,8 @@ def test_extractors():
     result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
     rich.print(result)
 
-if __name__ == '__main__':
-    test_services()
-    test_extractors()
+
+
+print("----- test services-----")
+test_services()
+# test_extractors()

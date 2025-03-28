@@ -2,20 +2,6 @@
 Base extractor interface that all extractors must implement.
 """
 import logging
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
-
-from codehem.core.engine.ast_handler import ASTHandler
-from codehem.core.engine.languages import LANGUAGES, get_parser
-from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
-from codehem.models.enums import CodeElementType
-
-logger = logging.getLogger(__name__)
-
-"""
-Base extractor interface that all extractors must implement.
-"""
-import logging
 import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union

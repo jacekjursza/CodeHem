@@ -7,10 +7,12 @@ import logging
 import os
 import traceback
 from typing import Any, List, Optional, Type
+
 import rich
+
 from codehem.core.service import LanguageService
 from codehem.extractors.base import BaseExtractor
-from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
+
 logger = logging.getLogger(__name__)
 
 class Registry:
@@ -56,6 +58,11 @@ class Registry:
 
     def register_extractor(self, cls: Type[BaseExtractor]):
         """Register an extractor class - extractor is language agnostic and needs descriptor for specific language"""
+
+        if cls.ELEMENT_TYPE in self.all_extractors:
+            print(f"Warning: Extractor for {cls.ELEMENT_TYPE} already registered {self.all_extractors[cls.ELEMENT_TYPE].__name__}.")
+            return cls
+
         self.all_extractors[cls.ELEMENT_TYPE] = cls
         rich.print(f'Registered extractor: {cls.__name__} for {cls.ELEMENT_TYPE}')
         return cls
@@ -98,7 +105,9 @@ class Registry:
                     # Get formatter class for this language
                     formatter_class = None
                     if language_code == 'python':
-                        from codehem.languages.lang_python.formatting.python_formatter import PythonFormatter
+                        from codehem.languages.lang_python.formatting.python_formatter import (
+                            PythonFormatter,
+                        )
                         formatter_class = PythonFormatter
                     # Add other language formatters as needed
 

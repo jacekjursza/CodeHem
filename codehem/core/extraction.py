@@ -2,19 +2,34 @@
 Main entry point for code extraction functionality.
 Acts as a facade for the various extraction strategies.
 """
-import re
-from typing import Dict, List, Optional, Any, Tuple, Union
-import os
 import logging
-import rich
+import os
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 from codehem import CodeElementType
 from codehem.core.engine.xpath_parser import XPathParser
-from codehem.core.registry import registry
 from codehem.core.error_handling import handle_extraction_errors
-from codehem.core.service import LanguageService
-from codehem.languages import get_language_service_for_file, get_language_service_for_code
+from codehem.core.registry import registry
+from codehem.languages import (
+    get_language_service_for_code,
+    get_language_service_for_file,
+)
 from codehem.models.code_element import CodeElement, CodeElementsResult
+
 logger = logging.getLogger(__name__)
+
+def extract_range(element: dict) -> Tuple[int, int]:
+    range_data = element.get("range", {})
+    return (
+        range_data.get("start", {}).get("line", 0),
+        range_data.get("end", {}).get("line", 0),
+    )
+
+def find_in_collection(collection: List[dict], element_name) -> Tuple[int, int]:
+    for element in collection:
+        if element.get("name") == element_name:
+            return extract_range(element)
+    return (0, 0)
 
 class ExtractionService:
     """Main extractor class that delegates to specific extractors based on language."""
@@ -34,193 +49,189 @@ class ExtractionService:
         except Exception as e:
             logger.error(f"Failed to get language service for {language_code}: {e}")
 
-    def find_element(self, code: str, element_type: str, element_name: Optional[str]=None, parent_name: Optional[str]=None) -> Tuple[int, int]:
+    def find_element(
+        self,
+        code: str,
+        element_type: str,
+        element_name: Optional[str] = None,
+        parent_name: Optional[str] = None,
+    ) -> Tuple[int, int]:
         """
         Find a specific element in the code based on type, name, and parent.
 
         Args:
-        code: Source code as string
-        element_type: Type of element to find (e.g., 'function', 'class', 'method')
-        element_name: Optional name of the element to find
-        parent_name: Optional name of the parent element (e.g., class name for methods)
+            code: Source code as string
+            element_type: Type of element to find (e.g., 'function', 'class', 'method')
+            element_name: Optional name of the element to find
+            parent_name: Optional name of the parent element (e.g., class name for methods)
 
         Returns:
-        Tuple of (start_line, end_line) or (0, 0) if not found
+            Tuple of (start_line, end_line) or (0, 0) if not found
         """
-        logger.debug(f"Finding element of type '{element_type}', name '{element_name}', parent '{parent_name}'")
-        
+        logger.debug(
+            f"Finding element of type '{element_type}', name '{element_name}', parent '{parent_name}'"
+        )
+
         if self.language_service is None:
             logger.error("No language service available for extraction")
             return (0, 0)
-            
+
         if element_name is None and parent_name is None:
             elements = self.extract_any(code, element_type)
-            if elements and len(elements) > 0:
-                first_element = elements[0]
-                range_data = first_element.get('range', {})
-                start_line = range_data.get('start', {}).get('line', 0)
-                end_line = range_data.get('end', {}).get('line', 0)
-                return (start_line, end_line)
-            return (0, 0)
-        if element_type == CodeElementType.METHOD.value and parent_name:
-            methods = self.extract_methods(code, parent_name)
-            for method in methods:
-                if method.get('name') == element_name:
-                    range_data = method.get('range', {})
-                    start_line = range_data.get('start', {}).get('line', 0)
-                    end_line = range_data.get('end', {}).get('line', 0)
-                    return (start_line, end_line)
-        elif element_type == CodeElementType.FUNCTION.value:
-            functions = self.extract_functions(code)
-            for func in functions:
-                if func.get('name') == element_name:
-                    range_data = func.get('range', {})
-                    start_line = range_data.get('start', {}).get('line', 0)
-                    end_line = range_data.get('end', {}).get('line', 0)
-                    return (start_line, end_line)
-        elif element_type == CodeElementType.CLASS.value:
-            classes = self.extract_classes(code)
-            for cls in classes:
-                if cls.get('name') == element_name:
-                    range_data = cls.get('range', {})
-                    start_line = range_data.get('start', {}).get('line', 0)
-                    end_line = range_data.get('end', {}).get('line', 0)
-                    return (start_line, end_line)
-        elif element_type == CodeElementType.IMPORT.value:
-            imports = self.extract_imports(code)
-            for imp in imports:
-                if imp.get('name') == element_name:
-                    range_data = imp.get('range', {})
-                    start_line = range_data.get('start', {}).get('line', 0)
-                    end_line = range_data.get('end', {}).get('line', 0)
-                    return (start_line, end_line)
-        elif element_type in [CodeElementType.PROPERTY.value, CodeElementType.PROPERTY_GETTER.value, CodeElementType.PROPERTY_SETTER.value, CodeElementType.STATIC_PROPERTY.value] and parent_name:
-            all_elements = self._extract_file(code)
-            for cls in all_elements.get('classes', []):
-                if cls.get('name') == parent_name:
-                    for prop in cls.get('methods', []):
-                        if prop.get('name') == element_name and prop.get('type') == element_type:
-                            range_data = prop.get('range', {})
-                            start_line = range_data.get('start', {}).get('line', 0)
-                            end_line = range_data.get('end', {}).get('line', 0)
-                            return (start_line, end_line)
-        # Handle TypeScript-specific element types
-        elif element_type in [CodeElementType.INTERFACE.value, CodeElementType.ENUM.value, CodeElementType.TYPE_ALIAS.value, CodeElementType.NAMESPACE.value]:
-            elements = self.extract_any(code, element_type)
-            for element in elements:
-                if element.get('name') == element_name:
-                    range_data = element.get('range', {})
-                    start_line = range_data.get('start', {}).get('line', 0)
-                    end_line = range_data.get('end', {}).get('line', 0)
-                    return (start_line, end_line)
-                    
+            return extract_range(elements[0]) if elements else (0, 0)
+
+        match element_type:
+            case CodeElementType.METHOD.value if parent_name:
+                methods = self.extract_methods(code, parent_name)
+                return find_in_collection(methods, element_name)
+
+            case CodeElementType.FUNCTION.value:
+                return find_in_collection(self.extract_functions(code), element_name)
+
+            case CodeElementType.CLASS.value:
+                return find_in_collection(self.extract_classes(code), element_name)
+
+            case CodeElementType.IMPORT.value:
+                return find_in_collection(self.extract_imports(code), element_name)
+
+            case t if (
+                t
+                in {
+                    CodeElementType.PROPERTY.value,
+                    CodeElementType.PROPERTY_GETTER.value,
+                    CodeElementType.PROPERTY_SETTER.value,
+                    CodeElementType.STATIC_PROPERTY.value,
+                }
+                and parent_name
+            ):
+                file_data = self._extract_file(code)
+                for cls in file_data.get("classes", []):
+                    if cls.get("name") == parent_name:
+                        for method in cls.get("methods", []):
+                            if (
+                                method.get("name") == element_name
+                                and method.get("type") == element_type
+                            ):
+                                return extract_range(method)
+
+            case t if t in {
+                CodeElementType.INTERFACE.value,
+                CodeElementType.ENUM.value,
+                CodeElementType.TYPE_ALIAS.value,
+                CodeElementType.NAMESPACE.value,
+            }:
+                return find_in_collection(self.extract_any(code, element_type))
+
         return (0, 0)
 
     def find_by_xpath(self, code: str, xpath: str) -> Tuple[int, int]:
-        """
-        Find an element in the code using an XPath-like expression.
-
-        Args:
-        code: Source code as string
-        xpath: XPath-like expression (e.g., 'ClassName.method_name')
-
-        Returns:
-        Tuple of (start_line, end_line) or (0, 0) if not found
-        """
         element_name, parent_name, element_type = XPathParser.get_element_info(xpath)
-        logger.debug(f'XPath parsed: element_name={element_name}, parent_name={parent_name}, element_type={element_type}')
+        logger.debug(
+            f"XPath parsed: element_name={element_name}, parent_name={parent_name}, element_type={element_type}"
+        )
 
-        if not element_name and (not element_type):
+        if not element_name and not element_type:
             return (0, 0)
 
-        # Special case for import with no name
-        if element_type == CodeElementType.IMPORT.value and (not element_name):
-            imports = self.extract_imports(code)
-            if imports and len(imports) > 0:
-                range_data = imports[0].get('range', {})
-                start_line = range_data.get('start', {}).get('line', 0)
-                end_line = range_data.get('end', {}).get('line', 0)
-                return (start_line, end_line)
-            return (0, 0)
+        if element_type == CodeElementType.IMPORT.value and not element_name:
+            return self._find_first_import(code)
 
-        # Special case for the [all] qualifier
-        if element_type == 'all':
-            # Find the element first without the 'all' qualifier
-            temp_xpath = xpath.replace('[all]', '')
-            start_line, end_line = self.find_by_xpath(code, temp_xpath)
-            if start_line == 0:
-                return (0, 0)
+        if element_type == "all":
+            return self._find_with_all_qualifier(code, xpath)
 
-            # Now adjust the start_line to include decorators
-            lines = code.splitlines()
-            adjusted_start = start_line
-
-            # Look for decorators above the element
-            for i in range(start_line - 2, max(0, start_line - 10), -1):
-                if i >= len(lines):
-                    continue
-                line = lines[i].strip()
-                if line.startswith('@'):
-                    # Found a decorator, adjust the start line
-                    adjusted_start = i + 1
-                elif line and not line.startswith('#'):
-                    # Found non-decorator and non-comment line, stop looking
-                    break
-
-            return (adjusted_start, end_line)
-
-        # If specific element_type is provided, use it directly
         if element_name and element_type:
             return self.find_element(code, element_type, element_name, parent_name)
 
-        # For method without explicit type, find the last defined method with that name
-        if element_name and parent_name and (not element_type):
-            all_elements = self._extract_file(code)
-            last_method = None
-            latest_line = -1  # Start with -1 to ensure any found method is considered
+        if element_name and parent_name and not element_type:
+            return self._find_last_method_with_name(code, element_name, parent_name)
 
-            # Find the last defined method with this name
-            for cls in all_elements.get('classes', []):
-                if cls.get('name') == parent_name:
-                    for method in cls.get('methods', []):
-                        if method.get('name') == element_name:
-                            method_start_line = method.get('range', {}).get('start', {}).get('line', 0)
-                            # Always update if we find a method with the target name - this ensures
-                            # we consistently select the last defined method by source order
-                            if method_start_line > latest_line:
-                                latest_line = method_start_line
-                                last_method = method
+        if element_name and not element_type:
+            return self._try_common_element_types(code, element_name, parent_name)
 
-            if last_method:
-                range_data = last_method.get('range', {})
-                start_line = range_data.get('start', {}).get('line', 0)
-                end_line = range_data.get('end', {}).get('line', 0)
-                return (start_line, end_line)
-
-        # Try other element types in order
-        if element_name and (not element_type):
-            if parent_name:
-                element_types = [
-                    CodeElementType.METHOD.value, 
-                    CodeElementType.PROPERTY.value, 
-                    CodeElementType.PROPERTY_GETTER.value, 
-                    CodeElementType.PROPERTY_SETTER.value, 
-                    CodeElementType.STATIC_PROPERTY.value
-                ]
-            else:
-                element_types = [
-                    CodeElementType.CLASS.value, 
-                    CodeElementType.FUNCTION.value, 
-                    CodeElementType.INTERFACE.value, 
-                    CodeElementType.ENUM.value, 
-                    CodeElementType.TYPE_ALIAS.value, 
-                    CodeElementType.NAMESPACE.value
-                ]
-            for type_to_try in element_types:
-                result = self.find_element(code, type_to_try, element_name, parent_name)
-                if result[0] > 0:
-                    return result
         return (0, 0)
+
+    def _find_first_import(self, code: str) -> Tuple[int, int]:
+        imports = self.extract_imports(code)
+        if imports:
+            range_data = imports[0].get("range", {})
+            return (
+                range_data.get("start", {}).get("line", 0),
+                range_data.get("end", {}).get("line", 0),
+            )
+        return (0, 0)
+
+    def _find_with_all_qualifier(self, code: str, xpath: str) -> Tuple[int, int]:
+        temp_xpath = xpath.replace("[all]", "")
+        start_line, end_line = self.find_by_xpath(code, temp_xpath)
+        if start_line == 0:
+            return (0, 0)
+
+        lines = code.splitlines()
+        adjusted_start = start_line
+
+        for i in range(start_line - 2, max(0, start_line - 10), -1):
+            line = lines[i].strip()
+            if line.startswith("@"):
+                adjusted_start = i + 1
+            elif line and not line.startswith("#"):
+                break
+
+        return (adjusted_start, end_line)
+
+    def _find_last_method_with_name(
+        self, code: str, method_name: str, class_name: str
+    ) -> Tuple[int, int]:
+        all_elements = self._extract_file(code)
+        last_method = None
+        latest_line = -1
+
+        for cls in all_elements.get("classes", []):
+            if cls.get("name") == class_name:
+                for method in cls.get("methods", []):
+                    if method.get("name") == method_name:
+                        method_start_line = (
+                            method.get("range", {}).get("start", {}).get("line", 0)
+                        )
+                        if method_start_line > latest_line:
+                            latest_line = method_start_line
+                            last_method = method
+
+        if last_method:
+            range_data = last_method.get("range", {})
+            return (
+                range_data.get("start", {}).get("line", 0),
+                range_data.get("end", {}).get("line", 0),
+            )
+
+        return (0, 0)
+
+    def _try_common_element_types(
+        self, code: str, element_name: str, parent_name: Optional[str]
+    ) -> Tuple[int, int]:
+        if parent_name:
+            element_types = [
+                CodeElementType.METHOD.value,
+                CodeElementType.PROPERTY.value,
+                CodeElementType.PROPERTY_GETTER.value,
+                CodeElementType.PROPERTY_SETTER.value,
+                CodeElementType.STATIC_PROPERTY.value,
+            ]
+        else:
+            element_types = [
+                CodeElementType.CLASS.value,
+                CodeElementType.FUNCTION.value,
+                CodeElementType.INTERFACE.value,
+                CodeElementType.ENUM.value,
+                CodeElementType.TYPE_ALIAS.value,
+                CodeElementType.NAMESPACE.value,
+            ]
+
+        for type_to_try in element_types:
+            result = self.find_element(code, type_to_try, element_name, parent_name)
+            if result[0] > 0:
+                return result
+        return (0, 0)
+
 
     @classmethod
     def from_file_path(cls, file_path: str) -> 'ExtractionService':
