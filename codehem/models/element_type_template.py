@@ -111,7 +111,52 @@ FUNCTION_TEMPLATE = ElementTypeTemplate(
 ELEMENT_TYPE_TEMPLATES = {
     'class': CLASS_TEMPLATE,
     'method': METHOD_TEMPLATE,
-    'function': FUNCTION_TEMPLATE
+    'function': FUNCTION_TEMPLATE,
+    'import': ElementTypeTemplate(
+        element_type='import',
+        description='Import statement element',
+        tree_sitter_pattern='\n    ({IMPORT_NODE}) @import\n    ',
+        regexp_pattern='{IMPORT_PATTERN}',
+        placeholder_map={
+            'python': {
+                'IMPORT_NODE': 'import_statement',
+                'IMPORT_PATTERN': '(import\\s+[^\\n;]+|from\\s+[^\\n;]+\\s+import\\s+[^\\n;]+)'
+            },
+            'typescript': {
+                'IMPORT_NODE': 'import_statement',
+                'IMPORT_PATTERN': '(import\\s+[^;]+;|export\\s+[^;]+;)'
+            }
+        }
+    ),
+    'interface': ElementTypeTemplate(
+        element_type='interface',
+        description='Interface definition element',
+        tree_sitter_pattern='\n    ({INTERFACE_NODE}\n      name: ({NAME_NODE}) @interface_name\n      body: ({BODY_NODE}) @body) @interface_def\n    ',
+        regexp_pattern='{INTERFACE_PATTERN}\\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:{EXTENDS_PATTERN})?\\s*{BODY_START}',
+        placeholder_map={
+            'typescript': {
+                'INTERFACE_NODE': 'interface_declaration',
+                'NAME_NODE': 'type_identifier',
+                'BODY_NODE': 'object_type',
+                'INTERFACE_PATTERN': 'interface',
+                'EXTENDS_PATTERN': '(?:\\s+extends\\s+[^{]+)?',
+                'BODY_START': '\\s*\\{'
+            }
+        }
+    ),
+    'type_alias': ElementTypeTemplate(
+        element_type='type_alias',
+        description='Type alias definition element',
+        tree_sitter_pattern='\n    ({TYPE_NODE}\n      name: ({NAME_NODE}) @type_name) @type_def\n    ',
+        regexp_pattern='{TYPE_PATTERN}\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*=',
+        placeholder_map={
+            'typescript': {
+                'TYPE_NODE': 'type_alias_declaration',
+                'NAME_NODE': 'type_identifier',
+                'TYPE_PATTERN': 'type'
+            }
+        }
+    )
 }
 
 def create_element_type_descriptor(language_code: str, element_type: str) -> Dict[str, Any]:
