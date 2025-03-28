@@ -77,13 +77,13 @@ class CodeHem2Tests(unittest.TestCase):
         self.assertIn('def value(self, new_value: int)', property_text, 
                       "Setter method should be returned for unqualified XPath (last definition wins)")
 
-
-        getter_text = self.codehem.get_text_by_xpath(
-            self.sample_code, "ExampleClass.value[property_getter]"
-        )
         print("\n-----------")
         print(property_text)
         print('------------')
+        getter_text = self.codehem.get_text_by_xpath(
+            self.sample_code, "ExampleClass.value[property_getter]"
+        )
+
         self.assertIsNotNone(getter_text)
         self.assertIn('def value(self) -> int', getter_text)
 
@@ -93,24 +93,15 @@ class CodeHem2Tests(unittest.TestCase):
 
     def test_get_text_by_xpath_properties(self):
         """Test retrieving property text content using XPath."""
-        try:
-            # Test getting a property getter
-            getter_text = self.codehem.get_text_by_xpath(self.sample_code, 'ExampleClass.value[property_getter]')
-            print('GGGGGG', getter_text)
-            if getter_text is not None:
-                self.assertIn('@property', getter_text)
-                self.assertIn('def value', getter_text)
-        except Exception as e:
-            self.skipTest(f"Property getter test skipped: {str(e)}")
 
-        try:
-            # Test getting a property setter
-            setter_text = self.codehem.get_text_by_xpath(self.sample_code, 'ExampleClass.value[property_setter]')
-            if setter_text is not None:
-                self.assertIn('@value.setter', setter_text)
-                self.assertIn('def value', setter_text)
-        except Exception as e:
-            self.skipTest(f"Property setter test skipped: {str(e)}")
+        getter_text = self.codehem.get_text_by_xpath(self.sample_code, 'ExampleClass.value[property_getter]')
+        self.assertIn('@property', getter_text)
+        self.assertIn('def value', getter_text)
+
+        setter_text = self.codehem.get_text_by_xpath(self.sample_code, 'ExampleClass.value[property_setter]')
+        self.assertIn('@value.setter', setter_text)
+        self.assertIn('def value', setter_text)
+
 
     def test_extract(self):
         """Test extracting code elements."""

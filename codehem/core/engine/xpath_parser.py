@@ -71,6 +71,9 @@ class XPathParser:
     
 
     @staticmethod
+    @staticmethod
+    @staticmethod
+    @staticmethod
     def _infer_types(nodes: List[CodeElementXPathNode]) -> None:
         """
         Infer element types based on position and other nodes in the path.
@@ -80,37 +83,21 @@ class XPathParser:
         """
         if not nodes:
             return
-
-        # Define types that can contain members (like methods, properties)
-        class_like_types = {
-            CodeElementType.CLASS.value,
-            CodeElementType.INTERFACE.value
-        }
-
-        # Infer types for nodes without explicit type
+        class_like_types = {CodeElementType.CLASS.value, CodeElementType.INTERFACE.value}
         for i, node in enumerate(nodes):
             if node.type:
-                continue  # Type already specified
-
-            # Infer based on position and name characteristics
+                continue
             if i == 0:
-                # First element could be a class or function (if it's the only element)
                 if len(nodes) == 1:
-                    # Heuristic: capitalized names are likely classes
                     if node.name and node.name[0].isupper():
                         node.type = CodeElementType.CLASS.value
                     else:
                         node.type = CodeElementType.FUNCTION.value
                 else:
-                    # First element in a longer path is usually a class
                     node.type = CodeElementType.CLASS.value
             elif i == 1 and nodes[0].type in class_like_types:
-                # Second element in a class or interface is usually a method 
-                # (unless it has a 'property' suffix or prefix)
-                if node.name and ('property' in node.name.lower() or node.name.startswith('get_') or node.name.startswith('set_')):
-                    node.type = CodeElementType.PROPERTY.value
-                else:
-                    node.type = CodeElementType.METHOD.value
+                # Infer that child nodes of class-like nodes are methods
+                node.type = CodeElementType.METHOD.value
     
     @staticmethod
     def to_string(nodes: List[CodeElementXPathNode]) -> str:
