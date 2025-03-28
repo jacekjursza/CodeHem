@@ -2,31 +2,31 @@
 Python class manipulator implementation.
 """
 import logging
-from typing import Optional, Tuple
-
+from typing import Optional
 from codehem.models.enums import CodeElementType
 from codehem.core.registry import manipulator
-from codehem.languages.lang_python.manipulator.base import PythonManipulatorBase
+from codehem.core.manipulators.template_class_manipulator import TemplateClassManipulator
 
 logger = logging.getLogger(__name__)
 
 @manipulator
-class PythonClassManipulator(PythonManipulatorBase):
+class PythonClassManipulator(TemplateClassManipulator):
     """Manipulator for Python classes."""
+    LANGUAGE_CODE = 'python'
     ELEMENT_TYPE = CodeElementType.CLASS
-
-    def add_element(self, original_code: str, new_element: str, parent_name: Optional[str]=None) -> str:
-        """Add a class to Python code."""
-        # Classes don't need parent context, always top-level
-        formatted_class = self.format_element(new_element, indent_level=0)
-
-        # Append with appropriate spacing
-        if original_code:
-            if original_code.endswith('\n\n'):
-                return original_code + formatted_class + '\n'
-            elif original_code.endswith('\n'):
-                return original_code + '\n' + formatted_class + '\n'
-            else:
-                return original_code + '\n\n' + formatted_class + '\n'
-        else:
-            return formatted_class + '\n'
+    COMMENT_MARKERS = ['#']
+    DECORATOR_MARKERS = ['@']
+    
+    def _perform_insertion(self, code: str, formatted_element: str, insertion_point: int, 
+                          parent_name: Optional[str]=None) -> str:
+        """Add a class to Python code with appropriate spacing."""
+        if not code:
+            return formatted_element + '\n'
+            
+        result = super()._perform_insertion(code, formatted_element, insertion_point, parent_name)
+        
+        # Ensure proper spacing and newline at end
+        if not result.endswith('\n'):
+            result += '\n'
+            
+        return result

@@ -2,52 +2,38 @@
 Python method manipulator implementation.
 """
 import logging
-from typing import Optional, Tuple
-
+from typing import Optional
 from codehem.models.enums import CodeElementType
 from codehem.core.registry import manipulator
-from codehem.languages.lang_python.manipulator.base import PythonManipulatorBase
+from codehem.core.manipulators.template_method_manipulator import TemplateMethodManipulator
 
 logger = logging.getLogger(__name__)
 
 @manipulator
-class PythonMethodManipulator(PythonManipulatorBase):
+class PythonMethodManipulator(TemplateMethodManipulator):
     """Manipulator for Python methods."""
+    LANGUAGE_CODE = 'python'
     ELEMENT_TYPE = CodeElementType.METHOD
-
-    def add_element(self, original_code: str, new_element: str, parent_name: Optional[str]=None) -> str:
-        """Add a method to a Python class."""
+    COMMENT_MARKERS = ['#']
+    DECORATOR_MARKERS = ['@']
+    
+    def _determine_indent_level_for_addition(self, code: str, parent_name: Optional[str]=None) -> int:
+        """Python methods are indented one level inside their parent class."""
         if not parent_name:
-            logger.error("Cannot add method without parent class name.")
-            return original_code
-
+            return 0
+            
         try:
-            class_start, class_end = self.extraction_service.find_element(
-                original_code, CodeElementType.CLASS.value, parent_name
-            )
+            class_start, _ = self.extraction_service.find_element(
+                code, CodeElementType.CLASS.value, parent_name)
+                
+            if class_start > 0:
+                lines = code.splitlines()
+                if class_start <= len(lines):
+                    class_line = lines[class_start - 1]
+                    class_indent = self.get_indentation(class_line)
+                    indent_size = getattr(self.formatter, 'indent_size', 4)
+                    return len(class_indent) // indent_size + 1
         except Exception as e:
-            logger.error(f"Error finding parent class '{parent_name}': {e}")
-            return original_code
-
-        if class_start == 0:
-            logger.error(f"Parent class '{parent_name}' not found.")
-            return original_code
-
-        # Calculate indentation based on parent class
-        method_indent_level = self.get_element_indent_level(original_code, class_start, parent_name)
-        formatted_method = self.format_element(new_element, method_indent_level)
-
-        # Determine insertion point (typically end of class)
-        lines = original_code.splitlines()
-        insertion_point = class_end
-        if insertion_point > len(lines):
-            insertion_point = len(lines)
-
-        # Insert method with appropriate spacing
-        result_lines = lines[:insertion_point]
-        if result_lines and result_lines[-1].strip():
-            result_lines.append('')  # Add blank line before method if needed
-        result_lines.append(formatted_method)
-        result_lines.extend(lines[insertion_point:])
-
-        return '\n'.join(result_lines)
+            logger.debug(f"Error finding method indent level: {e}")
+            
+        return 1  # Default Python method indent
