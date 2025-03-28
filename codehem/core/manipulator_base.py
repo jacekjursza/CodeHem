@@ -1,13 +1,13 @@
 """
 Base manipulator for standardizing manipulation across languages.
 """
-import re
 import logging
-from typing import Tuple, Optional, List, Type, Dict, Any
+import re
 from abc import ABC, abstractmethod
+from typing import List, Optional, Tuple
 
-from codehem.models.enums import CodeElementType
 from codehem.core.formatting.formatter import BaseFormatter
+from codehem.models.enums import CodeElementType
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +42,10 @@ class ManipulatorBase(ABC):
                  raise
         return self._extraction_service
 
-    # --- Core Abstract Methods ---
-
     @abstractmethod
     def add_element(self, original_code: str, new_element: str, parent_name: Optional[str]=None) -> str:
         """Add an element to the code. Must be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement add_element")
-
-    # --- Common Workflow Methods ---
 
     def find_element(self, code: str, element_name: str, parent_name: Optional[str]=None) -> Tuple[int, int]:
         """Find an element in the code using the Extraction Service."""
@@ -119,8 +115,6 @@ class ManipulatorBase(ABC):
 
         return self.replace_lines(original_code, adjusted_start, end_line, '')
 
-    # --- Helper Methods ---
-
     def get_element_indent_level(self, code: str, element_start_line: int, parent_name: Optional[str]=None) -> int:
         """Calculate indentation level for an element."""
         if element_start_line <= 0:
@@ -136,35 +130,29 @@ class ManipulatorBase(ABC):
     def _adjust_start_line(self, lines: List[str], start_line: int) -> int:
         """Adjusts the start line to include preceding decorators or comments."""
         adjusted_start = start_line
-        # Combine markers for checking
+
         allowed_prefixes = tuple(self.DECORATOR_MARKERS)
         comment_prefixes = tuple(self.COMMENT_MARKERS)
 
-        # Check lines above the start line
         for i in range(start_line - 2, -1, -1):
             if i >= len(lines): 
                 continue
             line = lines[i].strip()
 
-            # Include decorators
             if line.startswith(allowed_prefixes):
                 adjusted_start = i + 1
-            # Stop at non-empty, non-decorator, non-comment lines
             elif line and not line.startswith(comment_prefixes):
                 break
-            # Skip empty lines
             elif not line:
                 continue
 
         return adjusted_start
 
-    # --- Static Utility Methods ---
-
     @staticmethod
     def get_indentation(line: str) -> str:
         """Extract indentation from a line."""
-        match = re.match(r'^(\s*)', line)
-        return match.group(1) if match else ''
+        match = re.match(r"^(\s*)", line)
+        return match.group(1) if match else ""
 
     @staticmethod
     def apply_indentation(content: str, indent: str) -> str:
@@ -173,24 +161,28 @@ class ManipulatorBase(ABC):
         if not lines:
             return ""
 
-        # Find minimum indentation to preserve relative indents
-        min_indent_len = float('inf')
+        # Find the minimum indentation in non-empty lines
+        min_indent_len = float("inf")
         for line in lines:
-            if line.strip():
-                line_indent_len = len(ManipulatorBase.get_indentation(line))
-                min_indent_len = min(min_indent_len, line_indent_len)
+            if line.strip():  # Only consider non-empty lines
+                line_indent = ManipulatorBase.get_indentation(line)
+                min_indent_len = min(min_indent_len, len(line_indent))
 
-        if min_indent_len == float('inf'): # All lines empty
-             return "\n".join([indent + line.lstrip() if line.strip() else "" for line in lines])
+        if min_indent_len == float("inf"):
+            min_indent_len = 0
 
         result = []
         for line in lines:
-            if line.strip():
-                current_indent_len = len(ManipulatorBase.get_indentation(line))
-                relative_indent = ' ' * (current_indent_len - min_indent_len)
-                result.append(f'{indent}{relative_indent}{line.lstrip()}')
+            if line.strip():  # If line is not empty
+                # Remove existing indentation and apply the new indentation
+                stripped_line = (
+                    line[min_indent_len:]
+                    if min_indent_len < len(line)
+                    else line.lstrip()
+                )
+                result.append(f'{indent}{stripped_line}')
             else:
-                result.append('') # Preserve empty lines
+                result.append('')  # Keep empty lines
 
         return '\n'.join(result)
 

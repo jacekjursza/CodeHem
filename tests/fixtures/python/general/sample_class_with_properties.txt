@@ -16,7 +16,8 @@ class ExampleClass:
     @value.setter
     def value(self, new_value: int) -> None:
         self._value = new_value
-        
+
+    @nomething
     def calculate(self, multiplier: int) -> int:
         return self._value * multiplier
 

@@ -2,9 +2,11 @@
 Python-specific formatter implementation.
 """
 import re
-from typing import Callable, Dict, Optional
+from typing import Callable, Optional
+
 from codehem.core.formatting.formatter import BaseFormatter
 from codehem.models.enums import CodeElementType
+
 
 class PythonFormatter(BaseFormatter):
     """
@@ -101,34 +103,42 @@ class PythonFormatter(BaseFormatter):
             if in_method:
                 result.append(f'{self.indent_string * 2}{stripped}')
             else:
-                result.append(f'{self.indent_string}{stripped}')
-        return '\n'.join(result)
+                result.append(f"{self.indent_string}{stripped}")
+        return "\n".join(result)
 
     def format_method(self, code: str) -> str:
         """
-        Format a Python method definition.
-        
+        Format a Python method definition with proper indentation.
+
         Args:
             code: Method code to format
-            
+
         Returns:
             Formatted method code
         """
+        # First ensure the code is properly dedented
         dedented = self.dedent(code).strip()
         lines = dedented.splitlines()
         if not lines:
-            return ''
+            return ""
+
         result = []
-        method_line_idx = next((i for (i, line) in enumerate(lines) if line.strip().startswith('def ')), 0)
-        for i in range(method_line_idx):
+        method_line_idx = next(
+            (i for i, line in enumerate(lines) if line.strip().startswith("def ")), 0
+        )
+
+        # Add decorators and method definition without extra indentation
+        for i in range(method_line_idx + 1):
             result.append(lines[i])
-        result.append(lines[method_line_idx])
+
+        # Add method body with single level of indentation
         for i in range(method_line_idx + 1, len(lines)):
             line = lines[i]
             if not line.strip():
-                result.append('')
+                result.append("")
                 continue
-            result.append(f'{self.indent_string}{line}')
+            result.append(f'{self.indent_string}{line.strip()}')
+
         return '\n'.join(result)
 
     def format_function(self, code: str) -> str:
