@@ -3,8 +3,8 @@ import os
 from typing import List, Optional, Tuple
 import logging
 from .core.engine.xpath_parser import XPathParser
-from .core.extraction import ExtractionService
-from .core.manipulation import ManipulationService
+from .core.extraction_service import ExtractionService
+from .core.manipulation_service import ManipulationService
 from .languages import get_language_service, get_language_service_for_code, get_language_service_for_file, get_supported_languages
 from .models.code_element import CodeElement, CodeElementsResult
 from .models.enums import CodeElementType

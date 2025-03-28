@@ -2,7 +2,7 @@
 import re
 from typing import List, Optional
 from codehem import CodeElementType, CodeElementXPathNode
-from codehem.core.service import LanguageService
+from codehem.core.Language_service import LanguageService
 from codehem.core.registry import language_service
 from codehem.core.engine.xpath_parser import XPathParser
 from codehem.models import CodeRange

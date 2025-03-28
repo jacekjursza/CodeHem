@@ -2,9 +2,9 @@
 Base manipulator for Python-specific manipulators.
 """
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 
-from codehem.core.manipulator_base import ManipulatorBase
+from codehem.core.manipulators.manipulator_base import ManipulatorBase
 from codehem.core.formatting.formatter import BaseFormatter
 from codehem.core.registry import registry
 from codehem.models.enums import CodeElementType

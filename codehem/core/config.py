@@ -1,9 +1,8 @@
 """
 Configuration management for CodeHem.
 """
-from typing import Dict, Any, Optional
-import json
-import os
+from typing import Any
+
 
 class Configuration:
     """Configuration manager for CodeHem."""

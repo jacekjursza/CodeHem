@@ -5,9 +5,7 @@ from typing import Dict, List, Optional, Any
 import re
 import logging
 
-import rich
-
-from codehem.extractors.base import BaseExtractor
+from codehem.core.extractors.base import BaseExtractor
 from codehem.models.enums import CodeElementType
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.core.registry import extractor

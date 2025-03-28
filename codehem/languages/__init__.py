@@ -5,7 +5,7 @@ from typing import List, Optional, Any
 import re
 import logging
 from codehem.core.registry import registry
-from codehem.core.service import LanguageService
+from codehem.core.Language_service import LanguageService
 
 logger = logging.getLogger(__name__)
 

@@ -1,8 +1,7 @@
-import re
-from typing import Optional, Tuple
-from codehem.models.enums import CodeElementType
-from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.core.registry import element_type_descriptor
+from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
+from codehem.models.enums import CodeElementType
+
 
 @element_type_descriptor
 class PythonClassHandlerElementType(ElementTypeLanguageDescriptor):

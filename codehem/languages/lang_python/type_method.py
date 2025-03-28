@@ -1,7 +1,8 @@
 """Handler for Python method elements."""
 from codehem.core.registry import element_type_descriptor
-from codehem.models.enums import CodeElementType
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
+from codehem.models.enums import CodeElementType
+
 
 @element_type_descriptor
 class PythonMethodHandlerElementType(ElementTypeLanguageDescriptor):

@@ -1,9 +1,11 @@
 """Handler for Python decorator elements."""
-from typing import Dict, List, Optional, Any
 import re
-from codehem.models.enums import CodeElementType
-from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
+from typing import Any, Dict, List, Optional
+
 from codehem.core.registry import element_type_descriptor
+from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
+from codehem.models.enums import CodeElementType
+
 
 @element_type_descriptor
 class PythonDecoratorHandlerElementType(ElementTypeLanguageDescriptor):

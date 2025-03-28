@@ -36,11 +36,11 @@ def greet(self) -> str:
 
 def test_services():
     ch = CodeHem('python')
-    for (key, extr) in ch.language_service.extractors.items():
-        print(key)
-        rich.print(extr.__class__.__name__)
-        print('---------')
-    print('---------')
+    # for (key, extr) in ch.language_service.extractors.items():
+    #     print(key)
+    #     rich.print(extr.__class__.__name__)
+    #     print('---------')
+    # print('---------')
 
 def test_extractors():
     """Test the extraction functionality."""

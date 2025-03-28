@@ -2,10 +2,7 @@
 Python-specific property extractor implementation.
 """
 import logging
-import re
-from typing import Dict, List, Optional, Any
-from codehem.extractors.template_property_extractor import TemplatePropertyExtractor
-from codehem.models.enums import CodeElementType
+from codehem.core.extractors.template_property_extractor import TemplatePropertyExtractor
 from codehem.core.registry import extractor
 
 logger = logging.getLogger(__name__)

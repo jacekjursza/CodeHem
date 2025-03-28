@@ -2,9 +2,7 @@
 Template implementation for property setter extractor.
 """
 import logging
-import re
-from typing import Dict, List, Optional, Any
-from codehem.extractors.extraction_base import TemplateExtractor, ExtractorHelpers
+from codehem.core.extractors.extraction_base import TemplateExtractor, ExtractorHelpers
 from codehem.models.enums import CodeElementType
 from codehem.core.registry import extractor
 logger = logging.getLogger(__name__)

@@ -10,8 +10,8 @@ from typing import Any, List, Optional, Type
 
 import rich
 
-from codehem.core.service import LanguageService
-from codehem.extractors.base import BaseExtractor
+from codehem.core.Language_service import LanguageService
+from codehem.core.extractors.base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 

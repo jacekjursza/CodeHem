@@ -1,10 +1,10 @@
 """
 Function extractor that uses language-specific handlers.
 """
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 import re
 import logging
-from codehem.extractors.base import BaseExtractor
+from codehem.core.extractors.base import BaseExtractor
 from codehem.models.enums import CodeElementType
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.core.registry import extractor

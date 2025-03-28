@@ -3,9 +3,8 @@ Base extraction logic for standardizing extraction across languages.
 """
 import logging
 import re
-from typing import Dict, List, Optional, Any, Tuple
-from codehem.extractors.base import BaseExtractor
-from codehem.models.enums import CodeElementType
+from typing import Dict, List, Any
+from codehem.core.extractors.base import BaseExtractor
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 logger = logging.getLogger(__name__)
 

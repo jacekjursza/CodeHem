@@ -29,7 +29,7 @@ class ManipulatorBase(ABC):
     def extraction_service(self):
         """Get extraction service, creating it on demand."""
         if self._extraction_service is None:
-            from codehem.core.extraction import ExtractionService
+            from codehem.core.extraction_service import ExtractionService
             try:
                 self._extraction_service = ExtractionService(self.language_code)
             except ValueError as e:

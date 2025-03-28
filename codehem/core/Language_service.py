@@ -4,9 +4,10 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Dict, Union, Type
 from codehem import CodeElementType
 from codehem.core.formatting.formatter import BaseFormatter
-from codehem.core.manipulator_base import ManipulatorBase
-from codehem.extractors.base import BaseExtractor
-from codehem.models.code_element import CodeElement, CodeElementsResult
+from codehem.core.manipulators.manipulator_base import ManipulatorBase
+from codehem.core.extractors.base import BaseExtractor
+from codehem.models.code_element import CodeElementsResult
+
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class LanguageService(ABC):
         self._extraction_service = None
         self.formatter = formatter_class() if formatter_class else BaseFormatter()
         try:
-            from codehem.core.extraction import ExtractionService
+            from codehem.core.extraction_service import ExtractionService
             self._extraction_service = ExtractionService(self.language_code)
         except Exception as e:
             logger.error(f'Error creating extraction service for {self.language_code}: {e}')
@@ -119,7 +120,7 @@ class LanguageService(ABC):
     def extract(self, code: str) -> CodeElementsResult:
         """Extract code elements from source code."""
         logger.debug(f'Starting extraction for {self.language_code}')
-        from codehem.core.extraction import ExtractionService
+        from codehem.core.extraction_service import ExtractionService
         extractor = ExtractionService(self.language_code)
         result = extractor.extract_all(code)
         result = self.extract_language_specific(code, result)

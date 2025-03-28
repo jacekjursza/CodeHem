@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 class BaseExtractor(ABC):
     """Abstract base class for all extractors."""
     ELEMENT_TYPE: CodeElementType
+    LANGUAGE_CODE = "__all__"
 
     def __init__(self, language_code: str, language_type_descriptor: ElementTypeLanguageDescriptor):
         self.language_code = language_code.lower()

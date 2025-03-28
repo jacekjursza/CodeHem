@@ -2,10 +2,8 @@
 Template pattern for manipulators to standardize language-specific implementations.
 """
 import logging
-import re
 from typing import Optional
-from codehem.core.manipulator_base import ManipulatorBase
-from codehem.models.enums import CodeElementType
+from codehem.core.manipulators.manipulator_base import ManipulatorBase
 
 logger = logging.getLogger(__name__)
 

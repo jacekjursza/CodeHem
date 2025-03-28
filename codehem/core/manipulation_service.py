@@ -8,7 +8,7 @@ from typing import Optional
 from codehem import CodeElementType
 from codehem.core.engine.xpath_parser import XPathParser
 from codehem.core.registry import registry
-from codehem.core.service import LanguageService
+from codehem.core.Language_service import LanguageService
 from codehem.languages import (
     get_language_service_for_code,
     get_language_service_for_file,
@@ -142,7 +142,7 @@ class ManipulationService:
         (element_name, parent_name, element_type) = XPathParser.get_element_info(xpath)
         if not element_type:
             # We need to find the element to determine its type
-            from codehem.core.extraction import ExtractionService
+            from codehem.core.extraction_service import ExtractionService
             extraction_service = ExtractionService(self.language_code)
             elements = extraction_service.extract_all(original_code)
 

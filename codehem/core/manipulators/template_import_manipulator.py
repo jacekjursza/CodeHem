@@ -2,9 +2,9 @@
 Template implementation for import manipulator.
 """
 import logging
-import re
 from typing import Optional, Tuple
-from codehem.core.template_manipulator import TemplateManipulator
+
+from codehem.core.manipulators.template_manipulator import TemplateManipulator
 from codehem.models.enums import CodeElementType
 
 logger = logging.getLogger(__name__)

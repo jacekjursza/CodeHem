@@ -3,9 +3,7 @@ Python-specific property setter extractor implementation.
 """
 import logging
 import re
-from typing import Dict, List, Optional, Any
-from codehem.extractors.template_property_setter_extractor import TemplatePropertySetterExtractor
-from codehem.models.enums import CodeElementType
+from codehem.core.extractors.template_property_setter_extractor import TemplatePropertySetterExtractor
 from codehem.core.registry import extractor
 
 logger = logging.getLogger(__name__)

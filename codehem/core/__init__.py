@@ -1,5 +1,5 @@
 """
 Core components for CodeHem.
 """
-from .extraction import ExtractionService
-from .manipulation import ManipulationService
+from .extraction_service import ExtractionService
+from .manipulation_service import ManipulationService
