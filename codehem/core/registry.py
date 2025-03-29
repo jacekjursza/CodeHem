@@ -59,12 +59,13 @@ class Registry:
     def register_extractor(self, cls: Type[BaseExtractor]):
         """Register an extractor class - extractor is language agnostic and needs descriptor for specific language"""
 
-        if cls.ELEMENT_TYPE in self.all_extractors:
-            print(f"Warning: Extractor for {cls.ELEMENT_TYPE} already registered {self.all_extractors[cls.ELEMENT_TYPE].__name__}.")
+        extractor_key = f"{cls.LANGUAGE_CODE.lower()}/{cls.ELEMENT_TYPE.value.lower()}"
+        if extractor_key in self.all_extractors:
+            print(f"Warning: Extractor for {extractor_key} already registered {self.all_extractors[extractor_key].__name__}.")
             return cls
 
-        self.all_extractors[cls.ELEMENT_TYPE] = cls
-        rich.print(f'Registered extractor: {cls.__name__} for {cls.ELEMENT_TYPE}')
+        self.all_extractors[extractor_key] = cls
+        rich.print(f'Registered extractor: {extractor_key} for {cls.ELEMENT_TYPE}')
         return cls
 
     def register_manipulator(self, cls):

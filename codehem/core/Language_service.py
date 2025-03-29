@@ -1,14 +1,15 @@
 # codehem/core/service.py
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Dict, Union, Type
-from codehem import CodeElementType
+from typing import Dict, List, Optional, Tuple, Type, Union
+
+from codehem import CodeElementType, CodeElementXPathNode
+from codehem.core.extractors.base import BaseExtractor
 from codehem.core.formatting.formatter import BaseFormatter
 from codehem.core.manipulators.manipulator_base import ManipulatorBase
-from codehem.core.extractors.base import BaseExtractor
 from codehem.models.code_element import CodeElementsResult
-
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
+
 logger = logging.getLogger(__name__)
 
 class LanguageService(ABC):
@@ -17,8 +18,24 @@ class LanguageService(ABC):
     Defines the interface for language-specific operations and combines finder, formatter, and manipulator.
     """
     LANGUAGE_CODE: str
+    _instances: Dict[str, 'LanguageService'] = {}
 
-    def __init__(self, extractors: Dict[str, Type[BaseExtractor]], manipulators: Dict[str, Type[ManipulatorBase]], element_type_descriptors: Dict[str, Dict[str, ElementTypeLanguageDescriptor]], formatter_class: Optional[Type[BaseFormatter]]=None):
+    def __new__(cls, *args, **kwargs):
+        language_code = getattr(cls, 'LANGUAGE_CODE', None)
+        if language_code is None:
+            raise ValueError(f"{cls.__name__} must define a LANGUAGE_CODE.")
+        if language_code not in cls._instances:
+            logger.debug(f"[__new__] Creating new singleton instance for {language_code}")
+            cls._instances[language_code] = super().__new__(cls)
+        else:
+            logger.debug(f"[__new__] Reusing existing instance for {language_code}")
+        return cls._instances[language_code]
+
+    def __init__(self,
+                 extractors: Dict[str, Type[BaseExtractor]],
+                 manipulators: Dict[str, Type[ManipulatorBase]],
+                 element_type_descriptors: Dict[str, Dict[str, ElementTypeLanguageDescriptor]],
+                 formatter_class: Optional[Type[BaseFormatter]]=None):
         """
         Initialize the language service with components.
         Args:
@@ -27,6 +44,9 @@ class LanguageService(ABC):
             element_type_descriptors: Language-specific element type descriptors
             formatter_class: Optional formatter class for this language
         """
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+        self._initialized = True
         self.extractors: Dict[str, BaseExtractor] = {}
         self.manipulators: Dict[str, ManipulatorBase] = {}
         self.element_type_descriptors: Dict[str, ElementTypeLanguageDescriptor] = {}
@@ -38,13 +58,15 @@ class LanguageService(ABC):
         except Exception as e:
             logger.error(f'Error creating extraction service for {self.language_code}: {e}')
         logger.debug(f'Initializing language service for {self.language_code}, registered manipulators: {list(manipulators.keys())}')
-        for element_type_name, extractor_class in extractors.items():
+        for element_type_key, extractor_class in extractors.items():
+
+            element_type_name = element_type_key.split('/')[1]
             descriptor = element_type_descriptors.get(self.language_code, {}).get(element_type_name)
             if descriptor:
                 self.element_type_descriptors[element_type_name] = descriptor
                 if extractor_class:
                     try:
-                        self.extractors[element_type_name] = extractor_class(self.language_code, descriptor)
+                        self.extractors[element_type_key] = extractor_class(self.language_code, descriptor)
                     except Exception as e:
                         logger.error(f'Error creating extractor for {element_type_name}: {e}')
         self._init_manipulators(manipulators)
@@ -91,7 +113,16 @@ class LanguageService(ABC):
         return manipulator
 
     def get_extractor(self, element_type: str) -> BaseExtractor:
-        return self.extractors.get(element_type.lower())
+        primary_key = f'{self.language_code}/{element_type.lower()}'
+        secondary_key = f'__all__/{element_type.lower()}'
+
+        if primary_key in self.extractors:
+            return self.extractors[primary_key]
+
+        if secondary_key not in self.extractors:
+            print(self.extractors)
+
+        return self.extractors.get(secondary_key)
 
     @property
     @abstractmethod
