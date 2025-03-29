@@ -17,6 +17,7 @@ class MyClass:
     def __init__(self, name: str):
         self.name = name
 
+    @greetdecorator
     def greet(self) -> str:
         return f"Hello, {self.name}!"
 
@@ -32,6 +33,12 @@ new_version = '''
 def greet(self) -> str:
     print("Hello, World!")
     return f"@Hello, {self.name}!!!!!!!!!!!!"
+'''
+
+new_method = '''
+def new_method(self) -> str:
+    print("Hello, World!")
+    return f"THIS IS NEW METHOD!!!!!!!!!!!!"
 '''
 
 def test_services():
@@ -57,12 +64,15 @@ def test_extractors():
         if element.type.value == 'import':
             rich.print(element)
     print('----------------------------------')
-    
-    result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
+
+    result = hem.get_text_by_xpath(code, "MyClass.greet")
+
+    # result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
+    # result = hem.upsert_element(result, 'method', 'new_method', new_method, parent_name='MyClass')
     rich.print(result)
 
 
 
 print("----- test services-----")
 test_services()
-# test_extractors()
+test_extractors()
