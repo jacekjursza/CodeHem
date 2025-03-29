@@ -13,61 +13,96 @@ class TemplatePropertySetterExtractor(TemplateExtractor):
     ELEMENT_TYPE = CodeElementType.PROPERTY_SETTER
 
     def _process_tree_sitter_results(self, query_results, code_bytes, ast_handler, context):
-        """Process tree-sitter query results for property setters."""
+        """Process tree-sitter query results for property setters.
+        MODIFIED: Explicitly extracts decorators AND definition start location.
+        """
         properties = []
+        processed_nodes = set()
+
         for node, capture_name in query_results:
             if capture_name == 'property_setter_def':
-                # Handle decorated property setter definitions
-                property_name = None
-                definition_node = None
-                
-                if node.type == 'decorated_definition':
-                    # Find the property.setter decorator and method name
-                    decorator_found = False
-                    for i in range(node.named_child_count):
-                        child = node.named_child(i)
-                        if child.type == 'decorator':
-                            # Look for property_name.setter pattern
-                            decorator_node = ast_handler.find_child_by_field_name(child, 'name')
-                            if decorator_node:
-                                decorator_text = ast_handler.get_node_text(decorator_node, code_bytes)
-                                if '.' in decorator_text and decorator_text.endswith('.setter'):
-                                    decorator_found = True
-                                    prop_obj = decorator_text.split('.')[0]
-                                    
-                        elif child.type == 'function_definition' or child.type == 'method_definition':
-                            definition_node = child
-                            name_node = ast_handler.find_child_by_field_name(child, 'name')
-                            if name_node:
-                                property_name = ast_handler.get_node_text(name_node, code_bytes)
-                                
-                    if not decorator_found or not property_name:
-                        continue
-                else:
-                    continue
-                
-                if property_name and definition_node:
-                    # Get content and class name
-                    content = ast_handler.get_node_text(node, code_bytes)
-                    class_name = self._get_class_name(node, context, ast_handler, code_bytes)
-                    
-                    # Extract parameters
-                    parameters = ExtractorHelpers.extract_parameters(ast_handler, definition_node, code_bytes)
-                    
-                    # Create property setter info
-                    property_info = {
-                        'type': 'property_setter',
-                        'name': property_name,
-                        'content': content,
-                        'class_name': class_name,
-                        'range': {
-                            'start': {'line': node.start_point[0] + 1, 'column': node.start_point[1]},
-                            'end': {'line': node.end_point[0] + 1, 'column': node.end_point[1]}
-                        },
-                        'parameters': parameters
-                    }
-                    properties.append(property_info)
-                    
+                decorated_node = node
+                if decorated_node.type != 'decorated_definition': continue
+
+                definition_node = ast_handler.find_child_by_field_name(decorated_node, 'definition')
+                if not definition_node or definition_node.type not in ['function_definition', 'method_definition']: continue
+                if definition_node.id in processed_nodes: continue
+                processed_nodes.add(definition_node.id)
+
+                property_name_node = ast_handler.find_child_by_field_name(definition_node, 'name')
+                if not property_name_node: continue
+                property_name = ast_handler.get_node_text(property_name_node, code_bytes)
+
+                # --- Extract Decorators and verify setter ---
+                decorators = []
+                is_setter_decorator_present = False
+                setter_prop_name = None
+
+                for i in range(decorated_node.named_child_count):
+                     child = decorated_node.named_child(i)
+                     if child.type == 'decorator':
+                          decorator_content = ast_handler.get_node_text(child, code_bytes)
+                          decorator_name = None
+                          # Check attribute type first (@name.setter)
+                          if child.child_count > 0 and child.children[0].type == 'attribute':
+                              attr_node = child.children[0]
+                              obj_node = ast_handler.find_child_by_field_name(attr_node, 'object')
+                              attribute_field = ast_handler.find_child_by_field_name(attr_node, 'attribute')
+                              if obj_node and attribute_field:
+                                  obj_name = ast_handler.get_node_text(obj_node, code_bytes)
+                                  attr_name = ast_handler.get_node_text(attribute_field, code_bytes)
+                                  decorator_name = f"{obj_name}.{attr_name}"
+                                  if attr_name == 'setter':
+                                      is_setter_decorator_present = True
+                                      setter_prop_name = obj_name
+                          # Check identifier type (@other)
+                          elif child.child_count > 0 and child.children[0].type == 'identifier':
+                               dec_name_node = child.children[0]
+                               decorator_name = ast_handler.get_node_text(dec_name_node, code_bytes) if dec_name_node else None
+                          # Fallback/More complex cases needed? @decorator() etc.
+
+                          dec_range_data = {
+                               'start': {'line': child.start_point[0] + 1, 'column': child.start_point[1]},
+                               'end': {'line': child.end_point[0] + 1, 'column': child.end_point[1]}
+                          }
+                          decorators.append({
+                               'name': decorator_name,
+                               'content': decorator_content,
+                               'range': dec_range_data
+                          })
+                # --------------------------------------------
+
+                if not is_setter_decorator_present or setter_prop_name != property_name: continue
+
+                # --- Extract Definition Location ---
+                definition_start_line = definition_node.start_point[0] + 1
+                definition_start_col = definition_node.start_point[1]
+                # -------------------------------
+
+                content = ast_handler.get_node_text(decorated_node, code_bytes)
+                full_range_data = {
+                    'start': {'line': decorated_node.start_point[0] + 1, 'column': decorated_node.start_point[1]},
+                    'end': {'line': decorated_node.end_point[0] + 1, 'column': decorated_node.end_point[1]}
+                }
+                class_name = self._get_class_name(decorated_node, context, ast_handler, code_bytes)
+                parameters = ExtractorHelpers.extract_parameters(ast_handler, definition_node, code_bytes)
+                return_info = ExtractorHelpers.extract_return_info(ast_handler, definition_node, code_bytes)
+
+                property_info = {
+                    'type': 'property_setter',
+                    'name': property_name,
+                    'content': content,
+                    'class_name': class_name,
+                    'range': full_range_data,
+                    'decorators': decorators,
+                    'parameters': parameters,
+                    'return_info': return_info,
+                    # Add definition location for deduplication
+                    'definition_start_line': definition_start_line,
+                    'definition_start_col': definition_start_col,
+                }
+                properties.append(property_info)
+
         return properties
 
     def _get_class_name(self, node, context, ast_handler, code_bytes):

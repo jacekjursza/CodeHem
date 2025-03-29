@@ -17,6 +17,14 @@ class MyClass:
     def __init__(self, name: str):
         self.name = name
 
+    @property
+    def new_property(self) -> str:
+        return f"Hello, {self.name}!"
+    
+    @new_property.setter
+    def new_property(self, value: str) -> None:
+        self.name = value
+
     @greetdecorator
     def greet(self) -> str:
         return f"Hello, {self.name}!"
@@ -43,11 +51,11 @@ def new_method(self) -> str:
 
 def test_services():
     ch = CodeHem('python')
-    # for (key, extr) in ch.language_service.extractors.items():
-    #     print(key)
-    #     rich.print(extr.__class__.__name__)
-    #     print('---------')
-    # print('---------')
+    for (key, extr) in ch.language_service.extractors.items():
+        print(key)
+        rich.print(extr.__class__.__name__)
+        print('---------')
+    print('---------')
 
 def test_extractors():
     """Test the extraction functionality."""
@@ -65,7 +73,7 @@ def test_extractors():
             rich.print(element)
     print('----------------------------------')
 
-    result = hem.get_text_by_xpath(code, "MyClass.greet")
+    result = hem.get_text_by_xpath(code, "MyClass.new_property")
 
     # result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
     # result = hem.upsert_element(result, 'method', 'new_method', new_method, parent_name='MyClass')
@@ -74,5 +82,5 @@ def test_extractors():
 
 
 print("----- test services-----")
-test_services()
+# test_services()
 test_extractors()

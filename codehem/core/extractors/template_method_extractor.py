@@ -14,37 +14,177 @@ class TemplateMethodExtractor(TemplateExtractor):
     ELEMENT_TYPE = CodeElementType.METHOD
 
     def _process_tree_sitter_results(self, query_results, code_bytes, ast_handler, context):
-        """Process tree-sitter query results for methods."""
+        """Process tree-sitter query results for methods.
+        MODIFIED: Adds definition start location for deduplication.
+        """
         methods = []
         method_nodes = {}
-        decorated_methods = {}
-        decorator_nodes = {}
+        decorated_method_nodes = {}
+        processed_def_node_ids = set()
+        temp_decorators = {}
+
+        # First pass - collect all decorators
         for node, capture_name in query_results:
-            if capture_name == 'method_def':
-                name_node = ast_handler.find_child_by_field_name(node, 'name')
-                if name_node:
-                    method_name = ast_handler.get_node_text(name_node, code_bytes)
-                    method_nodes[method_name] = node
-            elif capture_name == 'decorated_method_def':
-                def_node = ast_handler.find_child_by_field_name(node, 'definition')
-                if def_node:
-                    name_node = ast_handler.find_child_by_field_name(def_node, 'name')
-                    if name_node:
-                        method_name = ast_handler.get_node_text(name_node, code_bytes)
-                        decorated_methods[method_name] = node
-            elif capture_name == 'decorator':
-                self._process_decorator(node, decorator_nodes, ast_handler, code_bytes)
-            elif capture_name == 'method_name':
-                method_name = ast_handler.get_node_text(node, code_bytes)
+            if capture_name == 'decorator':
                 parent = node.parent
-                if parent and parent.type in ['function_definition', 'method_definition']:
-                    grand_parent = parent.parent
-                    if grand_parent and grand_parent.type == 'decorated_definition':
-                        decorated_methods[method_name] = grand_parent
-                    else:
-                        method_nodes[method_name] = parent
-        self._process_regular_methods(method_nodes, methods, code_bytes, ast_handler, context, decorator_nodes)
-        self._process_decorated_methods(decorated_methods, methods, code_bytes, ast_handler, context, decorator_nodes)
+                if parent and parent.type == 'decorated_definition':
+                    def_node = ast_handler.find_child_by_field_name(parent, 'definition')
+                    if def_node:
+                        name_node = ast_handler.find_child_by_field_name(def_node, 'name')
+                        if name_node:
+                            method_name = ast_handler.get_node_text(name_node, code_bytes)
+                            decorator_content = ast_handler.get_node_text(node, code_bytes)
+                            decorator_name = None
+                            name_node = node.child_by_field_name('name')
+                            if name_node:
+                                decorator_name = ast_handler.get_node_text(name_node, code_bytes)
+                            elif node.named_child_count > 0:
+                                for j in range(node.named_child_count):
+                                    sub_child = node.named_child(j)
+                                    if sub_child.type == 'identifier':
+                                        decorator_name = ast_handler.get_node_text(sub_child, code_bytes)
+                                        break
+                                    elif sub_child.type == 'attribute':
+                                        obj_node = ast_handler.find_child_by_field_name(sub_child, 'object')
+                                        attr_node = ast_handler.find_child_by_field_name(sub_child, 'attribute')
+                                        if obj_node and attr_node:
+                                            obj_name = ast_handler.get_node_text(obj_node, code_bytes)
+                                            attr_name = ast_handler.get_node_text(attr_node, code_bytes)
+                                            decorator_name = f'{obj_name}.{attr_name}'
+                                            break
+
+                            # Use function node ID as the key
+                            node_id = def_node.id
+                            if node_id not in temp_decorators:
+                                temp_decorators[node_id] = []
+
+                            dec_range_data = {'start': {'line': node.start_point[0] + 1, 'column': node.start_point[1]}, 
+                                              'end': {'line': node.end_point[0] + 1, 'column': node.end_point[1]}}
+
+                            temp_decorators[node_id].append({
+                                'name': decorator_name, 
+                                'content': decorator_content, 
+                                'range': dec_range_data
+                            })
+
+        for node, capture_name in query_results:
+            if capture_name == 'decorated_method_def':
+                definition_node = ast_handler.find_child_by_field_name(node, 'definition')
+                if definition_node and definition_node.type in ['function_definition', 'method_definition']:
+                    if definition_node.id not in processed_def_node_ids:
+                        decorated_method_nodes[definition_node.id] = node
+                        processed_def_node_ids.add(definition_node.id)
+
+            elif capture_name == 'method_def':
+                definition_node = node
+                if definition_node.type in ['function_definition', 'method_definition']:
+                    if definition_node.id not in processed_def_node_ids:
+                        is_likely_property = False
+
+                        # Check if we have collected decorators for this node and if any is a property decorator
+                        if definition_node.id in temp_decorators:
+                            for dec in temp_decorators[definition_node.id]:
+                                if dec['name'] == 'property' or (isinstance(dec['name'], str) and '.setter' in dec['name']):
+                                    is_likely_property = True
+                                    break
+
+                        # If parent is decorated definition, also check directly
+                        if definition_node.parent and definition_node.parent.type == 'decorated_definition':
+                            for i in range(definition_node.parent.named_child_count):
+                                child = definition_node.parent.named_child(i)
+                                if child.type == 'decorator':
+                                    dec_name_node = ast_handler.find_child_by_field_name(child, 'name')
+                                    dec_name = ast_handler.get_node_text(dec_name_node, code_bytes) if dec_name_node else None
+                                    if dec_name == 'property' or (isinstance(dec_name, str) and '.setter' in dec_name):
+                                        is_likely_property = True
+                                        break
+
+                        if not is_likely_property:
+                            method_nodes[definition_node.id] = definition_node
+                            processed_def_node_ids.add(definition_node.id)
+
+        for def_node_id, definition_node in method_nodes.items():
+            name_node = ast_handler.find_child_by_field_name(definition_node, 'name')
+            if not name_node:
+                continue
+            method_name = ast_handler.get_node_text(name_node, code_bytes)
+            definition_start_line = definition_node.start_point[0] + 1
+            definition_start_col = definition_node.start_point[1]
+            content = ast_handler.get_node_text(definition_node, code_bytes)
+            full_range_data = {'start': {'line': definition_start_line, 'column': definition_start_col}, 
+                              'end': {'line': definition_node.end_point[0] + 1, 'column': definition_node.end_point[1]}}
+            class_name = self._get_class_name(definition_node, context, ast_handler, code_bytes)
+            parameters = ExtractorHelpers.extract_parameters(ast_handler, definition_node, code_bytes)
+            return_info = ExtractorHelpers.extract_return_info(ast_handler, definition_node, code_bytes)
+
+            # Get decorators for this method if any were collected
+            decorators = temp_decorators.get(def_node_id, [])
+
+            method_info = {
+                'type': 'method', 
+                'name': method_name, 
+                'content': content, 
+                'class_name': class_name, 
+                'range': full_range_data, 
+                'decorators': decorators, 
+                'parameters': parameters, 
+                'return_info': return_info, 
+                'definition_start_line': definition_start_line, 
+                'definition_start_col': definition_start_col
+            }
+            methods.append(method_info)
+
+        for def_node_id, decorated_node in decorated_method_nodes.items():
+            definition_node = ast_handler.find_child_by_field_name(decorated_node, 'definition')
+            if not definition_node:
+                continue
+            name_node = ast_handler.find_child_by_field_name(definition_node, 'name')
+            if not name_node:
+                continue
+            method_name = ast_handler.get_node_text(name_node, code_bytes)
+
+            # Get decorators for this method if any were collected
+            decorators = temp_decorators.get(def_node_id, [])
+
+            # If we didn't collect decorators earlier, try to extract them now
+            if not decorators:
+                decorators = self._extract_decorators_from_node(decorated_node, ast_handler, code_bytes)
+
+            is_likely_property = False
+            for dec in decorators:
+                dec_name = dec.get('name')
+                if dec_name == 'property' or (isinstance(dec_name, str) and '.setter' in dec_name):
+                    is_likely_property = True
+                    break
+
+            # If it's a property, don't treat it as a method - let the property extractors handle it
+            if is_likely_property:
+                logger.debug(f"Method extractor skipping '{method_name}' as it's likely a property.")
+                continue
+
+            definition_start_line = definition_node.start_point[0] + 1
+            definition_start_col = definition_node.start_point[1]
+            content = ast_handler.get_node_text(decorated_node, code_bytes)
+            full_range_data = {'start': {'line': decorated_node.start_point[0] + 1, 'column': decorated_node.start_point[1]}, 
+                              'end': {'line': decorated_node.end_point[0] + 1, 'column': decorated_node.end_point[1]}}
+            class_name = self._get_class_name(decorated_node, context, ast_handler, code_bytes)
+            parameters = ExtractorHelpers.extract_parameters(ast_handler, definition_node, code_bytes)
+            return_info = ExtractorHelpers.extract_return_info(ast_handler, definition_node, code_bytes)
+
+            method_info = {
+                'type': 'method', 
+                'name': method_name, 
+                'content': content, 
+                'class_name': class_name, 
+                'range': full_range_data, 
+                'decorators': decorators, 
+                'parameters': parameters, 
+                'return_info': return_info, 
+                'definition_start_line': definition_start_line, 
+                'definition_start_col': definition_start_col
+            }
+            methods.append(method_info)
+
         return methods
 
     def _process_decorator(self, node, decorator_nodes, ast_handler, code_bytes):

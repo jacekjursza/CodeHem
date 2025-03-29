@@ -5,6 +5,8 @@ Acts as a facade for the various extraction strategies.
 import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
+from copy import deepcopy
+import rich
 
 from codehem import CodeElementType
 from codehem.core.engine.xpath_parser import XPathParser
@@ -286,7 +288,7 @@ class ExtractionService:
             logger.warning(f'Could not find extractor for {element_type} / {self.language_code}')
             return []
         logger.debug(f'Extracting {element_type} using {extractor.__class__.__name__}')
-        results = extractor.extract(code)
+        results = extractor.extract(code, context=context)
         logger.debug(f'Extracted {len(results)} {element_type}s')
         return results
 
@@ -330,19 +332,27 @@ class ExtractionService:
         Returns:
         Dictionary with extracted elements categorized by type
         """
-        logger.debug(f'Starting extraction for all elements')
+        print(f'Starting extraction for all elements')
         imports = self.extract_imports(code)
-        logger.debug(f'Extracted {len(imports)} imports')
+        print(f'Extracted {len(imports)} imports')
         classes = self.extract_classes(code)
         functions = self.extract_functions(code)
-        results = {'imports': imports, 'classes': classes, 'functions': functions}
+        results = {
+            'imports': imports,
+            'classes': classes,
+            'functions': functions
+        }
         for cls in classes:
             class_name = cls.get('name')
             if class_name:
                 methods = self.extract_methods(code, class_name)
-                cls['methods'] = methods
-                logger.debug(f"Added {len(methods)} methods to class '{class_name}'")
-        logger.debug(f'Completed extraction: {len(imports)} imports, {len(classes)} classes, {len(functions)} functions')
+                getters = self._extract_element_type(code, CodeElementType.PROPERTY_GETTER.value, {'class_name': class_name})
+                setters = self._extract_element_type(code, CodeElementType.PROPERTY_SETTER.value, {'class_name': class_name})
+                statics = self._extract_element_type(code, CodeElementType.STATIC_PROPERTY.value, {'class_name': class_name})
+                all_members = methods + getters + setters + statics
+                cls['methods'] = all_members
+                print(f"Added {len(all_members)} members to class '{class_name}'")
+        print(f'Completed extraction: {len(imports)} imports, {len(classes)} classes, {len(functions)} functions')
         return results
 
     def _process_parameters(self, element: CodeElement, params_data: List[Dict]) -> List[CodeElement]:
@@ -481,13 +491,18 @@ class ExtractionService:
         if return_type or return_values:
             return_element = CodeElement(type=CodeElementType.RETURN_VALUE, name=f'{method_name}_return', content=return_type if return_type else '', parent_name=f'{parent_name}.{method_name}', value_type=return_type, additional_data={'values': return_values})
             method_element.children.append(return_element)
-        decorators = method_data.get('decorators', [])
-        logger.debug(f'Method {method_name} has {len(decorators)} decorators')
+        decorators = method_data.get("decorators", [])
+        logger.debug(f"Method {method_name} has {len(decorators)} decorators")
         for dec in decorators:
-            dec_name = dec.get('name')
-            dec_content = dec.get('content')
+            dec_name = dec.get("name")
+            dec_content = dec.get("content")
             if dec_name:
-                decorator_element = CodeElement(type=CodeElementType.DECORATOR, name=dec_name, content=dec_content, parent_name=f'{parent_name}.{method_name}')
+                decorator_element = CodeElement(
+                    type=CodeElementType.DECORATOR,
+                    name=dec_name,
+                    content=dec_content,
+                    parent_name=f"{parent_name}.{method_name}",
+                )
                 method_element.children.append(decorator_element)
         return method_element
 
@@ -503,21 +518,34 @@ class ExtractionService:
         """
         logger.debug(f"Processing class: {class_data.get('name')}")
         class_element = CodeElement.from_dict(class_data)
-        cls_decorators = class_data.get('decorators', [])
+
+        # decorators
+        cls_decorators = class_data.get("decorators", [])
         for dec_element in self._process_decorators(class_element, cls_decorators):
             class_element.children.append(dec_element)
-        methods = class_data.get('methods', [])
-        method_map = {}
+
+        # methods (including getters/setters/statics)
+        methods = class_data.get("methods", [])
+        method_map: Dict[str, List[CodeElement]] = {}
+
         for method_data in methods:
-            method_name = method_data.get('name')
-            is_decorated = '@' in method_data.get('content', '')
-            if method_name in method_map and (not is_decorated):
-                continue
-            method_map[method_name] = method_data
-        for method_data in method_map.values():
-            method_element = self._process_method_element(method_data, class_element.name)
-            class_element.children.append(method_element)
+            method_name = method_data.get("name")
+            method_element = self._process_method_element(
+                method_data, class_element.name
+            )
+            if method_name not in method_map:
+                method_map[method_name] = []
+            method_map[method_name].append(method_element)
+
+        for method_name, versions in method_map.items():
+            latest = versions[-1]
+            for older in versions[:-1]:
+                from copy import deepcopy
+                latest.children.append(deepcopy(older))
+            class_element.children.append(latest)
+
         return class_element
+
 
     def extract_all(self, code: str) -> CodeElementsResult:
         """

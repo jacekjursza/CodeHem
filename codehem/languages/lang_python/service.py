@@ -131,22 +131,28 @@ class PythonLanguageService(LanguageService):
     def get_text_by_xpath_internal(self, code: str, xpath_nodes: List['CodeElementXPathNode']) -> Optional[str]:
         """
         Internal method to retrieve text content based on parsed XPath nodes for Python.
+        Supports part-based selectors like [body], [def], etc.
         """
         if not xpath_nodes:
             return None
         from codehem import CodeHem
         element_name = xpath_nodes[-1].name
         element_type = xpath_nodes[-1].type
+        element_part = xpath_nodes[-1].part
         parent_name = xpath_nodes[-2].name if len(xpath_nodes) > 1 else None
         include_all = False
         if element_type == 'all':
             include_all = True
             element_type = None
         elements_result = self.extract(code)
+        print(f'[DEBUG] Extracted top-level elements:')
+        for el in elements_result.elements:
+            print(f'[DEBUG] - {el.name} ({el.type})')
+            for child in el.children:
+                print(f'[DEBUG]     -> {child.name} ({child.type})')
         code_lines = code.splitlines()
 
         def extract_text(element: CodeElement, code_lines: List[str]) -> Optional[str]:
-            """Extract text content from code based on element range."""
             if element and element.range:
                 start = element.range.start_line
                 end = element.range.end_line
@@ -154,125 +160,121 @@ class PythonLanguageService(LanguageService):
                     return '\n'.join(code_lines[start - 1:end])
             return None
 
-        if len(xpath_nodes) == 1:
-            filtered_element = CodeHem.filter(elements_result, XPathParser.to_string(xpath_nodes))
-            if filtered_element:
-                text = extract_text(filtered_element, code_lines)
-                if include_all:
-                    decorators_text = '\n'.join([child.content for child in filtered_element.children if child.type == CodeElementType.DECORATOR])
-                    return f'{text}\n{decorators_text}' if decorators_text else text
+        def extract_body_only(text: str) -> str:
+            lines = text.splitlines()
+            for i, line in enumerate(lines):
+                if line.strip().startswith('def ') or line.strip().startswith('class '):
+                    return '\n'.join(lines[i + 1:])
+            return '\n'.join(lines)
+
+        def extract_def_only(text: str) -> str:
+            lines = text.splitlines()
+            result = []
+            in_body = False
+            for line in lines:
+                if not in_body and (line.strip().startswith('def ') or line.strip().startswith('class ')):
+                    in_body = True
+                if in_body:
+                    result.append(line)
+            return '\n'.join(result)
+        parent_xpath = XPathParser.to_string(xpath_nodes[:-1])
+        target_xpath = XPathParser.to_string(xpath_nodes)
+        filtered_element = CodeHem.filter(elements_result, parent_xpath if parent_name else target_xpath)
+        if parent_name and filtered_element:
+            print(f'\n[DEBUG] XPath: {XPathParser.to_string(xpath_nodes)}')
+            print(f'[DEBUG] Parent: {parent_name} | Target: {element_name} | Type: {element_type} | Part: {element_part}')
+            print(f'[DEBUG] Found parent element: {filtered_element.name} with {len(filtered_element.children)} children')
+            all_children = filtered_element.children[:]
+            for child in filtered_element.children:
+                if hasattr(child, 'children'):
+                    all_children.extend(child.children)
+
+            # First look for exact matches if element_type is specified
+            if element_type:
+                exact_matches = []
+                for child in all_children:
+                    child_type_str = child.type.value if hasattr(child.type, 'value') else str(child.type)
+                    print(f'[DEBUG]   -> Child: {child.name}, type={child_type_str}')
+                    if child.name == element_name and child_type_str == element_type:
+                        exact_matches.append(child)
+                        print(f"[DEBUG] MATCHED child '{child.name}'")
+
+                if exact_matches:
+                    # Use the last match if we have multiple
+                    matched_child = exact_matches[-1]
+                    text = extract_text(matched_child, code_lines)
+                    if element_part == 'body':
+                        return extract_body_only(text or '')
+                    if element_part == 'def':
+                        return extract_def_only(text or '')
+                    return text
+
+            # If no exact type match or no type specified, search by name only
+            # Prioritize property_setter over property_getter when no type specified
+            property_getter = None
+            property_setter = None
+            fallback_method = None
+
+            for child in all_children:
+                child_type_str = child.type.value if hasattr(child.type, 'value') else str(child.type)
+                print(f'[DEBUG]   -> Child: {child.name}, type={child_type_str}')
+                if child.name == element_name:
+                    if child_type_str == 'property_setter':
+                        property_setter = child
+                    elif child_type_str == 'property_getter':
+                        property_getter = child
+                    elif child_type_str == 'method':
+                        fallback_method = child
+                    # Match found if we're not looking for a specific type
+                    if not element_type:
+                        print(f"[DEBUG] MATCHED child '{child.name}'")
+
+            # Choose the match in order of priority: property_setter, property_getter, method
+            matched_child = property_setter or property_getter or fallback_method
+
+            if matched_child:
+                text = extract_text(matched_child, code_lines)
+                if element_part == 'body':
+                    return extract_body_only(text or '')
+                if element_part == 'def':
+                    return extract_def_only(text or '')
                 return text
+
+            print('[DEBUG] No matching child found.')
             return None
+        if filtered_element:
+            text = extract_text(filtered_element, code_lines)
+            if not element_type and filtered_element.children:
+                preferred = None
+                property_setter = None
+                property_getter = None
 
-        if parent_name:
-            # For property getters/setters, we'll directly search in the code
-            if element_name and element_type == CodeElementType.PROPERTY_GETTER.value:
-                # Fixed pattern to capture both decorator and method definition
-                pattern = fr'@property\s*\n\s*def\s+{re.escape(element_name)}\s*\([^)]*\)'
-                match = re.search(pattern, code, re.DOTALL)
-                if match:
-                    # Find the method start and end
-                    start_pos = match.start()
-                    start_line = code[:start_pos].count('\n') + 1
+                # First look for property_setter with matching name
+                for child in filtered_element.children:
+                    child_type_str = child.type.value if hasattr(child.type, 'value') else str(child.type)
+                    if child.name == element_name:
+                        if child_type_str == 'property_setter':
+                            property_setter = child
+                        elif child_type_str == 'property_getter':
+                            property_getter = child
 
-                    # Get the base indentation from the decorator line
-                    base_indent = None
-                    for i in range(start_line-1, min(start_line+2, len(code_lines))):
-                        line = code_lines[i]
-                        if '@property' in line:
-                            base_indent = self.get_indentation(line)
-                            break
+                # Priority: setter, getter
+                preferred = property_setter or property_getter
 
-                    if not base_indent:
-                        base_indent = self.get_indentation(code_lines[start_line-1]) if start_line-1 < len(code_lines) else '    '
-
-                    # Extract the complete property method
-                    property_block = []
-                    in_property = False
-                    for i in range(start_line-1, len(code_lines)):
-                        line = code_lines[i]
-
-                        # Start capturing at property decorator
-                        if '@property' in line:
-                            in_property = True
-
-                        if in_property:
-                            # Check if we've found the end of the method block
-                            line_indent = self.get_indentation(line)
-                            if (line.strip() and len(line_indent) <= len(base_indent) and 
-                                not line.strip().startswith('@') and i > start_line):
-                                break
-
-                            property_block.append(line)
-
-                    if property_block:
-                        return '\n'.join(property_block)
-
-            if element_name and element_type == CodeElementType.PROPERTY_SETTER.value:
-                # Similar pattern for property setter
-                pattern = fr'@{re.escape(element_name)}\.setter\s*\n\s*def\s+{re.escape(element_name)}\s*\([^)]*\)'
-                match = re.search(pattern, code, re.DOTALL)
-                if match:
-                    start_pos = match.start()
-                    start_line = code[:start_pos].count('\n') + 1
-
-                    # Get the base indentation from the decorator line
-                    base_indent = None
-                    for i in range(start_line-1, min(start_line+2, len(code_lines))):
-                        line = code_lines[i]
-                        if f'@{element_name}.setter' in line:
-                            base_indent = self.get_indentation(line)
-                            break
-
-                    if not base_indent:
-                        base_indent = self.get_indentation(code_lines[start_line-1]) if start_line-1 < len(code_lines) else '    '
-
-                    # Extract the complete setter method
-                    property_block = []
-                    in_property = False
-                    for i in range(start_line-1, len(code_lines)):
-                        line = code_lines[i]
-
-                        # Start capturing at setter decorator
-                        if f'@{element_name}.setter' in line:
-                            in_property = True
-
-                        if in_property:
-                            # Check if we've found the end of the method block
-                            line_indent = self.get_indentation(line)
-                            if (line.strip() and len(line_indent) <= len(base_indent) and 
-                                not line.strip().startswith('@') and i > start_line):
-                                break
-
-                            property_block.append(line)
-
-                    if property_block:
-                        return '\n'.join(property_block)
-
-            # Continue with the original implementation for other cases
-            parent_xpath = XPathParser.to_string(xpath_nodes[:-1])
-            parent_element = CodeHem.filter(elements_result, parent_xpath)
-            if parent_element and hasattr(parent_element, 'children'):
-                property_getters = []
-                property_setters = []
-                regular_methods = []
-                for child in parent_element.children:
-                    if hasattr(child, 'name') and child.name == element_name:
-                        if child.type == CodeElementType.PROPERTY_GETTER:
-                            property_getters.append(child)
-                        elif child.type == CodeElementType.PROPERTY_SETTER:
-                            property_setters.append(child)
-                        else:
-                            regular_methods.append(child)
-                if element_type == CodeElementType.PROPERTY_GETTER.value and property_getters:
-                    return extract_text(property_getters[0], code_lines)
-                if element_type == CodeElementType.PROPERTY_SETTER.value and property_setters:
-                    return extract_text(property_setters[0], code_lines)
-                if not element_type or element_type == 'method':
-                    if property_getters:
-                        return extract_text(property_getters[0], code_lines)
-                    if property_setters:
-                        return extract_text(property_setters[0], code_lines)
-                if regular_methods and (not property_getters) and (not property_setters):
-                    return extract_text(regular_methods[-1], code_lines)
+                if preferred:
+                    text = extract_text(preferred, code_lines)
+                    filtered_element = preferred
+            element_type_str = filtered_element.type.value if hasattr(filtered_element.type, 'value') else str(filtered_element.type)
+            if element_part is None and (not include_all) and (element_type_str in ['property_getter', 'property_setter', 'method']):
+                decorator_lines = [child.content for child in filtered_element.children if child.type == CodeElementType.DECORATOR]
+                if decorator_lines:
+                    text = '\n'.join(decorator_lines + [text])
+            if element_part == 'body':
+                return extract_body_only(text or '')
+            if element_part == 'def':
+                return extract_def_only(text or '')
+            if include_all:
+                decorators_text = '\n'.join([child.content for child in filtered_element.children if child.type == CodeElementType.DECORATOR])
+                return f'{text}\n{decorators_text}' if decorators_text else text
+            return text
         return None

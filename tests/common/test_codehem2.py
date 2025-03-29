@@ -83,7 +83,9 @@ class CodeHem2Tests(unittest.TestCase):
         getter_text = self.codehem.get_text_by_xpath(
             self.sample_code, "ExampleClass.value[property_getter]"
         )
-
+        print("\n-----------getter text:")
+        print(getter_text)
+        print('------------')
         self.assertIsNotNone(getter_text)
         self.assertIn('def value(self) -> int', getter_text)
 

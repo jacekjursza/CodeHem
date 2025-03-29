@@ -21,6 +21,7 @@ class CodeElement(BaseModel):
     def from_dict(raw_element: dict) -> 'CodeElement':
         element_type_str = raw_element.get('type', 'unknown')
         name = raw_element.get('name', '')
+        print(f"[from_dict] name={name}, type={element_type_str}")
         content = raw_element.get('content', '')
         element_type = CodeElementType.UNKNOWN
         if element_type_str == 'function':
@@ -44,23 +45,26 @@ class CodeElement(BaseModel):
         range_data = raw_element.get('range')
         code_range = None
         if range_data:
-            # Ensure line numbers are 1-indexed
             start_line = range_data['start']['line']
             end_line = range_data['end']['line']
-
-            # Ensure we don't convert already 1-indexed values
             if isinstance(start_line, int) and start_line == 0:
                 start_line = 1
             if isinstance(end_line, int) and end_line == 0:
                 end_line = 1
-
             code_range = CodeRange(
-                start_line=start_line, 
+                start_line=start_line,
                 start_column=range_data.get('start', {}).get('column', 0),
-                end_line=end_line, 
+                end_line=end_line,
                 end_column=range_data.get('end', {}).get('column', 0)
             )
-        element = CodeElement(type=element_type, name=name, content=content, range=code_range, parent_name=raw_element.get('class_name'), children=[])
+        element = CodeElement(
+            type=element_type,
+            name=name,
+            content=content,
+            range=code_range,
+            parent_name=raw_element.get('class_name'),
+            children=[]
+        )
         return element
 
     @property

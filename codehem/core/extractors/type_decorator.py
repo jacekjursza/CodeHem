@@ -36,16 +36,19 @@ class DecoratorExtractor(BaseExtractor):
         if not ast_handler:
             return []
         try:
-            (tree, code_bytes) = ast_handler.parse(code)
+            tree, code_bytes = ast_handler.parse(code)
             query_results = ast_handler.execute_query(handler.tree_sitter_query, tree, code_bytes)
             decorators = []
+
             for match in query_results:
                 decorator_def = None
                 decorator_name = None
                 dec_func_def = None
                 dec_def_name = None
                 func_name = None
-                for (node, node_type) in match:
+                parent_node = None
+
+                for node, node_type in match:
                     if node_type == 'decorator_def':
                         decorator_def = node
                     elif node_type == 'decorator_name':
@@ -56,11 +59,14 @@ class DecoratorExtractor(BaseExtractor):
                         dec_def_name = node
                     elif node_type == 'func_name':
                         func_name = node
+
                 if decorator_def and decorator_name:
                     name = ast_handler.get_node_text(decorator_name, code_bytes)
                     content = ast_handler.get_node_text(decorator_def, code_bytes)
                     parent_element = None
                     parent_name = None
+
+                    # Find the parent node (function or class being decorated)
                     parent_node = ast_handler.find_parent_of_type(decorator_def, 'decorated_definition')
                     if parent_node:
                         definition_node = ast_handler.find_child_by_field_name(parent_node, 'definition')
@@ -73,14 +79,35 @@ class DecoratorExtractor(BaseExtractor):
                                 name_node = ast_handler.find_child_by_field_name(definition_node, 'name')
                                 if name_node:
                                     parent_name = ast_handler.get_node_text(name_node, code_bytes)
-                    decorators.append({'type': 'decorator', 'name': name, 'content': content, 'parent_name': parent_name, 'range': {'start': {'line': decorator_def.start_point[0], 'column': decorator_def.start_point[1]}, 'end': {'line': decorator_def.end_point[0], 'column': decorator_def.end_point[1]}}})
+
+                    decorators.append({
+                        'type': 'decorator', 
+                        'name': name, 
+                        'content': content, 
+                        'parent_name': parent_name,
+                        'range': {
+                            'start': {'line': decorator_def.start_point[0] + 1, 'column': decorator_def.start_point[1]},
+                            'end': {'line': decorator_def.end_point[0] + 1, 'column': decorator_def.end_point[1]}
+                        }
+                    })
+
                 if dec_func_def and dec_def_name and func_name:
                     name = ast_handler.get_node_text(dec_def_name, code_bytes)
                     parent_name = ast_handler.get_node_text(func_name, code_bytes)
                     decorator_node = ast_handler.find_child_by_field_name(dec_func_def, 'decorator')
                     if decorator_node:
                         content = ast_handler.get_node_text(decorator_node, code_bytes)
-                        decorators.append({'type': 'decorator', 'name': name, 'content': content, 'parent_name': parent_name, 'range': {'start': {'line': decorator_node.start_point[0], 'column': decorator_node.start_point[1]}, 'end': {'line': decorator_node.end_point[0], 'column': decorator_node.end_point[1]}}})
+                        decorators.append({
+                            'type': 'decorator', 
+                            'name': name, 
+                            'content': content, 
+                            'parent_name': parent_name,
+                            'range': {
+                                'start': {'line': decorator_node.start_point[0] + 1, 'column': decorator_node.start_point[1]},
+                                'end': {'line': decorator_node.end_point[0] + 1, 'column': decorator_node.end_point[1]}
+                            }
+                        })
+
             return decorators
         except Exception as e:
             logger.debug(f'TreeSitter extraction error: {e}')
