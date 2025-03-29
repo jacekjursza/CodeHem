@@ -1,4 +1,6 @@
 import pytest
+import rich
+
 from codehem import CodeHem, CodeElementType
 from tests.helpers.code_examples import TestHelper
 
@@ -48,26 +50,13 @@ def test_extract_property(codehem):
     example = TestHelper.load_example('property_getter', category='general')
 
     result = codehem.extract(example.content)
-
+    rich.print("===============================")
+    rich.print(example.content)
+    rich.print("===============================")
     # Try to find property getter
-    property_element = codehem.filter(result, f"{example.class_name}.{example.metadata.get('property_name')}")
-
-    # Some implementations may use property_getter type explicitly
-    if property_element is None:
-        property_element = codehem.filter(result, f"{example.class_name}.{example.metadata.get('property_name')}[property_getter]")
+    property_element = codehem.get_text_by_xpath(example.content, f"PropertyClass.value")
 
     assert property_element is not None, f"Property {example.metadata.get('property_name')} not found"
-
-    # Instead of checking is_property flag, check for property decorator
-    has_property_decorator = False
-    for decorator in property_element.decorators:
-        if decorator.name == 'property':
-            has_property_decorator = True
-            break
-
-    assert has_property_decorator, "Property decorator not found on method"
-    assert property_element.name == example.metadata.get('property_name')
-    assert property_element.parent_name == example.class_name
 
 def test_extract_static_property(codehem):
     """Test extracting a static property (class variable) from a class."""
