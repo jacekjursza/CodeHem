@@ -51,7 +51,7 @@ class CodeHem2Tests(unittest.TestCase):
 
         # Test getting a property (should get the setter, which is defined later)
         property_text = self.codehem.get_text_by_xpath(
-            self.sample_code, "ExampleClass.value"
+            self.sample_code, "FILE.ExampleClass.value"
         )
         self.assertIsNotNone(property_text)
         self.assertIn("def value(self, new_value: int)", property_text, 

@@ -59,57 +59,99 @@ class PythonLanguageService(LanguageService):
         return match.group(1) if match else ''
 
     def _find_target_element(self, elements_result: CodeElementsResult, xpath_nodes: List['CodeElementXPathNode']) -> Optional[CodeElement]:
-        """Finds the target CodeElement based on parsed XPath."""
+        """Finds the target CodeElement based on parsed XPath, handling FILE prefix."""
         if not xpath_nodes:
             return None
 
-        target_node_info = xpath_nodes[-1]
-        target_name = target_node_info.name
-        target_type = target_node_info.type # Can be None
+        current_nodes = xpath_nodes
+        search_list = elements_result.elements # Domyślnie szukamy w elementach głównych
 
-        parent_element = None
-        if len(xpath_nodes) > 1:
-            parent_xpath_str = XPathParser.to_string(xpath_nodes[:-1])
-            from codehem import CodeHem # Avoid import inside method if possible
-            parent_element = CodeHem.filter(elements_result, parent_xpath_str)
-            if not parent_element:
-                 logger.debug(f"_find_target_element: Parent not found for XPath: {parent_xpath_str}")
+        # Sprawdź, czy pierwszy węzeł to FILE i zignoruj go w dalszym przetwarzaniu ścieżki
+        if current_nodes and current_nodes[0].type == CodeElementType.FILE.value:
+            logger.debug("_find_target_element: Detected FILE prefix, searching top-level elements.")
+            current_nodes = current_nodes[1:] # Pomiń węzeł FILE
+            if not current_nodes: # Jeśli XPath to tylko FILE, co zwrócić? Na razie None.
+                 logger.warning("_find_target_element: XPath contains only FILE node, cannot select specific element.")
                  return None
-            logger.debug(f"_find_target_element: Found parent: {parent_element.name} ({parent_element.type.value})")
-            search_list = parent_element.children
-        else:
+            # Nadal szukamy w elementach głównych
             search_list = elements_result.elements
+            parent_element_context = None # Jesteśmy na najwyższym poziomie
 
-        matches = []
-        for element in search_list:
-            name_match = (element.name == target_name)
-            if not name_match: continue
-            type_match = (target_type is None) or (element.type.value == target_type)
-            if not type_match: continue
-            matches.append(element)
+        # Przetwarzanie pozostałych węzłów (lub wszystkich, jeśli nie było FILE)
+        target_element = None
+        current_search_context = search_list # Lista elementów do przeszukania na danym poziomie
 
-        if not matches:
-            logger.debug(f"_find_target_element: No direct match found for '{target_name}' (type: {target_type})")
-            if target_type is None and parent_element: # Fallback for type-less XPath in class
-                 possible_matches = []
-                 for element in parent_element.children:
-                      if element.name == target_name and element.type in [CodeElementType.PROPERTY_SETTER, CodeElementType.PROPERTY_GETTER, CodeElementType.METHOD]:
-                           possible_matches.append(element)
+        for i, node in enumerate(current_nodes):
+            target_name = node.name
+            target_type = node.type # Może być None
+            found_in_level = None
+            possible_matches = [] # Dla obsługi getter/setter/method fallback
 
-                 if possible_matches:
-                      possible_matches.sort(key=lambda el: (
-                           2 if el.type == CodeElementType.PROPERTY_SETTER else
-                           1 if el.type == CodeElementType.PROPERTY_GETTER else
-                           0,
-                           el.range.start_line if el.range else 0
-                      ), reverse=True)
-                      logger.debug(f"_find_target_element: Found {len(possible_matches)} candidates for '{target_name}'. Selected: {possible_matches[0].type.value}")
-                      return possible_matches[0]
-            return None
+            logger.debug(f"_find_target_element: Level {i}, searching for name='{target_name}', type='{target_type}' in {len(current_search_context)} elements.")
 
-        matches.sort(key=lambda el: el.range.start_line if el.range else 0)
-        logger.debug(f"_find_target_element: Found {len(matches)} exact matches for '{target_name}' (type: {target_type}). Selected last.")
-        return matches[-1]
+            for element in current_search_context:
+                # Sprawdź dopasowanie nazwy
+                name_match = (element.name == target_name)
+                if not name_match: continue
+
+                # Sprawdź dopasowanie typu
+                type_match = (target_type is None) or (element.type.value == target_type)
+
+                if name_match and type_match:
+                     # Dokładne dopasowanie nazwy i typu (jeśli podany)
+                     possible_matches.append(element)
+                     logger.debug(f"  -> Found exact match: {element.name} ({element.type.value})")
+                elif name_match and target_type is None:
+                     # Dopasowanie nazwy, ale typ nie był specyfikowany w XPath
+                     # Sprawdź czy to potencjalny getter/setter/method (jeśli szukamy w klasie)
+                     if element.type in [CodeElementType.PROPERTY_SETTER, CodeElementType.PROPERTY_GETTER, CodeElementType.METHOD]:
+                          possible_matches.append(element)
+                          logger.debug(f"  -> Found potential match (name only): {element.name} ({element.type.value})")
+                     # Jeśli szukamy na najwyższym poziomie, a typ nie podany, może to być klasa lub funkcja
+                     elif parent_element_context is None and element.type in [CodeElementType.CLASS, CodeElementType.FUNCTION]:
+                          possible_matches.append(element)
+                          logger.debug(f"  -> Found potential top-level match (name only): {element.name} ({element.type.value})")
+
+
+            if not possible_matches:
+                logger.warning(f"_find_target_element: No element found at level {i} for name='{target_name}', type='{target_type}'.")
+                return None # Nie znaleziono na tym poziomie, przerwij
+
+            # Wybierz najlepszy z możliwych dopasowań
+            if len(possible_matches) == 1:
+                 found_in_level = possible_matches[0]
+            else:
+                 # Sortuj wg preferencji (Setter > Getter > Method > Class > Function) i linii
+                 possible_matches.sort(key=lambda el: (
+                      3 if el.type == CodeElementType.PROPERTY_SETTER else
+                      2 if el.type == CodeElementType.PROPERTY_GETTER else
+                      1 if el.type == CodeElementType.METHOD else
+                      0, # Domyślny priorytet dla reszty (np. klasa, funkcja)
+                      el.range.start_line if el.range else 0
+                 ), reverse=True) # Najwyższy priorytet i linia jako pierwsi
+                 found_in_level = possible_matches[0] # Wybierz najlepszy
+                 logger.debug(f"_find_target_element: Multiple candidates found ({len(possible_matches)}). Selected best: {found_in_level.name} ({found_in_level.type.value})")
+
+
+            # Jeśli to ostatni węzeł w XPath, znaleźliśmy cel
+            if i == len(current_nodes) - 1:
+                target_element = found_in_level
+                break
+            else:
+                # Jeśli są dalsze węzły, ustawiamy kontekst wyszukiwania na dzieci znalezionego elementu
+                parent_element_context = found_in_level # Zapamiętaj obecny element jako rodzica dla następnej iteracji
+                current_search_context = found_in_level.children
+                if not current_search_context:
+                     logger.warning(f"_find_target_element: Element '{found_in_level.name}' found, but has no children to continue search.")
+                     return None # Przerwij, jeśli nie ma dzieci do dalszego szukania
+
+
+        if target_element:
+             logger.debug(f"_find_target_element: Final target element found: {target_element.name} ({target_element.type.value})")
+        else:
+             logger.warning(f"_find_target_element: Could not find target element for XPath: {XPathParser.to_string(xpath_nodes)}")
+
+        return target_element
 
     def _extract_part(self, code: str, element: CodeElement, part_name: Optional[str]) -> Optional[str]:
         """
@@ -122,87 +164,88 @@ class PythonLanguageService(LanguageService):
 
         code_lines = code.splitlines()
         element_start_idx = element.range.start_line - 1
-        element_end_idx = element.range.end_line # Index of the line *after* the element's last line
+        element_end_idx = element.range.end_line
 
         if element_start_idx < 0 or element_end_idx > len(code_lines) or element_start_idx >= element_end_idx:
              logger.error(f"Invalid line range for element '{element.name}': {element.range}")
              return None
 
-        # --- Identify decorator and definition lines ---
         decorator_line_indices = set()
         definition_line_idx = -1
         first_body_line_idx = -1
 
-        # Get decorator line ranges
         for child in element.children:
             if child.type == CodeElementType.DECORATOR and child.range:
                 dec_start = child.range.start_line - 1
-                dec_end = child.range.end_line - 1 # Decorator range is inclusive
+                dec_end = child.range.end_line - 1
                 for i in range(dec_start, dec_end + 1):
                      if element_start_idx <= i < element_end_idx:
                           decorator_line_indices.add(i)
             elif child.type == CodeElementType.DECORATOR:
                  logger.warning(f"Decorator '{child.name}' for element '{element.name}' lacks range info.")
 
-        # Find definition line (first non-decorator, non-empty line)
         for i in range(element_start_idx, element_end_idx):
              if i not in decorator_line_indices and code_lines[i].strip():
-                  # Check if it looks like a Python definition
-                  if code_lines[i].strip().startswith(('def ', 'class ')):
+                  # Sprawdzamy czy to linia definicji dla Pythona
+                  # Dodajemy Static Property jako możliwy początek elementu
+                  if code_lines[i].strip().startswith(('def ', 'class ')) or element.type == CodeElementType.STATIC_PROPERTY:
                        definition_line_idx = i
-                       first_body_line_idx = i + 1
+                       # Dla static property cała linia to definicja i ciało
+                       first_body_line_idx = i if element.type == CodeElementType.STATIC_PROPERTY else i + 1
                        break
-                  else: # Treat first non-empty, non-decorator as definition (e.g., for static props)
+                  else: # Traktuj pierwszą linię nie-dekoratora jako definicję
                       definition_line_idx = i
-                      first_body_line_idx = i # Body starts on the same line
+                      first_body_line_idx = i # Zakładamy, że ciało może zacząć się od tej samej linii (np. dla prostych przypisań)
                       break
 
-        if definition_line_idx == -1: # Fallback if no definition line found
-             definition_line_idx = element_start_idx
-             first_body_line_idx = element_end_idx
-             logger.warning(f"Could not find definition line for element '{element.name}' in range {element.range.start_line}-{element.range.end_line}.")
+        if definition_line_idx == -1: # Fallback
+             # Jeśli element to tylko dekoratory (lub pusty), ustaw indeksy na początek/koniec
+             is_only_decorators = all(idx in decorator_line_indices for idx in range(element_start_idx, element_end_idx) if code_lines[idx].strip())
+             if is_only_decorators:
+                  definition_line_idx = element_start_idx
+                  first_body_line_idx = element_end_idx # Brak ciała
+             else: # Domyślny fallback
+                 definition_line_idx = element_start_idx
+                 first_body_line_idx = element_end_idx
+             logger.warning(f"Could not reliably find definition line for element '{element.name}' in range {element.range.start_line}-{element.range.end_line}. Using fallback indices.")
 
-        # --- Select lines based on 'part_name' ---
+
         start_idx_to_extract = -1
-        end_idx_to_extract = -1 # Exclusive end index
+        end_idx_to_extract = -1
 
         if part_name == 'body':
             start_idx_to_extract = first_body_line_idx
             end_idx_to_extract = element_end_idx
             if start_idx_to_extract >= end_idx_to_extract:
-                 logger.warning(f"Cannot extract '[body]' for '{element.name}', no body lines found.")
-                 return "" # Return empty string for empty body
+                 logger.debug(f"Cannot extract '[body]' for '{element.name}', no body lines found or calculated range invalid.")
+                 return ""
 
         elif part_name == 'def':
             start_idx_to_extract = definition_line_idx
             end_idx_to_extract = element_end_idx
-            if start_idx_to_extract == -1: # Should not happen with fallback, but check
-                logger.warning(f"Cannot extract '[def]' for '{element.name}', definition line not found.")
-                return None
+            if start_idx_to_extract == -1 or start_idx_to_extract >= end_idx_to_extract:
+                logger.warning(f"Cannot extract '[def]' for '{element.name}', definition line not found or range invalid.")
+                return None # Zwracamy None jeśli nie można znaleźć definicji
 
-
-        else: # Default or '[all]' -> return everything including decorators
+        else: # Default or '[all]' -> return everything
             start_idx_to_extract = element_start_idx
             end_idx_to_extract = element_end_idx
 
 
-        # --- Get the final lines ---
         if 0 <= start_idx_to_extract < end_idx_to_extract <= len(code_lines):
              result_lines = code_lines[start_idx_to_extract:end_idx_to_extract]
-             # --- ZMIANA: Usunięto logikę usuwania wcięć ---
              # Zwracamy linie z oryginalnymi wcięciami
              return '\n'.join(result_lines)
-        elif start_idx_to_extract == end_idx_to_extract: # Empty selection (e.g., empty body)
+        elif start_idx_to_extract == end_idx_to_extract:
              return ""
         else:
              logger.error(f"Calculated invalid extraction range [{start_idx_to_extract}:{end_idx_to_extract}] for element '{element.name}'.")
              return None
 
 
+
     def get_text_by_xpath_internal(self, code: str, xpath_nodes: List['CodeElementXPathNode']) -> Optional[str]:
-        """
-        Internal implementation for getting text based on parsed XPath nodes for Python.
-        """
+        """Internal implementation for getting text based on parsed XPath nodes for Python."""
         logger.debug(f"get_text_by_xpath_internal: Starting for XPath: {XPathParser.to_string(xpath_nodes)}")
         if not xpath_nodes:
             return None
@@ -223,7 +266,6 @@ class PythonLanguageService(LanguageService):
         logger.debug(f"get_text_by_xpath_internal: Found matching element: {target_element.name} ({target_element.type.value})")
 
         requested_part = xpath_nodes[-1].part
-        # Handle '[all]' - treat as no 'part' requested
         if xpath_nodes[-1].type == 'all':
              requested_part = None
              logger.debug(f"get_text_by_xpath_internal: Detected type '[all]', treating as no specific part requested.")

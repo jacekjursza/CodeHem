@@ -54,7 +54,7 @@ def test_extract_property(codehem):
     rich.print(example.content)
     rich.print("===============================")
     # Try to find property getter
-    property_element = codehem.get_text_by_xpath(example.content, f"PropertyClass.value")
+    property_element = codehem.get_text_by_xpath(example.content, f"FILE.PropertyClass.value")
 
     assert property_element is not None, f"Property {example.metadata.get('property_name')} not found"
 
