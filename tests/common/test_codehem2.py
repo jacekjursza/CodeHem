@@ -2,11 +2,11 @@
 Integration tests for CodeHem2 main class.
 """
 import unittest
-import os
-import tempfile
 
-from codehem import CodeHem, CodeElementType
+from codehem import CodeElementType, CodeHem
+
 from ..helpers.code_examples import TestHelper
+
 
 class CodeHem2Tests(unittest.TestCase):
     """Integration tests for CodeHem2."""
@@ -31,7 +31,7 @@ class CodeHem2Tests(unittest.TestCase):
     def test_get_text_by_xpath(self):
         """Test retrieving text content using XPath."""
         # Test getting a class
-        class_text = self.codehem.get_text_by_xpath(self.sample_code, "ExampleClass")
+        class_text = self.codehem.get_text_by_xpath(self.sample_code, "FILE.ExampleClass")
         self.assertIsNotNone(class_text)
         self.assertIn("class ExampleClass:", class_text)
 
@@ -69,22 +69,16 @@ class CodeHem2Tests(unittest.TestCase):
 
     def test_get_property_methods_by_xpath(self):
         """Test retrieving property getter and setter methods by XPath."""
-
-        property_text = self.codehem.get_text_by_xpath(self.sample_code, 'ExampleClass.value')
+        property_text = self.codehem.get_text_by_xpath(self.sample_code, 'FILE.ExampleClass.value')
         self.assertIsNotNone(property_text)
 
         self.assertIn('def value(self, new_value: int)', property_text, 
                       "Setter method should be returned for unqualified XPath (last definition wins)")
 
-        print("\n-----------")
-        print(property_text)
-        print('------------')
         getter_text = self.codehem.get_text_by_xpath(
             self.sample_code, "ExampleClass.value[property_getter]"
         )
-        print("\n-----------getter text:")
-        print(getter_text)
-        print('------------')
+
         self.assertIsNotNone(getter_text)
         self.assertIn('def value(self) -> int', getter_text)
 

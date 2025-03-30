@@ -10,35 +10,30 @@ logging.getLogger('tree_sitter').setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 code = '''
-from pydantic import BaseModel, Field
-from django.models import Model
+import os
+from typing import List, Dict, Optional
 
-class MyClass:
-    static_property: str = "Hello, World!"
-
-    def __init__(self, name: str):
-        self.name = name
-
-    @property
-    def new_property(self) -> str:
-        return f"Hello, {self.name}!"
+@dataclass
+class ExampleClass:
+    # Class constant
+    CONSTANT = 42
     
-    @new_property.setter
-    def new_property(self, value: str) -> None:
-        self.name = value
+    def __init__(self, value: int = 0):
+        self._value = value
+        
+    @property
+    def value(self) -> int:
+        return self._value
+        
+    @value.setter
+    def value(self, new_value: int) -> None:
+        self._value = new_value
 
-    @greetdecorator
-    def greet(self) -> str:
-        return f"Hello, {self.name}!"
+    def calculate(self, multiplier: int) -> int:
+        return self._value * multiplier
 
-    @mydecorator
-    def other(self, x: int, y: str) -> str:
-        return f"This is other: {x} {y}."
-
-
-class MyClass2:
-    def test(self) -> str:
-        return "Hello, World!"
+def standalone_function(param: str) -> str:
+    return param.upper()
 
 '''
 
@@ -82,12 +77,8 @@ def test_extractors():
     print("----- get_text tests:::: -----")
 
     versions = [
-        "FILE.MyClass.new_property[property_getter]",
-        "FILE.MyClass.new_property[property_setter]",
-        "FILE.MyClass.new_property[property_getter][body]",
-        "FILE.MyClass.new_property",
-        "FILE.MyClass.new_property[def]",
-        "FILE.MyClass.new_property[all]",
+        "FILE.ExampleClass.value",
+        "FILE.ExampleClass",
     ]
 
     for xpath in versions:
