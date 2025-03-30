@@ -17,6 +17,7 @@ from typing import List, Dict, Optional
 class ExampleClass:
     # Class constant
     CONSTANT = 42
+    inny_property: int = 0
     
     def __init__(self, value: int = 0):
         self._value = value
