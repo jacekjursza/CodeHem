@@ -44,12 +44,12 @@ class ExtractorHelpers:
                 logger.debug(f"  Extracted parameter: {param_info}")
                 parameters.append(param_info)
             else:
-                 logger.warning(f"  Failed to extract info for parameter node type: {param_node.type}, text: '{ast_handler.get_node_text(param_node, code_bytes)}'")
+                 # Zmieniono poziom logu na debug, bo ostrzeżenie może być zbyt częste dla nieobsługiwanych typów
+                 logger.debug(f"  Could not extract info for parameter node type: {param_node.type}, text: '{ast_handler.get_node_text(param_node, code_bytes)}'")
 
         return parameters
 
     # --- ZMIANA ---
-    # Poprawiona logika dla typed_parameter i default_parameter
     @staticmethod
     def extract_parameter(ast_handler, param_node, code_bytes) -> Optional[Dict[str, Any]]:
         """
@@ -61,61 +61,61 @@ class ExtractorHelpers:
 
         try:
             if node_type == 'identifier':
-                # Simple parameter: name
                 param_info['name'] = ast_handler.get_node_text(param_node, code_bytes)
 
             elif node_type == 'typed_parameter':
-                # Parameter with type: name: type
-                # Usually contains 'identifier' and 'type' children directly
+                # W typed_parameter nazwa to zazwyczaj *pierwsze* dziecko typu identifier
                 identifier_node = None
                 type_node = None
-                for child in param_node.children:
-                     if child.type == 'identifier' and identifier_node is None: # Bierzemy pierwszy identyfikator
+                for i in range(param_node.named_child_count):
+                     child = param_node.named_child(i)
+                     # Szukamy pierwszego identyfikatora jako nazwy
+                     if child.type == 'identifier' and identifier_node is None:
                           identifier_node = child
-                     elif child.type == 'type' and type_node is None:
+                     # Szukamy węzła typu (może być różnie nazwany w gramatyce)
+                     if child.type == 'type' or child.field_name == 'type': # Sprawdź pole field_name
                           type_node = child
-                     # Można też szukać po field_name, jeśli gramatyka to wspiera
-                     # identifier_node = param_node.child_by_field_name('name')
-                     # type_node = param_node.child_by_field_name('type')
 
                 if identifier_node:
                     param_info['name'] = ast_handler.get_node_text(identifier_node, code_bytes)
-                if type_node:
-                    param_info['type'] = ast_handler.get_node_text(type_node, code_bytes)
-                
-                # Jeśli nadal nie ma nazwy, spróbujmy znaleźć przez field name (fallback)
-                if param_info['name'] is None:
-                     name_node_fallback = param_node.child_by_field_name('name') # W starszych wersjach?
+                else:
+                     # Spróbujmy znaleźć przez pole 'name' jako fallback
+                     name_node_fallback = ast_handler.find_child_by_field_name(param_node, 'name')
                      if name_node_fallback and name_node_fallback.type == 'identifier':
                           param_info['name'] = ast_handler.get_node_text(name_node_fallback, code_bytes)
-                          logger.debug("  Used fallback child_by_field_name('name') for typed_parameter name.")
+                          logger.debug("  Used fallback find_child_by_field_name('name') for typed_parameter name.")
+                     else:
+                         logger.warning(f"Could not find identifier node for name in typed_parameter: {ast_handler.get_node_text(param_node, code_bytes)}")
+
+                if type_node:
+                    param_info['type'] = ast_handler.get_node_text(type_node, code_bytes)
+
 
             elif node_type == 'default_parameter':
-                # Parameter with default value: name = value OR name: type = value
-                name_field_node = ast_handler.find_child_by_field_name(param_node, 'name') # Usually 'identifier' or 'typed_parameter'
+                name_field_node = ast_handler.find_child_by_field_name(param_node, 'name')
                 value_node = ast_handler.find_child_by_field_name(param_node, 'value')
 
                 if name_field_node:
-                    if name_field_node.type == 'typed_parameter':
-                         # Extract name and type from the nested typed_parameter
-                         # Re-use logic by calling self recursively (or inline similar logic)
-                         nested_info = ExtractorHelpers.extract_parameter(ast_handler, name_field_node, code_bytes)
-                         if nested_info:
-                              param_info['name'] = nested_info.get('name')
-                              param_info['type'] = nested_info.get('type')
-                         else:
-                              logger.warning(f"Could not extract info from nested typed_parameter within default_parameter.")
-                    elif name_field_node.type == 'identifier':
-                         param_info['name'] = ast_handler.get_node_text(name_field_node, code_bytes)
+                    # Rekurencyjne wywołanie dla części 'name', która może być 'identifier' lub 'typed_parameter'
+                    nested_info = ExtractorHelpers.extract_parameter(ast_handler, name_field_node, code_bytes)
+                    if nested_info:
+                         param_info['name'] = nested_info.get('name')
+                         param_info['type'] = nested_info.get('type')
                     else:
-                         logger.warning(f"Unexpected node type '{name_field_node.type}' within 'default_parameter' name field.")
-                         param_info['name'] = ast_handler.get_node_text(name_field_node, code_bytes) # Fallback
+                         logger.warning(f"Could not extract info from nested node type '{name_field_node.type}' within default_parameter.")
+                         # Fallback - spróbuj potraktować jako zwykły tekst? Rzadki przypadek.
+                         param_info['name'] = ast_handler.get_node_text(name_field_node, code_bytes)
+
 
                 if value_node:
                     param_info['default'] = ast_handler.get_node_text(value_node, code_bytes)
                     param_info['optional'] = True
+                else:
+                     # Jeśli jest default_parameter, ale nie ma value node, to coś dziwnego
+                     logger.warning(f"Default parameter node lacks a 'value' node: {ast_handler.get_node_text(param_node, code_bytes)}")
+                     param_info['optional'] = True # Mimo wszystko oznacz jako opcjonalny
 
-            elif node_type == 'typed_default_parameter': # Direct handling for name: type = value
+            elif node_type == 'typed_default_parameter': # Zwykle nie występuje bezpośrednio, ale obsłużmy
                  name_node = ast_handler.find_child_by_field_name(param_node, 'name')
                  type_node = ast_handler.find_child_by_field_name(param_node, 'type')
                  value_node = ast_handler.find_child_by_field_name(param_node, 'value')
@@ -127,34 +127,38 @@ class ExtractorHelpers:
                       param_info['default'] = ast_handler.get_node_text(value_node, code_bytes)
                       param_info['optional'] = True
 
+
             # Handle *args, **kwargs
             elif node_type in ['list_splat_pattern', 'dictionary_splat_pattern', 'list_splat', 'dictionary_splat']:
                  inner_node = None
-                 # Try common structures
-                 if param_node.named_child_count > 0:
-                      inner_node = param_node.named_child(0)
-                 elif param_node.child_count > 0:
-                      inner_node = param_node.child(0)
-                      if inner_node and inner_node.type in ['*', '**'] and param_node.child_count > 1:
-                           inner_node = param_node.child(1)
+                 # Szukamy identyfikatora wewnątrz
+                 for i in range(param_node.named_child_count):
+                     child = param_node.named_child(i)
+                     if child.type == 'identifier':
+                          inner_node = child
+                          break
+                 # Fallback na nienazwane dzieci
+                 if inner_node is None:
+                      for i in range(param_node.child_count):
+                           child = param_node.child(i)
+                           if child.type == 'identifier':
+                                inner_node = child
+                                break
 
-                 if inner_node and inner_node.type == 'identifier':
+
+                 if inner_node:
                       prefix = '*' if node_type.startswith('list') else '**'
                       param_info['name'] = prefix + ast_handler.get_node_text(inner_node, code_bytes)
                       param_info['optional'] = True
-                 elif inner_node:
-                     logger.warning(f"Unexpected inner node type '{inner_node.type}' for splat pattern.")
-                     text = ast_handler.get_node_text(param_node, code_bytes)
-                     param_info['name'] = text # Fallback
-                     param_info['optional'] = True
                  else:
                      logger.warning(f"Could not find identifier within splat pattern node: {ast_handler.get_node_text(param_node, code_bytes)}")
 
+
             else:
-                 logger.warning(f"Unhandled parameter node type: {node_type}, text: '{ast_handler.get_node_text(param_node, code_bytes)}'")
+                 logger.debug(f"Unhandled parameter node type: {node_type}, text: '{ast_handler.get_node_text(param_node, code_bytes)}'")
                  return None
 
-            # Check if name was extracted
+            # Return info only if a name was successfully extracted
             if param_info['name']:
                 return param_info
             else:
@@ -165,8 +169,8 @@ class ExtractorHelpers:
             logger.error(f"Error extracting parameter from node type {node_type}: {e}", exc_info=True)
             return None
 
+
     # --- ZMIANA ---
-    # Poprawione zapytania TreeSitter dla return
     @staticmethod
     def extract_return_info(ast_handler, function_node, code_bytes):
         """Extract return type information."""
@@ -179,18 +183,21 @@ class ExtractorHelpers:
         body_node = ast_handler.find_child_by_field_name(function_node, 'body')
         if body_node:
             try:
-                # Query 1: Capture the node representing the returned value (if any)
-                # We capture any node (*) that follows the 'return' keyword inside the statement.
-                return_query_value = """
-                (return_statement
-                    value: (_) @return_value)
-                """
-                # Query 2: Capture 'return' statements that *don't* have a value following them.
-                # We capture the statement itself.
-                return_query_empty = """
-                (return_statement) @return_empty
-                (#unless-eq? @return_empty node (return_statement value: (_)))
-                """
+                # Query 1: Capture the node *after* 'return' keyword. '*' matches any single node.
+                # Use field name 'value' if the grammar supports it, otherwise capture the first child node.
+                # Assuming Python grammar uses 'value' field for the returned expression:
+                # return_query_value = '(return_statement value: (_) @return_value)' # Poprzednia wersja z błędem
+                # Bardziej odporna wersja - łapie pierwszy węzeł po return, jeśli istnieje:
+                return_query_value = '(return_statement (_) @return_value)'
+
+
+                # Query 2: Capture return statements that have only one child (the 'return' keyword itself)
+                return_query_empty = '(return_statement) @return_empty'
+
+                # Ensure queries are single strings without problematic whitespace/newlines
+                return_query_value = return_query_value.strip()
+                return_query_empty = return_query_empty.strip()
+
 
                 return_value_results = ast_handler.execute_query(return_query_value, body_node, code_bytes)
                 return_empty_results = ast_handler.execute_query(return_query_empty, body_node, code_bytes)
@@ -200,20 +207,27 @@ class ExtractorHelpers:
                 # Process returns with values
                 for node, capture_name in return_value_results:
                     if capture_name == 'return_value':
+                        # node is the value node
                         parent_stmt = node.parent # The return_statement node
-                        if parent_stmt and parent_stmt.id not in processed_stmts:
-                            return_values.append(ast_handler.get_node_text(node, code_bytes))
-                            processed_stmts.add(parent_stmt.id)
-                            logger.debug(f"  Extracted return value: {return_values[-1]}")
+                        if parent_stmt and parent_stmt.type == 'return_statement' and parent_stmt.id not in processed_stmts:
+                            # Make sure it's actually a return statement with more than just 'return'
+                            if parent_stmt.child_count > 1: # Should have 'return' + value node(s)
+                                return_values.append(ast_handler.get_node_text(node, code_bytes))
+                                processed_stmts.add(parent_stmt.id)
+                                logger.debug(f"  Extracted return value: {return_values[-1]}")
 
-                # Process empty returns
+                # Process empty returns - check nodes captured by the broader query
                 for node, capture_name in return_empty_results:
-                    if capture_name == 'return_empty' and node.id not in processed_stmts:
-                        return_values.append("None") # Represent empty return as None
-                        processed_stmts.add(node.id)
-                        logger.debug(f"  Extracted empty return (-> None)")
+                     if capture_name == 'return_empty' and node.id not in processed_stmts:
+                          # Check if it's truly an empty return (only 'return' keyword node)
+                          # Note: named_child_count might be 0 for empty return
+                          if node.named_child_count == 0 and node.child_count == 1 and node.child(0).type == 'return':
+                               return_values.append("None") # Represent empty return as None
+                               processed_stmts.add(node.id)
+                               logger.debug(f"  Extracted empty return (-> None)")
 
-                # Fallback if queries failed or yielded no results (less likely now)
+
+                # Fallback if queries failed or yielded no results
                 if not processed_stmts:
                      logger.debug("TreeSitter queries for return yielded no results, trying Regex fallback.")
                      function_text = ast_handler.get_node_text(function_node, code_bytes)
@@ -226,15 +240,15 @@ class ExtractorHelpers:
 
             except Exception as e:
                 logger.error(f"Error executing TreeSitter queries for return values: {e}. No return values extracted.", exc_info=False)
-                # Fallback can be added here if needed, but queries should ideally work or fail clearly
+
 
         return {'return_type': return_type, 'return_values': return_values}
 
     @staticmethod
     def extract_decorators(ast_handler, node, code_bytes):
         """Extract decorators from a node."""
-        # Keep empty as logic is in TemplateMethodExtractor
         return []
+
 
 class BaseExtractor(ABC):
     """Abstract base class for all extractors."""
@@ -247,7 +261,7 @@ class BaseExtractor(ABC):
         self.descriptor = language_type_descriptor
         self._ast_handler: Optional[ASTHandler] = None
 
-        if not self.descriptor and self.__class__.__name__ not in ['TemplateExtractor']: # TemplateExtractor jest ok bez deskryptora
+        if not self.descriptor and self.__class__.__name__ not in ['TemplateExtractor']:
              logger.warning(f"Extractor {self.__class__.__name__} initialized without a descriptor for language {self.language_code}.")
 
     def _get_ast_handler(self) -> Optional[ASTHandler]:
@@ -276,17 +290,14 @@ class BaseExtractor(ABC):
     def extract(self, code: str, context: Optional[Dict[str, Any]]=None) -> Union[List[Dict], Dict]:
         """Extract elements from the provided code."""
         context = context or {}
-        result: Union[List[Dict], Dict] = [] # Default to empty list
+        result: Union[List[Dict], Dict] = []
 
         if not self.descriptor:
-             # Allow TemplateExtractor base class to proceed without descriptor maybe?
              if self.__class__.__name__ not in ['TemplateExtractor']:
                  logger.error(f"Cannot extract for {self.__class__.__name__} - no descriptor provided.")
                  return result
-             # If it's just the template base, maybe it doesn't need to extract directly
              pass
 
-        # Check for custom extraction logic in the descriptor
         if self.descriptor and hasattr(self.descriptor, 'custom_extract') and self.descriptor.custom_extract:
              if hasattr(self.descriptor, 'extract') and callable(self.descriptor.extract):
                   logger.debug(f"Using custom extract() method from descriptor for {self.language_code}/{self.descriptor.element_type.value}")
@@ -298,11 +309,9 @@ class BaseExtractor(ABC):
              else:
                   logger.error(f"Descriptor {self.descriptor.__class__.__name__} marked custom_extract=True but is missing extract() method.")
                   result = []
-        elif self.descriptor: # Use pattern-based extraction if descriptor exists and is not custom
+        elif self.descriptor:
              result = self._extract_with_patterns(code, self.descriptor, context)
-        # else: # No descriptor and not custom - likely an abstract base or template, do nothing
 
-        # Filter list results based on context
         if isinstance(result, list) and context:
              filtered_result = []
              for item in result:
@@ -312,13 +321,12 @@ class BaseExtractor(ABC):
              result = filtered_result
         elif isinstance(result, dict) and context:
              if not all(result.get(k) == v for k, v in context.items()):
-                 result = [] # Return empty list if single dict doesn't match context
+                 result = []
 
-        # Ensure result type consistency (mostly lists, except special cases)
         if self.ELEMENT_TYPE != CodeElementType.IMPORT and not isinstance(result, list):
              if isinstance(result, dict):
                   result = [result]
-             elif result is None: # Handle None case explicitly
+             elif result is None:
                   result = []
              else:
                   logger.warning(f"Extractor {self.__class__.__name__} returned non-list/non-dict/non-None result: {type(result)}. Returning empty list.")

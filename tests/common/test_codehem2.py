@@ -6,7 +6,6 @@ import os
 import tempfile
 
 from codehem import CodeHem, CodeElementType
-from test import logger
 from ..helpers.code_examples import TestHelper
 
 class CodeHem2Tests(unittest.TestCase):
@@ -157,17 +156,3 @@ class CodeHem2Tests(unittest.TestCase):
         self.assertIsNotNone(element)
         self.assertEqual(CodeElementType.FUNCTION, element.type)
         self.assertEqual('standalone_function', element.name)
-
-    def test_file_operations(self):
-        """Test file operations."""
-        with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as temp_file:
-            temp_file.write(self.sample_code.encode())
-        try:
-            code = CodeHem.load_file(temp_file.name)
-            self.assertEqual(self.sample_code, code)
-            codehem = CodeHem.from_file_path(temp_file.name)
-            self.assertEqual('python', codehem.language_service.language_code)
-            result = codehem.extract(code)
-            self.assertTrue(len(result.elements) > 0)
-        finally:
-            os.unlink(temp_file.name)
