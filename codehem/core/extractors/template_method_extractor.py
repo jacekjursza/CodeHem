@@ -1,387 +1,454 @@
-"""
-Template implementation for method extractor.
-"""
+# codehem/core/extractors/template_method_extractor.py
 import logging
 import re
+from typing import Dict, List, Any, Optional, Tuple
 from codehem.core.extractors.extraction_base import TemplateExtractor, ExtractorHelpers
 from codehem.models.enums import CodeElementType
 from codehem.core.registry import extractor
+from tree_sitter import Node
+from codehem.models.range import CodeRange
+from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 logger = logging.getLogger(__name__)
 
 @extractor
 class TemplateMethodExtractor(TemplateExtractor):
-    """Template implementation for method extraction."""
+    """
+    Skonsolidowany ekstraktor dla metod, getterów i setterów.
+    Wersja 8.
+    --- ZMIANY ---
+    - Poprawiono _extract_all_decorators do lepszego rozpoznawania nazw (identifier, attribute, call).
+    - Poprawiono _determine_element_type do prawidłowego rozpoznawania PROPERTY_GETTER i PROPERTY_SETTER.
+    """
     ELEMENT_TYPE = CodeElementType.METHOD
 
-    def _process_tree_sitter_results(self, query_results, code_bytes, ast_handler, context):
-        """Process tree-sitter query results for methods.
-        MODIFIED: Adds definition start location for deduplication.
-        """
-        methods = []
-        method_nodes = {}
-        decorated_method_nodes = {}
-        processed_def_node_ids = set()
-        temp_decorators = {}
+    def __init__(self, language_code: str, language_type_descriptor: ElementTypeLanguageDescriptor):
+        super().__init__(language_code, language_type_descriptor)
+        if not self.descriptor or not (self.descriptor.tree_sitter_query or self.descriptor.regexp_pattern):
+            logger.warning(f'Deskryptor dla {language_code}/{self.ELEMENT_TYPE.value} nie dostarczył wzorców.')
 
-        # First pass - collect all decorators
-        for node, capture_name in query_results:
-            if capture_name == 'decorator':
-                parent = node.parent
-                if parent and parent.type == 'decorated_definition':
-                    def_node = ast_handler.find_child_by_field_name(parent, 'definition')
-                    if def_node:
-                        name_node = ast_handler.find_child_by_field_name(def_node, 'name')
-                        if name_node:
-                            method_name = ast_handler.get_node_text(name_node, code_bytes)
-                            decorator_content = ast_handler.get_node_text(node, code_bytes)
-                            decorator_name = None
-                            name_node = node.child_by_field_name('name')
-                            if name_node:
-                                decorator_name = ast_handler.get_node_text(name_node, code_bytes)
-                            elif node.named_child_count > 0:
-                                for j in range(node.named_child_count):
-                                    sub_child = node.named_child(j)
-                                    if sub_child.type == 'identifier':
-                                        decorator_name = ast_handler.get_node_text(sub_child, code_bytes)
-                                        break
-                                    elif sub_child.type == 'attribute':
-                                        obj_node = ast_handler.find_child_by_field_name(sub_child, 'object')
-                                        attr_node = ast_handler.find_child_by_field_name(sub_child, 'attribute')
-                                        if obj_node and attr_node:
-                                            obj_name = ast_handler.get_node_text(obj_node, code_bytes)
-                                            attr_name = ast_handler.get_node_text(attr_node, code_bytes)
-                                            decorator_name = f'{obj_name}.{attr_name}'
-                                            break
-
-                            # Use function node ID as the key
-                            node_id = def_node.id
-                            if node_id not in temp_decorators:
-                                temp_decorators[node_id] = []
-
-                            dec_range_data = {'start': {'line': node.start_point[0] + 1, 'column': node.start_point[1]}, 
-                                              'end': {'line': node.end_point[0] + 1, 'column': node.end_point[1]}}
-
-                            temp_decorators[node_id].append({
-                                'name': decorator_name, 
-                                'content': decorator_content, 
-                                'range': dec_range_data
-                            })
-
-        for node, capture_name in query_results:
-            if capture_name == 'decorated_method_def':
-                definition_node = ast_handler.find_child_by_field_name(node, 'definition')
-                if definition_node and definition_node.type in ['function_definition', 'method_definition']:
-                    if definition_node.id not in processed_def_node_ids:
-                        decorated_method_nodes[definition_node.id] = node
-                        processed_def_node_ids.add(definition_node.id)
-
-            elif capture_name == 'method_def':
-                definition_node = node
-                if definition_node.type in ['function_definition', 'method_definition']:
-                    if definition_node.id not in processed_def_node_ids:
-                        is_likely_property = False
-
-                        # Check if we have collected decorators for this node and if any is a property decorator
-                        if definition_node.id in temp_decorators:
-                            for dec in temp_decorators[definition_node.id]:
-                                if dec['name'] == 'property' or (isinstance(dec['name'], str) and '.setter' in dec['name']):
-                                    is_likely_property = True
-                                    break
-
-                        # If parent is decorated definition, also check directly
-                        if definition_node.parent and definition_node.parent.type == 'decorated_definition':
-                            for i in range(definition_node.parent.named_child_count):
-                                child = definition_node.parent.named_child(i)
-                                if child.type == 'decorator':
-                                    dec_name_node = ast_handler.find_child_by_field_name(child, 'name')
-                                    dec_name = ast_handler.get_node_text(dec_name_node, code_bytes) if dec_name_node else None
-                                    if dec_name == 'property' or (isinstance(dec_name, str) and '.setter' in dec_name):
-                                        is_likely_property = True
-                                        break
-
-                        if not is_likely_property:
-                            method_nodes[definition_node.id] = definition_node
-                            processed_def_node_ids.add(definition_node.id)
-
-        for def_node_id, definition_node in method_nodes.items():
-            name_node = ast_handler.find_child_by_field_name(definition_node, 'name')
-            if not name_node:
-                continue
-            method_name = ast_handler.get_node_text(name_node, code_bytes)
-            definition_start_line = definition_node.start_point[0] + 1
-            definition_start_col = definition_node.start_point[1]
-            content = ast_handler.get_node_text(definition_node, code_bytes)
-            full_range_data = {'start': {'line': definition_start_line, 'column': definition_start_col}, 
-                              'end': {'line': definition_node.end_point[0] + 1, 'column': definition_node.end_point[1]}}
-            class_name = self._get_class_name(definition_node, context, ast_handler, code_bytes)
-            parameters = ExtractorHelpers.extract_parameters(ast_handler, definition_node, code_bytes)
-            return_info = ExtractorHelpers.extract_return_info(ast_handler, definition_node, code_bytes)
-
-            # Get decorators for this method if any were collected
-            decorators = temp_decorators.get(def_node_id, [])
-
-            method_info = {
-                'type': 'method', 
-                'name': method_name, 
-                'content': content, 
-                'class_name': class_name, 
-                'range': full_range_data, 
-                'decorators': decorators, 
-                'parameters': parameters, 
-                'return_info': return_info, 
-                'definition_start_line': definition_start_line, 
-                'definition_start_col': definition_start_col
-            }
-            methods.append(method_info)
-
-        for def_node_id, decorated_node in decorated_method_nodes.items():
-            definition_node = ast_handler.find_child_by_field_name(decorated_node, 'definition')
-            if not definition_node:
-                continue
-            name_node = ast_handler.find_child_by_field_name(definition_node, 'name')
-            if not name_node:
-                continue
-            method_name = ast_handler.get_node_text(name_node, code_bytes)
-
-            # Get decorators for this method if any were collected
-            decorators = temp_decorators.get(def_node_id, [])
-
-            # If we didn't collect decorators earlier, try to extract them now
-            if not decorators:
-                decorators = self._extract_decorators_from_node(decorated_node, ast_handler, code_bytes)
-
-            is_likely_property = False
-            for dec in decorators:
-                dec_name = dec.get('name')
-                if dec_name == 'property' or (isinstance(dec_name, str) and '.setter' in dec_name):
-                    is_likely_property = True
-                    break
-
-            # If it's a property, don't treat it as a method - let the property extractors handle it
-            if is_likely_property:
-                logger.debug(f"Method extractor skipping '{method_name}' as it's likely a property.")
-                continue
-
-            definition_start_line = definition_node.start_point[0] + 1
-            definition_start_col = definition_node.start_point[1]
-            content = ast_handler.get_node_text(decorated_node, code_bytes)
-            full_range_data = {'start': {'line': decorated_node.start_point[0] + 1, 'column': decorated_node.start_point[1]}, 
-                              'end': {'line': decorated_node.end_point[0] + 1, 'column': decorated_node.end_point[1]}}
-            class_name = self._get_class_name(decorated_node, context, ast_handler, code_bytes)
-            parameters = ExtractorHelpers.extract_parameters(ast_handler, definition_node, code_bytes)
-            return_info = ExtractorHelpers.extract_return_info(ast_handler, definition_node, code_bytes)
-
-            method_info = {
-                'type': 'method', 
-                'name': method_name, 
-                'content': content, 
-                'class_name': class_name, 
-                'range': full_range_data, 
-                'decorators': decorators, 
-                'parameters': parameters, 
-                'return_info': return_info, 
-                'definition_start_line': definition_start_line, 
-                'definition_start_col': definition_start_col
-            }
-            methods.append(method_info)
-
-        return methods
-
-    def _process_decorator(self, node, decorator_nodes, ast_handler, code_bytes):
-        """Process a decorator node and add to dictionary."""
-        parent = node.parent
-        if parent and parent.type == 'decorated_definition':
-            def_node = ast_handler.find_child_by_field_name(parent, 'definition')
-            if def_node and def_node.type in ['function_definition', 'method_definition']:
-                name_node = ast_handler.find_child_by_field_name(def_node, 'name')
+    def _get_actual_parent_class_name(self, node: Node, ast_handler: Any, code_bytes: bytes) -> Optional[str]:
+        class_node_types = ['class_definition', 'class_declaration'] # Dodaj inne typy węzłów klas dla innych języków
+        current_node = node.parent
+        while current_node:
+            if current_node.type in class_node_types:
+                # Spróbuj znaleźć nazwę przez pole 'name'
+                name_node = ast_handler.find_child_by_field_name(current_node, 'name')
                 if name_node:
-                    method_name = ast_handler.get_node_text(name_node, code_bytes)
-                    if method_name not in decorator_nodes:
-                        decorator_nodes[method_name] = []
-                    decorator_content = ast_handler.get_node_text(node, code_bytes)
-                    decorator_name = None
-                    name_node = node.child_by_field_name('name')
-                    if name_node:
-                        decorator_name = ast_handler.get_node_text(name_node, code_bytes)
-                    elif node.named_child_count > 0:
-                        for i in range(node.named_child_count):
-                            child = node.named_child(i)
-                            if child.type == 'identifier':
-                                decorator_name = ast_handler.get_node_text(child, code_bytes)
-                                break
-                    decorator_nodes[method_name].append({'name': decorator_name, 'content': decorator_content})
+                    return ast_handler.get_node_text(name_node, code_bytes)
+                else:
+                    # Fallback: poszukaj pierwszego identyfikatora (przydatne np. w TS)
+                    for child in current_node.children:
+                        if child.type in ['identifier', 'type_identifier']:
+                            return ast_handler.get_node_text(child, code_bytes)
+                return None # Nie znaleziono nazwy w węźle klasy
+            current_node = current_node.parent
+        return None  # Nie znaleziono węzła klasy nadrzędnej
 
-    def _process_regular_methods(self, method_nodes, methods, code_bytes, ast_handler, context, decorator_nodes):
-        """Process regular (non-decorated) methods."""
-        for method_name, method_node in method_nodes.items():
-            content = ast_handler.get_node_text(method_node, code_bytes)
-            class_name = self._get_class_name(method_node, context, ast_handler, code_bytes)
-            parameters = ExtractorHelpers.extract_parameters(ast_handler, method_node, code_bytes)
-            return_info = ExtractorHelpers.extract_return_info(ast_handler, method_node, code_bytes)
-            decorators = decorator_nodes.get(method_name, [])
-            method_info = {'type': 'method', 'name': method_name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': method_node.start_point[0] + 1, 'column': method_node.start_point[1]}, 'end': {'line': method_node.end_point[0] + 1, 'column': method_node.end_point[1]}}, 'decorators': decorators, 'parameters': parameters, 'return_info': return_info}
-            methods.append(method_info)
-
-    def _process_decorated_methods(self, decorated_methods, methods, code_bytes, ast_handler, context, decorator_nodes):
-        """Process decorated methods."""
-        for method_name, decorated_node in decorated_methods.items():
-            def_node = ast_handler.find_child_by_field_name(decorated_node, 'definition')
-            if not def_node:
-                continue
-            content = ast_handler.get_node_text(decorated_node, code_bytes)
-            class_name = self._get_class_name(decorated_node, context, ast_handler, code_bytes)
-            parameters = ExtractorHelpers.extract_parameters(ast_handler, def_node, code_bytes)
-            return_info = ExtractorHelpers.extract_return_info(ast_handler, def_node, code_bytes)
-            decorators = decorator_nodes.get(method_name, [])
-            if not decorators:
-                decorators = self._extract_decorators_from_node(decorated_node, ast_handler, code_bytes)
-            method_info = {'type': 'method', 'name': method_name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': decorated_node.start_point[0] + 1, 'column': decorated_node.start_point[1]}, 'end': {'line': decorated_node.end_point[0] + 1, 'column': decorated_node.end_point[1]}}, 'decorators': decorators, 'parameters': parameters, 'return_info': return_info}
-            methods.append(method_info)
-
-    def _extract_decorators_from_node(self, decorated_node, ast_handler, code_bytes):
-        """Extract decorators directly from a decorated definition node."""
+    def _extract_all_decorators(
+        self, definition_node: Node, ast_handler: Any, code_bytes: bytes
+    ) -> List[Dict[str, Any]]:
+        """Wyodrębnia wszystkie dekoratory powiązane z danym węzłem definicji (Poprawiona wersja)."""
         decorators = []
-        for i in range(decorated_node.named_child_count):
-            child = decorated_node.named_child(i)
-            if child.type == 'decorator':
-                decorator_content = ast_handler.get_node_text(child, code_bytes)
-                decorator_name = None
-                name_node = child.child_by_field_name('name')
-                if name_node:
-                    decorator_name = ast_handler.get_node_text(name_node, code_bytes)
-                elif child.named_child_count > 0:
-                    for j in range(child.named_child_count):
-                        sub_child = child.named_child(j)
-                        if sub_child.type == 'identifier':
-                            decorator_name = ast_handler.get_node_text(sub_child, code_bytes)
-                            break
-                decorators.append({'name': decorator_name, 'content': decorator_content})
+        parent_node = definition_node.parent
+
+        if parent_node and parent_node.type == "decorated_definition":
+            for child_idx, child in enumerate(parent_node.children):
+                if child.type == "decorator":
+                    decorator_content = ast_handler.get_node_text(child, code_bytes)
+                    decorator_name = None
+                    # Nazwa dekoratora jest zwykle węzłem wewnątrz węzła 'decorator'
+                    # Może to być 'identifier', 'attribute' lub 'call'
+                    # Tree-sitter dla Pythona często opakowuje to w 'expression_statement'
+
+                    actual_name_node = child.child(
+                        0
+                    )  # Potencjalny 'expression_statement' lub bezpośrednio nazwa
+                    if (
+                        actual_name_node
+                        and actual_name_node.type == "expression_statement"
+                        and actual_name_node.child_count > 0
+                    ):
+                        actual_name_node = actual_name_node.child(
+                            0
+                        )  # Przechodzimy do właściwego węzła
+                    elif (
+                        actual_name_node and actual_name_node.type == "@"
+                    ):  # Czasem '@' jest osobnym węzłem
+                        if child.child_count > 1:
+                            actual_name_node = child.child(1)  # Bierzemy następny węzeł
+                        else:
+                            actual_name_node = None  # Nie ma nic po '@' ?
+
+                    if actual_name_node:
+                        node_type = actual_name_node.type
+                        logger.debug(
+                            f"    _extract_all_decorators: Analizowanie węzła nazwy typu '{node_type}' dla: {decorator_content}"
+                        )
+
+                        if node_type == "identifier":
+                            decorator_name = ast_handler.get_node_text(
+                                actual_name_node, code_bytes
+                            )
+                            logger.debug(
+                                f"      -> Rozpoznano 'identifier': name='{decorator_name}'"
+                            )
+
+                        elif node_type == "attribute":
+                            obj_node = ast_handler.find_child_by_field_name(
+                                actual_name_node, "object"
+                            )
+                            attr_node = ast_handler.find_child_by_field_name(
+                                actual_name_node, "attribute"
+                            )
+                            if (
+                                obj_node
+                                and attr_node
+                                and obj_node.type == "identifier"
+                                and attr_node.type == "identifier"
+                            ):
+                                obj_name = ast_handler.get_node_text(
+                                    obj_node, code_bytes
+                                )
+                                attr_name = ast_handler.get_node_text(
+                                    attr_node, code_bytes
+                                )
+                                decorator_name = f"{obj_name}.{attr_name}"
+                                logger.debug(
+                                    f"      -> Rozpoznano 'attribute': object='{obj_name}', attribute='{attr_name}' -> name='{decorator_name}'"
+                                )
+                            else:
+                                logger.warning(
+                                    f"      -> Niekompletny lub nieoczekiwany węzeł 'attribute': obj={obj_node.type if obj_node else 'None'}, attr={attr_node.type if attr_node else 'None'} w {decorator_content}"
+                                )
+
+                        elif node_type == "call":
+                            func_node = ast_handler.find_child_by_field_name(
+                                actual_name_node, "function"
+                            )
+                            if func_node:
+                                if func_node.type == "identifier":
+                                    decorator_name = ast_handler.get_node_text(
+                                        func_node, code_bytes
+                                    )
+                                    logger.debug(
+                                        f"      -> Rozpoznano 'call(identifier)': name='{decorator_name}'"
+                                    )
+                                elif func_node.type == "attribute":
+                                    obj_node = ast_handler.find_child_by_field_name(
+                                        func_node, "object"
+                                    )
+                                    attr_node = ast_handler.find_child_by_field_name(
+                                        func_node, "attribute"
+                                    )
+                                    if (
+                                        obj_node
+                                        and attr_node
+                                        and obj_node.type == "identifier"
+                                        and attr_node.type == "identifier"
+                                    ):
+                                        obj_name = ast_handler.get_node_text(
+                                            obj_node, code_bytes
+                                        )
+                                        attr_name = ast_handler.get_node_text(
+                                            attr_node, code_bytes
+                                        )
+                                        decorator_name = f"{obj_name}.{attr_name}"
+                                        logger.debug(
+                                            f"      -> Rozpoznano 'call(attribute)': object='{obj_name}', attribute='{attr_name}' -> name='{decorator_name}'"
+                                        )
+                                    else:
+                                        logger.warning(
+                                            f"      -> Niekompletny 'attribute' w wywołaniu dekoratora: obj={obj_node.type if obj_node else 'None'}, attr={attr_node.type if attr_node else 'None'} w {decorator_content}"
+                                        )
+                                else:
+                                    logger.warning(
+                                        f"      -> Nieoczekiwany typ funkcji '{func_node.type}' w wywołaniu dekoratora: {decorator_content}"
+                                    )
+                            else:
+                                logger.warning(
+                                    f"      -> Brak węzła funkcji w wywołaniu dekoratora: {decorator_content}"
+                                )
+                        else:
+                            logger.warning(
+                                f"    _extract_all_decorators: Nieobsługiwany główny typ węzła nazwy dekoratora '{node_type}': {decorator_content}"
+                            )
+
+                    else:
+                        logger.warning(
+                            f"    _extract_all_decorators: Nie znaleziono węzła nazwy wewnątrz dekoratora: {decorator_content}"
+                        )
+
+                    if decorator_name is None:
+                        # Zastosuj fallback tylko jeśli absolutnie nic nie znaleziono
+                        decorator_name = decorator_content.lstrip("@").strip()
+                        logger.warning(
+                            f'    _extract_all_decorators: Użyto fallback dla nazwy dekoratora: "{decorator_name}" z {decorator_content}'
+                        )
+
+                    # Tworzenie słownika dla dekoratora
+                    dec_range_dict = {
+                        "start_line": child.start_point[0] + 1,
+                        "start_column": child.start_point[1],
+                        "end_line": child.end_point[0] + 1,
+                        "end_column": child.end_point[1],
+                    }
+                    decorators.append(
+                        {
+                            "name": decorator_name,
+                            "content": decorator_content,
+                            "range": dec_range_dict,
+                        }
+                    )
+                    logger.debug(
+                        f"    _extract_all_decorators: Finalnie dodano dekorator [{child_idx}]: name='{decorator_name}', content='{decorator_content[:50]}...'"
+                    ) # Skrócony content w logu
+
         return decorators
 
-    def _get_class_name(self, node, context, ast_handler, code_bytes):
-        """Get class name for a method node."""
-        class_name = None
-        if context.get('class_name'):
-            class_name = context.get('class_name')
-        else:
-            class_node = ast_handler.find_parent_of_type(node, 'class_definition')
-            if not class_node:
-                class_node = ast_handler.find_parent_of_type(node, 'class_declaration')
-            if class_node:
-                class_name_node = ast_handler.find_child_by_field_name(class_node, 'name')
-                if class_name_node:
-                    class_name = ast_handler.get_node_text(class_name_node, code_bytes)
-        return class_name
 
-    def _process_regex_results(self, matches, code, context):
-        """Process regex match results for methods."""
-        methods = []
-        class_name = context.get('class_name')
-        class_content = code
-        class_offset = 0
-        if class_name:
-            class_pattern = f'class\\s+{re.escape(class_name)}(?:\\s*\\([^)]*\\))?\\s*:(.*?)(?=\\n(?:class|def\\s+\\w+\\s*\\([^s]|$))'
-            class_match = re.search(class_pattern, code, re.DOTALL)
-            if class_match:
-                class_content = class_match.group(1)
-                class_offset = class_match.start(1)
-        base_indent = ' ' * 4 if class_name else ''
-        pattern = f'{re.escape(base_indent)}' + self.descriptor.regexp_pattern if class_name else self.descriptor.regexp_pattern
+    def _determine_element_type(self, decorators: List[Dict[str, Any]], element_name: str) -> Tuple[CodeElementType, Optional[str]]:
+        # ... (Implementacja z poprzedniej odpowiedzi, która używa poprawionych nazw) ...
+        is_getter, is_setter, setter_prop_name = (False, False, None)
+        logger.debug(f"  _determine_element_type: Sprawdzanie typu dla '{element_name}' na podstawie {len(decorators)} dekoratorów...")
+        for idx, dec in enumerate(decorators):
+            dec_name = dec.get('name') # Teraz powinno być poprawnie sparsowane
+            logger.debug(f"    _determine_element_type: Sprawdzanie dekoratora [{idx}]: name='{dec_name}'")
+            if dec_name == 'property':
+                is_getter = True
+                logger.debug(f'      -> Rozpoznano jako @property (potencjalny GETTER).')
+            # Poprawione sprawdzanie settera
+            if isinstance(dec_name, str) and dec_name.endswith('.setter'):
+                 prop_name_candidate = dec_name[:-len('.setter')]
+                 # Sprawdzamy, czy nazwa właściwości z dekoratora pasuje do nazwy metody
+                 if prop_name_candidate == element_name:
+                      is_setter = True
+                      setter_prop_name = prop_name_candidate
+                      logger.debug(f'      -> Rozpoznano jako {dec_name} (SETTER dla właściwości {setter_prop_name}).')
+                      break # Setter ma pierwszeństwo
+
+        final_type = CodeElementType.METHOD
+        if is_setter:
+            final_type = CodeElementType.PROPERTY_SETTER
+        elif is_getter:
+            final_type = CodeElementType.PROPERTY_GETTER
+        logger.debug(f"  _determine_element_type: Finalna klasyfikacja dla '{element_name}' -> {final_type.value}")
+        return (final_type, setter_prop_name)
+
+
+    def _extract_common_info(self, definition_node: Node, ast_handler: Any, code_bytes: bytes) -> Optional[Dict[str, Any]]:
+        """Wyodrębnia wspólne informacje (nazwa, parametry, typ zwrotny, treść, zakres)."""
+        info = {}
+        name_node = ast_handler.find_child_by_field_name(definition_node, 'name')
+        if not name_node:
+            logger.warning(f"Węzeł definicji (type: {definition_node.type}, id: {definition_node.id}) nie ma pola 'name'.")
+            return None
+
+        info['name'] = ast_handler.get_node_text(name_node, code_bytes)
+        # Używamy zaktualizowanej logiki z ExtractorHelpers
+        info['parameters'] = ExtractorHelpers.extract_parameters(ast_handler, definition_node, code_bytes, is_self_or_this=True)
+        info['return_info'] = ExtractorHelpers.extract_return_info(ast_handler, definition_node, code_bytes)
+
+        # Zakres i treść powinny obejmować dekoratory, jeśli istnieją
+        parent_node = definition_node.parent
+        node_for_range_and_content = definition_node # Domyślnie sam węzeł definicji
+        if parent_node and parent_node.type == 'decorated_definition':
+            # Jeśli jest dekorowany, bierzemy cały węzeł 'decorated_definition'
+            node_for_range_and_content = parent_node
+            logger.debug(f"    _extract_common_info: Element '{info['name']}' jest dekorowany, użyto parent node dla zakresu/treści.")
+
+        try:
+            info['content'] = ast_handler.get_node_text(node_for_range_and_content, code_bytes)
+            info['range'] = {
+                'start': {
+                    'line': node_for_range_and_content.start_point[0] + 1,
+                    'column': node_for_range_and_content.start_point[1]
+                },
+                'end': {
+                    'line': node_for_range_and_content.end_point[0] + 1,
+                    'column': node_for_range_and_content.end_point[1]
+                }
+            }
+            # Dodajemy też informację o początku samej definicji (bez dekoratorów), może być przydatne
+            info['definition_start_line'] = definition_node.start_point[0] + 1
+            info['definition_start_col'] = definition_node.start_point[1]
+        except Exception as e:
+            logger.error(f"Błąd podczas pobierania treści/zakresu dla node id {node_for_range_and_content.id} (name: {info.get('name', 'N/A')}): {e}", exc_info=True)
+            return None
+
+        return info
+
+
+    def _process_tree_sitter_results(self, query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: Any, context: Dict[str, Any]) -> List[Dict]:
+        """Przetwarza wyniki zapytania TreeSitter, identyfikując metody/gettery/settery."""
+        potential_elements = []
+        processed_definition_node_ids = set() # Aby uniknąć duplikatów
+
+        logger.debug(f"_process_tree_sitter_results: Otrzymano {len(query_results)} wyników z zapytania TreeSitter.")
+
+        for node, capture_name in query_results:
+            definition_node = None
+
+            # Znajdź właściwy węzeł definicji (np. function_definition)
+            # Może to być sam węzeł, lub dziecko węzła 'decorated_definition'
+            if node.type == 'function_definition':
+                definition_node = node
+            elif node.type == 'decorated_definition':
+                def_child = ast_handler.find_child_by_field_name(node, 'definition')
+                if def_child and def_child.type == 'function_definition':
+                    definition_node = def_child
+            elif capture_name in ['method_name', 'property_name', 'function_name']: # Rozszerzamy o inne możliwe nazwy capture
+                # Szukamy nadrzędnej definicji funkcji/metody
+                parent_func = ast_handler.find_parent_of_type(node, 'function_definition')
+                if parent_func:
+                    definition_node = parent_func
+
+            # Jeśli znaleźliśmy węzeł definicji i jeszcze go nie przetwarzaliśmy
+            if definition_node and definition_node.id not in processed_definition_node_ids:
+                # Sprawdź, czy element należy do klasy
+                class_name = self._get_actual_parent_class_name(definition_node, ast_handler, code_bytes)
+
+                # Przetwarzamy tylko metody klasowe (w tym gettery/settery)
+                # Funkcje poza klasami są obsługiwane przez FunctionExtractor
+                if class_name:
+                    logger.debug(f"  _process_tree_sitter_results: Przetwarzanie definicji (Node ID: {definition_node.id}) w klasie '{class_name}'.")
+                    # Wyodrębnij wspólne informacje
+                    common_info = self._extract_common_info(definition_node, ast_handler, code_bytes)
+
+                    if common_info:
+                        element_name = common_info['name']
+                        # Wyodrębnij wszystkie dekoratory dla tej definicji
+                        decorators = self._extract_all_decorators(definition_node, ast_handler, code_bytes)
+                        # Określ typ (METHOD, GETTER, SETTER) na podstawie dekoratorów
+                        element_type, setter_prop_name = self._determine_element_type(decorators, element_name)
+
+                        # Zbuduj finalny słownik informacji o elemencie
+                        element_info = {
+                            'node_id': definition_node.id, # Tymczasowo, do deduplikacji
+                            'type': element_type.value,
+                            'name': element_name,
+                            'content': common_info['content'],
+                            'class_name': class_name,
+                            'range': common_info['range'],
+                            'decorators': decorators, # Przechowujemy info o dekoratorach
+                            'parameters': common_info['parameters'],
+                            'return_info': common_info['return_info'],
+                            'definition_start_line': common_info['definition_start_line'], # Dodatkowe info
+                            'definition_start_col': common_info['definition_start_col'],  # Dodatkowe info
+                        }
+                        # Jeśli to setter, dodaj informację o nazwie właściwości
+                        if element_type == CodeElementType.PROPERTY_SETTER and setter_prop_name:
+                           element_info['property_name'] = setter_prop_name
+
+                        potential_elements.append(element_info)
+                        processed_definition_node_ids.add(definition_node.id) # Oznacz jako przetworzony
+                    else:
+                        logger.warning(f'  _process_tree_sitter_results: Nie udało się wyodrębnić common_info dla node id {definition_node.id}.')
+                # else: logger.debug(f"  _process_tree_sitter_results: Pominięto definicję (Node ID: {definition_node.id}), ponieważ nie jest w klasie.")
+            # else: if definition_node: logger.debug(f"  _process_tree_sitter_results: Pominięto już przetworzony node id {definition_node.id}.")
+
+        # Usuwamy tymczasowe 'node_id'
+        final_results = []
+        for elem in potential_elements:
+            logger.debug(f"Przetworzono finalnie: {elem['class_name']}.{elem['name']} jako {elem['type']} (Start def: L{elem['definition_start_line']})")
+            elem.pop('node_id', None) # Usuwamy node_id
+            final_results.append(elem)
+
+        logger.debug(f'Zakończono przetwarzanie TreeSitter. Zwrócono {len(final_results)} unikalnych elementów (metod/getterów/setterów).')
+        return final_results
+
+
+    def _process_regex_results(self, matches: Any, code: str, context: Dict[str, Any]) -> List[Dict]:
+        """Przetwarza wyniki dopasowania regex (obecnie mniej priorytetowe)."""
+        # Ta metoda jest mniej ważna, jeśli TreeSitter działa poprawnie.
+        # W razie potrzeby można ją zaimplementować/rozbudować.
+        logger.warning('Przetwarzanie regex w TemplateMethodExtractor wymaga weryfikacji/rozbudowy.')
+        # Przykładowa, bardzo podstawowa implementacja:
+        results = []
+        class_name = context.get("class_name") if context else None
+        # Zakładamy, że regex zwraca grupę z nazwą metody
+        # Trzeba by dodać logikę rozpoznawania dekoratorów i typu (getter/setter)
         for match in matches:
-            name = match.group(1)
-            signature = match.group(0)
-            start_pos = match.start() + class_offset if class_name else match.start()
-            sig_end_pos = match.end() + class_offset if class_name else match.end()
-            code_lines = code.splitlines()
-            method_line_num = code[:start_pos].count('\n')
-            method_indent = self.get_indentation(signature) if signature.startswith(' ') else ''
-            content_lines = [signature]
-            method_end_line = method_line_num
-            for i, line in enumerate(code_lines[method_line_num + 1:], method_line_num + 1):
-                if i >= len(code_lines):
-                    break
-                line_indent = self.get_indentation(line)
-                if not line.strip():
-                    content_lines.append(line)
-                    continue
-                if len(line_indent) <= len(method_indent):
-                    break
-                content_lines.append(line)
-                method_end_line = i
-            content = '\n'.join(content_lines)
-            start_line = method_line_num + 1
-            end_line = method_end_line + 1
-            last_newline = code[:start_pos].rfind('\n')
-            start_column = start_pos - last_newline - 1 if last_newline >= 0 else start_pos
-            end_column = len(code_lines[method_end_line]) if method_end_line < len(code_lines) else 0
-            decorator_lines = []
-            for i, line in enumerate(content.splitlines()):
-                if line.strip().startswith('@'):
-                    decorator_lines.append(line.strip())
-                elif line.strip().startswith('def '):
-                    break
-            decorators = []
-            for decorator in decorator_lines:
-                name = decorator[1:].split('(')[0] if '(' in decorator else decorator[1:]
-                decorators.append({'name': name, 'content': decorator})
-            element_type = 'method'
-            is_property = False
-            is_property_setter = False
-            property_name = None
-            for decorator in decorators:
-                if decorator.get('name') == 'property':
-                    is_property = True
-                elif decorator.get('name', '').endswith('.setter'):
-                    is_property_setter = True
-                    property_name = decorator.get('name').split('.')[0]
-            if is_property:
-                element_type = 'property_getter'
-            elif is_property_setter:
-                element_type = 'property_setter'
-            parameters = self._extract_parameters_regex(content)
-            return_info = self._extract_return_info_regex(content)
-            method_info = {'type': element_type, 'name': name, 'content': content, 'class_name': class_name, 'range': {'start': {'line': start_line, 'column': start_column}, 'end': {'line': end_line, 'column': end_column}}, 'decorators': decorators, 'parameters': parameters, 'return_info': return_info, 'property_name': property_name}
-            methods.append(method_info)
-        return methods
+             try:
+                 name = match.group(1) # Zakładając, że grupa 1 to nazwa
+                 content = match.group(0)
+                 start_pos, end_pos = match.span()
+                 start_line = code[:start_pos].count('\n') + 1
+                 end_line = code[:end_pos].count('\n') + 1
+                 # Uproszczone - brak analizy dekoratorów, parametrów, typu zwrotnego
+                 results.append({
+                     'type': CodeElementType.METHOD.value, # Domyślnie metoda
+                     'name': name,
+                     'content': content,
+                     'class_name': class_name,
+                     'range': {
+                         'start': {'line': start_line, 'column': 0}, # Uproszczone kolumny
+                         'end': {'line': end_line, 'column': 0}    # Uproszczone kolumny
+                     },
+                     'decorators': [],
+                     'parameters': [],
+                     'return_info': {},
+                     'definition_start_line': start_line # Przybliżone
+                 })
+             except IndexError:
+                 logger.error(f"Regex match nie zawierał oczekiwanej grupy dla nazwy: {match.group(0)}")
+             except Exception as e:
+                 logger.error(f"Błąd przetwarzania regex match: {e}", exc_info=True)
+        return results
 
-    def _extract_parameters_regex(self, content):
-        """Extract parameters using regex."""
-        parameters = []
-        param_pattern = 'def\\s+\\w+\\s*\\((.*?)\\)'
-        param_match = re.search(param_pattern, content)
-        if param_match:
-            params_str = param_match.group(1)
-            param_list = [p.strip() for p in params_str.split(',') if p.strip()]
-            for param in param_list:
-                if param == 'self':
-                    continue
-                param_dict = {'name': param, 'type': None}
-                if ':' in param:
-                    name_part, type_part = param.split(':', 1)
-                    param_dict['name'] = name_part.strip()
-                    param_dict['type'] = type_part.strip()
-                if '=' in param_dict['name']:
-                    name_part, value_part = param_dict['name'].split('=', 1)
-                    param_dict['name'] = name_part.strip()
-                    param_dict['default'] = value_part.strip()
-                    param_dict['optional'] = True
-                parameters.append(param_dict)
-        return parameters
+    def _extract_with_patterns(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
+        """Wyodrębnia elementy, próbując TreeSitter, a potem ewentualnie Regex."""
+        current_handler = handler or self.descriptor
+        if not current_handler or not (current_handler.tree_sitter_query or current_handler.regexp_pattern):
+            logger.error(f'Brak deskryptora lub wzorców dla {self.language_code}/{self.ELEMENT_TYPE.value}')
+            return []
 
-    def _extract_return_info_regex(self, content):
-        """Extract return type information using regex."""
-        return_info = {'return_type': None, 'return_values': []}
-        return_type_pattern = 'def\\s+\\w+\\s*\\([^)]*\\)\\s*->\\s*([^:]+):'
-        return_type_match = re.search(return_type_pattern, content)
-        if return_type_match:
-            return_info['return_type'] = return_type_match.group(1).strip()
-        return_pattern = 'return\\s+([^\\n;]+)'
-        return_matches = re.finditer(return_pattern, content)
-        for return_match in return_matches:
-            return_info['return_values'].append(return_match.group(1).strip())
-        return return_info
+        elements = []
+        tree_sitter_attempted = False
+        tree_sitter_error = False
 
-    def get_indentation(self, line: str) -> str:
-        """Extract indentation from a line."""
-        match = re.match('^(\\s*)', line)
-        return match.group(1) if match else ''
+        # --- Próba z TreeSitter ---
+        tree_sitter_query = current_handler.tree_sitter_query
+        if tree_sitter_query:
+            ast_handler = self._get_ast_handler()
+            if ast_handler:
+                tree_sitter_attempted = True
+                try:
+                    handler_type_name = current_handler.element_type.value if current_handler.element_type else 'unknown_handler'
+                    logger.debug(f'Próba ekstrakcji TreeSitter dla {self.language_code} (handler: {handler_type_name}).')
+                    root, code_bytes = ast_handler.parse(code)
+                    query_results = ast_handler.execute_query(tree_sitter_query, root, code_bytes)
+                    elements = self._process_tree_sitter_results(query_results, code_bytes, ast_handler, context)
+                except Exception as e:
+                    logger.error(f'Błąd podczas ekstrakcji TreeSitter dla {self.language_code} ({handler_type_name}): {e}', exc_info=False) # Ustaw exc_info=True dla pełnego śladu
+                    elements = []
+                    tree_sitter_error = True # Zapisujemy informację o błędzie
+            else:
+                logger.warning(f'Brak AST Handler dla {self.language_code}. Nie można użyć TreeSitter.')
+        else:
+            logger.debug(f"Brak zapytania TreeSitter dla {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}).")
+
+        # --- Fallback do Regex (jeśli TreeSitter nie był próbowany, zawiódł lub nie dał wyników LUB jeśli konfiguracja tego wymaga) ---
+        # Decyzja o fallbacku może zależeć od konfiguracji, np. `config.get('extraction', 'fallback_to_regex', True)`
+        # Tutaj uproszczona logika: fallback jeśli nie było próby TreeSitter lub jeśli TreeSitter zawiódł i jest wzorzec regex
+        should_fallback_to_regex = (not tree_sitter_attempted or tree_sitter_error)
+
+        regexp_pattern = current_handler.regexp_pattern
+        if regexp_pattern and should_fallback_to_regex:
+            logger.debug(f"Używanie Regex fallback dla {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}).")
+            try:
+                # Upewniamy się, że flagi są odpowiednie
+                elements = self._process_regex_results(re.finditer(regexp_pattern, code, re.MULTILINE | re.DOTALL), code, context)
+            except Exception as e:
+                logger.error(f"Błąd podczas ekstrakcji Regex dla {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}): {e}", exc_info=False)
+                elements = [] # Zwracamy pustą listę w razie błędu regex
+        elif not regexp_pattern:
+            logger.debug(f"Brak wzorca Regex dla {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}).")
+
+        if not elements and tree_sitter_attempted and not tree_sitter_error:
+            # Jeśli TreeSitter był próbowany, nie było błędu, ale nie znaleziono elementów
+            logger.debug(f"Ekstrakcja TreeSitter dla {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}) nie zwróciła żadnych elementów.")
+        elif not elements and regexp_pattern and should_fallback_to_regex:
+             logger.debug(f"Ekstrakcja Regex dla {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}) nie zwróciła żadnych elementów.")
+
+
+        return elements

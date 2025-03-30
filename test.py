@@ -35,6 +35,11 @@ class MyClass:
     def other(self, x: int, y: str) -> str:
         return f"This is other: {x} {y}."
 
+
+class MyClass2:
+    def test(self) -> str:
+        return "Hello, World!"
+
 '''
 
 new_version = '''
@@ -66,15 +71,33 @@ def test_extractors():
     result = hem.get_text_by_xpath(code, "FILE.MyClass.documented_method[property_getter]")
 
     result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
-    result = hem.upsert_element(result, 'method', 'new_method', new_method, parent_name='MyClass')
+    result = hem.upsert_element(
+        result, "method", "new_method", new_method, parent_name="MyClass"
+    )
+    print("----- input -----")
     rich.print(result)
+    print("----- parsed -----")
     rich.print(r)
-    # example = TestHelper.load_example("multi_case", category="general")
-    # code = example.content
-    # txt_result = hem.get_text_by_xpath(code, "FILE.DocstringClass.duplicated_method")
-    # print(txt_result)
-    # result = hem.extract(code)
-    # rich.print(result)
+
+    print("----- get_text tests:::: -----")
+
+    versions = [
+        "FILE.MyClass.new_property[property_getter]",
+        "FILE.MyClass.new_property[property_setter]",
+        "FILE.MyClass.new_property[property_getter][body]",
+        "FILE.MyClass.new_property",
+        "FILE.MyClass.new_property[def]",
+        "FILE.MyClass.new_property[all]",
+    ]
+
+    for xpath in versions:
+        print(f"----- XPATH: {xpath} -----")
+        txt_result = hem.get_text_by_xpath(code, xpath)
+        print(f"----- XPATH: {xpath} result: -----")
+        print(txt_result)
+        input("")
+
+    rich.print(r)
 
 print("----- test services-----")
 # test_services()

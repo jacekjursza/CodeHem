@@ -1,41 +1,52 @@
+# codehem/languages/lang_python/type_decorator.py
 """Handler for Python decorator elements."""
 import re
 from typing import Any, Dict, List, Optional
-
 from codehem.core.registry import element_type_descriptor
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.models.enums import CodeElementType
-
 
 @element_type_descriptor
 class PythonDecoratorHandlerElementType(ElementTypeLanguageDescriptor):
     """Handler for Python decorator elements."""
     language_code = 'python'
     element_type = CodeElementType.DECORATOR
-    tree_sitter_query = '''
-    (decorated_definition
-      decorator: (decorator name: (identifier) @decorator_name)
-      definition: [(function_definition name: (identifier) @func_name)
-                  (class_definition name: (identifier) @class_name)])
-    '''
-    regexp_pattern = '@([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*\\([^)]*\\))?\\s*\\n\\s*(?:def|class)\\s+([a-zA-Z_][a-zA-Z0-9_]*)'
-    custom_extract = True
+    # Ten query jest używany głównie do *znalezienia* dekoratorów,
+    # a TemplateMethodExtractor zajmuje się ich *ekstrakcją* w kontekście metody/funkcji/klasy
+    tree_sitter_query = """
+    (decorator) @decorator_node
+    """
+    # Regex może być przydatny jako fallback, ale na razie wyłączamy custom_extract
+    regexp_pattern = r'@([a-zA-Z_][a-zA-Z0-9_]*(?:\s*\.\s*[a-zA-Z_][a-zA-Z0-9_]*)*)(?:\([^)]*\))?'
+    # --- ZMIANA ---
+    # Wyłączamy custom_extract, polegamy na ekstrakcji w TemplateMethodExtractor
+    custom_extract = False
 
-    def extract(self, code: str, context: Optional[Dict[str, Any]]=None) -> List[Dict]:
-        """Custom extraction for decorators to properly associate with their targets."""
-        results = []
-        pattern = re.compile(self.regexp_pattern, re.MULTILINE | re.DOTALL)
-        for match in pattern.finditer(code):
-            decorator_name = match.group(1)
-            target_name = match.group(2)
-            content = match.group(0).split('\n')[0]
-            start_pos = match.start()
-            end_pos = start_pos + len(content)
-            lines_before = code[:start_pos].count('\n')
-            last_newline = code[:start_pos].rfind('\n')
-            start_column = start_pos - last_newline - 1 if last_newline >= 0 else start_pos
-            lines_total = code[:end_pos].count('\n')
-            last_newline_end = code[:end_pos].rfind('\n')
-            end_column = end_pos - last_newline_end - 1 if last_newline_end >= 0 else end_pos
-            results.append({'type': 'decorator', 'name': decorator_name, 'content': content, 'parent_name': target_name, 'range': {'start': {'line': lines_before + 1, 'column': start_column}, 'end': {'line': lines_total + 1, 'column': end_column}}})
-        return results
+    # --- ZMIANA ---
+    # Metoda extract staje się nieużywana przy custom_extract = False,
+    # ale zostawiamy ją zakomentowaną lub usuwamy.
+    # def extract(self, code: str, context: Optional[Dict[str, Any]]=None) -> List[Dict]:
+    #     """Custom extraction for decorators to properly associate with their targets."""
+    #     # Ta logika jest teraz prawdopodobnie obsługiwana lepiej przez TreeSitter
+    #     # w TemplateMethodExtractor._extract_all_decorators
+    #     logger.warning("PythonDecoratorHandlerElementType.extract jest wyłączona (custom_extract=False)")
+    #     return []
+    #     # Stara logika oparta na regex:
+    #     # results = []
+    #     # pattern = re.compile(self.regexp_pattern, re.MULTILINE | re.DOTALL)
+    #     # # Poprawiony regex do asocjacji z następną linią def/class
+    #     # assoc_pattern = re.compile(self.regexp_pattern + r'\s*\n\s*(?:def|class)\s+([a-zA-Z_][a-zA-Z0-9_]*)', re.MULTILINE | re.DOTALL)
+    #     # for match in assoc_pattern.finditer(code):
+    #     #     decorator_name = match.group(1)
+    #     #     target_name = match.group(2) # Nazwa funkcji/klasy
+    #     #     content = match.group(0).split('\n')[0] # Tylko linia z @...
+    #     #     start_pos = match.start()
+    #     #     # ... reszta logiki obliczania zakresu ...
+    #     #     results.append({
+    #     #         'type': 'decorator',
+    #     #         'name': decorator_name,
+    #     #         'content': content,
+    #     #         'parent_name': target_name, # Asocjacja z celem
+    #     #         'range': { ... }
+    #     #     })
+    #     # return results
