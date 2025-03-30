@@ -18,6 +18,7 @@ class FunctionExtractor(BaseExtractor):
     @property
     def element_type(self) -> CodeElementType:
         """Get the element type this extractor handles."""
+
         return self.ELEMENT_TYPE
 
     def _extract_with_patterns(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:

@@ -5,8 +5,6 @@ Acts as a facade for the various extraction strategies.
 import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
-from copy import deepcopy
-import rich
 
 from codehem import CodeElementType
 from codehem.core.engine.xpath_parser import XPathParser
@@ -295,19 +293,19 @@ class ExtractionService:
     @handle_extraction_errors
     def extract_functions(self, code: str) -> List[Dict]:
         """Extract functions from the provided code."""
-        return self._extract_element_type(code, 'function')
+        return self._extract_element_type(code, "function")
 
     @handle_extraction_errors
     def extract_classes(self, code: str) -> List[Dict]:
         """Extract classes from the provided code."""
-        return self._extract_element_type(code, 'class')
+        return self._extract_element_type(code, "class")
 
     @handle_extraction_errors
-    def extract_methods(self, code: str, class_name: Optional[str]=None) -> List[Dict]:
+    def extract_methods(
+        self, code: str, class_name: Optional[str] = None
+    ) -> List[Dict]:
         """Extract methods from the provided code, optionally filtering by class."""
-        context = None
-        if class_name:
-            context = {'class_name': class_name}
+        context = {'class_name': class_name} if class_name else None
         return self._extract_element_type(code, 'method', context)
 
     @handle_extraction_errors

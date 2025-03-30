@@ -3,6 +3,7 @@ import logging
 import rich
 
 from codehem import CodeHem
+from tests.helpers.code_examples import TestHelper
 
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(name)s:%(message)s')
 logging.getLogger('tree_sitter').setLevel(logging.DEBUG)
@@ -10,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 code = '''
 from pydantic import BaseModel, Field
+from django.models import Model
 
 class MyClass:
     static_property: str = "Hello, World!"
@@ -33,8 +35,6 @@ class MyClass:
     def other(self, x: int, y: str) -> str:
         return f"This is other: {x} {y}."
 
-def my_function(x: int) -> int:
-    return x + 1
 '''
 
 new_version = '''
@@ -61,25 +61,20 @@ def test_extractors():
     """Test the extraction functionality."""
     print('Testing extractors...')
     hem = CodeHem('python')
-    elements = hem.extract(code)
-    print('----------------------------------')
-    rich.print(elements)
-    print('----------------------------------')
-    
-    # Print imports separately to verify they're being extracted
-    print('Imports found:')
-    for element in elements.elements:
-        if element.type.value == 'import':
-            rich.print(element)
-    print('----------------------------------')
 
-    result = hem.get_text_by_xpath(code, "MyClass.new_property")
+    r = hem.extract(code)
+    result = hem.get_text_by_xpath(code, "FILE.MyClass.documented_method[property_getter]")
 
-    # result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
-    # result = hem.upsert_element(result, 'method', 'new_method', new_method, parent_name='MyClass')
+    result = hem.upsert_element(code, 'method', 'greet', new_version, parent_name='MyClass')
+    result = hem.upsert_element(result, 'method', 'new_method', new_method, parent_name='MyClass')
     rich.print(result)
-
-
+    rich.print(r)
+    # example = TestHelper.load_example("multi_case", category="general")
+    # code = example.content
+    # txt_result = hem.get_text_by_xpath(code, "FILE.DocstringClass.duplicated_method")
+    # print(txt_result)
+    # result = hem.extract(code)
+    # rich.print(result)
 
 print("----- test services-----")
 # test_services()
