@@ -159,15 +159,12 @@ class TemplateMethodExtractor(TemplateExtractor):
 
     def _extract_common_info(self, definition_node: Node, ast_handler: Any, code_bytes: bytes) -> Optional[Dict[str, Any]]:
         """Extracts common information (name, parameters, return type, content, range)."""
+        from codehem.core.engine.code_node_wrapper import CodeNodeWrapper
+        wrapper = CodeNodeWrapper(ast_handler, definition_node, code_bytes, language_code=ast_handler.language_code)
         info = {}
-        name_node = ast_handler.find_child_by_field_name(definition_node, 'name')
-        if not name_node:
-            logger.warning(f"Definition node (type: {definition_node.type}, id: {definition_node.id}) has no 'name' field.")
-            return None # Cannot proceed without a name
-
-        info['name'] = ast_handler.get_node_text(name_node, code_bytes)
-        info['parameters'] = ExtractorHelpers.extract_parameters(ast_handler, definition_node, code_bytes, is_self_or_this=True) # Assuming 'self'/'this' convention
-        info['return_info'] = ExtractorHelpers.extract_return_info(ast_handler, definition_node, code_bytes)
+        info['name'] = wrapper.get_name()
+        info['parameters'] = wrapper.get_parameters(skip_self_or_cls=True)
+        info['return_info'] = wrapper.get_return_info()
 
         # Determine the node to use for overall range and content (includes decorators)
         parent_node = definition_node.parent
@@ -302,57 +299,77 @@ class TemplateMethodExtractor(TemplateExtractor):
     # Override the base method to ensure the correct processing functions are called
     def _extract_with_patterns(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extracts elements, trying TreeSitter, then possibly Regex."""
-        current_handler = handler or self.descriptor # Use provided handler or instance default
+        current_handler = handler or self.descriptor
         if not current_handler or not (current_handler.tree_sitter_query or current_handler.regexp_pattern):
-             logger.error(f'Missing descriptor or patterns for {self.language_code}/{self.ELEMENT_TYPE.value}')
-             return []
+            logger.error(f'Missing descriptor or patterns for {self.language_code}/{self.ELEMENT_TYPE.value}')
+            return []
 
         elements = []
         tree_sitter_attempted = False
         tree_sitter_error = False
-        tree_sitter_query = current_handler.tree_sitter_query
 
-        if tree_sitter_query:
-            ast_handler = self._get_ast_handler()
-            if ast_handler:
-                tree_sitter_attempted = True
-                try:
-                    handler_type_name = current_handler.element_type.value if current_handler.element_type else 'unknown_handler'
-                    logger.debug(f'Attempting TreeSitter extraction for {self.language_code} (handler: {handler_type_name}).')
-                    root, code_bytes = ast_handler.parse(code)
-                    query_results = ast_handler.execute_query(tree_sitter_query, root, code_bytes)
-                    # Use the method specific processing function defined in this class
-                    elements = self._process_tree_sitter_results(query_results, code_bytes, ast_handler, context)
-                except Exception as e:
-                    logger.error(f'Error during TreeSitter extraction for {self.language_code} ({handler_type_name}): {e}', exc_info=False) # Log less verbosely by default
-                    elements = []
-                    tree_sitter_error = True
-            else:
-                 logger.warning(f'Missing AST Handler for {self.language_code}. Cannot use TreeSitter.')
-        else:
-             logger.debug(f"Missing TreeSitter query for {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}).")
-
-
-        # Fallback to Regex if TreeSitter wasn't attempted, failed, or found nothing
-        should_fallback_to_regex = not tree_sitter_attempted or tree_sitter_error # or (tree_sitter_attempted and not elements and not tree_sitter_error) - Removed condition: fallback even if TS found nothing cleanly
-        regexp_pattern = current_handler.regexp_pattern
-
-        if regexp_pattern and should_fallback_to_regex:
-            logger.debug(f"Using Regex fallback for {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}). Reason: attempted={tree_sitter_attempted}, error={tree_sitter_error}")
+        # TreeSitter extraction phase
+        if self._should_attempt_tree_sitter(current_handler):
+            tree_sitter_attempted = True
             try:
-                # Use the method specific processing function defined in this class
-                elements = self._process_regex_results(re.finditer(regexp_pattern, code, re.MULTILINE | re.DOTALL), code, context)
+                self._before_tree_sitter(current_handler)
+                elements = self._parse_code_with_tree_sitter(code, current_handler, context)
             except Exception as e:
-                 logger.error(f"Error during Regex extraction for {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}): {e}", exc_info=False)
-                 elements = [] # Ensure elements is empty on regex error if TS also failed
-        elif not regexp_pattern:
-             logger.debug(f"Missing Regex pattern for {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}).")
+                self._handle_tree_sitter_exception(e, current_handler)
+                elements = []
+                tree_sitter_error = True
 
-        # Final logging
-        if not elements and tree_sitter_attempted and not tree_sitter_error:
-            logger.debug(f"TreeSitter extraction for {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}) returned no elements.")
-        elif not elements and regexp_pattern and should_fallback_to_regex:
-             logger.debug(f"Regex extraction for {self.language_code} (handler: {(current_handler.element_type.value if current_handler.element_type else 'unknown_handler')}) returned no elements.")
+        # Regex fallback phase
+        should_fallback = self._should_fallback_to_regex(tree_sitter_attempted, tree_sitter_error, elements, current_handler)
+        if should_fallback and current_handler.regexp_pattern:
+            try:
+                self._before_regex(current_handler)
+                elements = self._parse_code_with_regex(code, current_handler, context)
+            except Exception as e:
+                self._handle_regex_exception(e, current_handler)
+                elements = []
 
+        self._after_extraction(elements, tree_sitter_attempted, tree_sitter_error, should_fallback, current_handler)
 
         return elements
+
+    def _should_attempt_tree_sitter(self, handler: ElementTypeLanguageDescriptor) -> bool:
+        return bool(handler.tree_sitter_query) and self._get_ast_handler() is not None
+
+    def _before_tree_sitter(self, handler: ElementTypeLanguageDescriptor):
+        handler_type_name = handler.element_type.value if handler.element_type else 'unknown_handler'
+        logger.debug(f'Attempting TreeSitter extraction for {self.language_code} (handler: {handler_type_name}).')
+
+    def _parse_code_with_tree_sitter(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
+        ast_handler = self._get_ast_handler()
+        handler_type_name = handler.element_type.value if handler.element_type else 'unknown_handler'
+        root, code_bytes = ast_handler.parse(code)
+        query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
+        return self._process_tree_sitter_results(query_results, code_bytes, ast_handler, context)
+
+    def _handle_tree_sitter_exception(self, e: Exception, handler: ElementTypeLanguageDescriptor):
+        handler_type_name = handler.element_type.value if handler.element_type else 'unknown_handler'
+        logger.error(f'Error during TreeSitter extraction for {self.language_code} ({handler_type_name}): {e}', exc_info=False)
+
+    def _should_fallback_to_regex(self, tree_sitter_attempted: bool, tree_sitter_error: bool, elements: List[Dict], handler: ElementTypeLanguageDescriptor) -> bool:
+        # Fallback if TreeSitter was not attempted or errored
+        return not tree_sitter_attempted or tree_sitter_error
+
+    def _before_regex(self, handler: ElementTypeLanguageDescriptor):
+        handler_type_name = handler.element_type.value if handler.element_type else 'unknown_handler'
+        logger.debug(f"Using Regex fallback for {self.language_code} (handler: {handler_type_name}).")
+
+    def _parse_code_with_regex(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
+        matches = re.finditer(handler.regexp_pattern, code, re.MULTILINE | re.DOTALL)
+        return self._process_regex_results(matches, code, context)
+
+    def _handle_regex_exception(self, e: Exception, handler: ElementTypeLanguageDescriptor):
+        handler_type_name = handler.element_type.value if handler.element_type else 'unknown_handler'
+        logger.error(f"Error during Regex extraction for {self.language_code} (handler: {handler_type_name}): {e}", exc_info=False)
+
+    def _after_extraction(self, elements: List[Dict], tree_sitter_attempted: bool, tree_sitter_error: bool, should_fallback: bool, handler: ElementTypeLanguageDescriptor):
+        handler_type_name = handler.element_type.value if handler.element_type else 'unknown_handler'
+        if not elements and tree_sitter_attempted and not tree_sitter_error:
+            logger.debug(f"TreeSitter extraction for {self.language_code} (handler: {handler_type_name}) returned no elements.")
+        elif not elements and should_fallback and handler.regexp_pattern:
+            logger.debug(f"Regex extraction for {self.language_code} (handler: {handler_type_name}) returned no elements.")

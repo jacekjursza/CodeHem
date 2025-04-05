@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 
 class TemplateMethodManipulator(TemplateManipulator):
     """Template implementation for method manipulation."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     ELEMENT_TYPE = CodeElementType.METHOD
     
     def _find_insertion_point(self, code: str, parent_name: Optional[str]=None) -> int:

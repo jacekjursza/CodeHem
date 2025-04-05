@@ -65,17 +65,7 @@ def test_extractors():
     result = hem.upsert_element(result, 'method', 'new_method', new_method, parent_name='ExampleClass')
     print('----- input -----')
     rich.print(result)
-    print('----- parsed -----')
-    rich.print(r)
-    print('----- get_text tests:::: -----')
-    versions = ['FILE.ExampleClass.value', 'FILE.ExampleClass']
-    for xpath in versions:
-        print(f'----- XPATH: {xpath} -----')
-        txt_result = hem.get_text_by_xpath(code, xpath)
-        print(f'----- XPATH: {xpath} result: -----')
-        print(txt_result)
-        input('')
-    rich.print(r)
+
 
 print('----- test services-----')
 test_extractors()

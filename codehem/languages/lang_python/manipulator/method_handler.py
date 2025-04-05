@@ -9,7 +9,7 @@ from codehem.core.manipulators.template_method_manipulator import TemplateMethod
 
 logger = logging.getLogger(__name__)
 
-@manipulator
+# @manipulator # Disabled: Using PythonASTManipulator via __init__.py registration
 class PythonMethodManipulator(TemplateMethodManipulator):
     """Manipulator for Python methods."""
     LANGUAGE_CODE = 'python'

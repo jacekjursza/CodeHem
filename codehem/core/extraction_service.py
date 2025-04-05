@@ -72,6 +72,13 @@ class ExtractionService:
                 f"Failed to get language_service for '{language_code}'. Check if it's registered."
             )
 
+        # Initialize language-specific post-processor
+        if language_code.lower() == "python":
+            from codehem.core.post_processors.python_post_processor import PythonExtractionPostProcessor
+            self.post_processor = PythonExtractionPostProcessor()
+        else:
+            self.post_processor = None  # Or raise error / fallback
+
     def _get_raw_extractor_results(
         self, code: str, element_type: str, context: Optional[Dict[str, Any]] = None
     ) -> List[Dict]:
@@ -105,35 +112,29 @@ class ExtractionService:
             logger.debug(f"Available extractors for {self.language_code}: {available}")
             return []
 
-        try:
-            logger.debug(
-                f"Calling {extractor_instance.__class__.__name__}.extract() for '{element_type}'"
-            )
-            results = extractor_instance.extract(code, context=context)
+        logger.debug(
+            f"Calling {extractor_instance.__class__.__name__}.extract() for '{element_type}'"
+        )
+        results = extractor_instance.extract(code, context=context)
 
-            # Handle cases when extractor returns a single dict instead of a list
-            if isinstance(results, dict):
-                results = [results]
-            elif not isinstance(results, list):
-                logger.error(
-                    f"Extractor {extractor_instance.__class__.__name__} returned unexpected type: {type(results)} instead of list or dict."
-                )
-                return []
-
-            # Validate that list items are dictionaries
-            valid_results = [item for item in results if isinstance(item, dict)]
-            if len(valid_results) != len(results):
-                invalid_count = len(results) - len(valid_results)
-                logger.warning(
-                    f"{extractor_instance.__class__.__name__} returned {invalid_count} items that are not dictionaries."
-                )
-
-            return valid_results
-        except Exception as e:
-            logger.exception(
-                f"Error in extractor {extractor_instance.__class__.__name__} for '{element_type}': {e}"
+        # Handle cases when extractor returns a single dict instead of a list
+        if isinstance(results, dict):
+            results = [results]
+        elif not isinstance(results, list):
+            logger.error(
+                f"Extractor {extractor_instance.__class__.__name__} returned unexpected type: {type(results)} instead of list or dict."
             )
             return []
+
+        # Validate that list items are dictionaries
+        valid_results = [item for item in results if isinstance(item, dict)]
+        if len(valid_results) != len(results):
+            invalid_count = len(results) - len(valid_results)
+            logger.warning(
+                f"{extractor_instance.__class__.__name__} returned {invalid_count} items that are not dictionaries."
+            )
+
+        return valid_results
 
     @handle_extraction_errors
     def find_element(
@@ -408,29 +409,23 @@ class ExtractionService:
         # If we received one collective 'imports' element
         if len(import_data_list) == 1 and import_data_list[0].get("name") == "imports":
             raw_element = import_data_list[0]
-            try:
-                range_data = raw_element.get("range")
-                code_range = None
-                if range_data:
-                    code_range = CodeRange(
-                        start_line=range_data.get("start", {}).get("line", 1),
-                        start_column=range_data.get("start", {}).get("column", 0),
-                        end_line=range_data.get("end", {}).get("line", 1),
-                        end_column=range_data.get("end", {}).get("column", 0),
-                    )
-                return CodeElement(
-                    type=CodeElementType.IMPORT,
-                    name="imports",
-                    content=raw_element.get("content", ""),
-                    range=code_range,
-                    # Store original list as additional_data
-                    additional_data={"imports_list": raw_element.get("imports", [])},
+            range_data = raw_element.get("range")
+            code_range = None
+            if range_data:
+                code_range = CodeRange(
+                    start_line=range_data.get("start", {}).get("line", 1),
+                    start_column=range_data.get("start", {}).get("column", 0),
+                    end_line=range_data.get("end", {}).get("line", 1),
+                    end_column=range_data.get("end", {}).get("column", 0),
                 )
-            except Exception as e:
-                logger.error(
-                    f"Error processing collective import element: {e}", exc_info=True
-                )
-                return None
+            return CodeElement(
+                type=CodeElementType.IMPORT,
+                name="imports",
+                content=raw_element.get("content", ""),
+                range=code_range,
+                # Store original list as additional_data
+                additional_data={"imports_list": raw_element.get("imports", [])},
+            )
         else:
             # If (unexpectedly) we got a list of individual imports
             logger.warning(
@@ -847,47 +842,30 @@ class ExtractionService:
         try:
             # 1. Get raw elements of different types
             raw_elements = self._extract_file_raw(code)
+            print(f"DEBUG RAW EXTRACTION OUTPUT: {raw_elements}")
 
-            # 2. Process imports (expect one collective element)
+            if not self.post_processor:
+                logger.error(f"No post-processor available for language {self.language_code}")
+                return result
+
+            # 2. Process imports
             raw_imports = raw_elements.get("imports", [])
-            if raw_imports:
-                combined_import_element = self._process_import_element(raw_imports)
-                if combined_import_element:
-                    result.elements.append(combined_import_element)
+            imports = self.post_processor.process_imports(raw_imports)
+            result.elements.extend(imports)
 
-            # 3. Process global functions
-            for function_data in raw_elements.get("functions", []):
-                if not isinstance(function_data, dict):
-                    continue
-                try:
-                    result.elements.append(
-                        self._process_function_element(function_data)
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Error processing function {function_data.get('name', '???')}: {e}",
-                        exc_info=True,
-                    )
+            # 3. Process functions
+            raw_functions = raw_elements.get("functions", [])
+            functions = self.post_processor.process_functions(raw_functions)
+            result.elements.extend(functions)
 
-            # 4. Process classes (with their members)
-            all_members_raw = raw_elements.get("members", [])
-            all_static_props_raw = raw_elements.get("static_properties", [])
-            for class_data in raw_elements.get("classes", []):
-                if not isinstance(class_data, dict):
-                    continue
-                try:
-                    # This method will internally process members (methods, getters, setters, static properties)
-                    processed_class = self._process_class_element(
-                        class_data, all_members_raw, all_static_props_raw
-                    )
-                    result.elements.append(processed_class)
-                except Exception as e:
-                    logger.error(
-                        f"Error processing class {class_data.get('name', '???')}: {e}",
-                        exc_info=True,
-                    )
+            # 4. Process classes
+            raw_classes = raw_elements.get("classes", [])
+            members = raw_elements.get("members", [])
+            static_props = raw_elements.get("static_properties", [])
+            classes = self.post_processor.process_classes(raw_classes, members, static_props)
+            result.elements.extend(classes)
 
-            # 5. Sort top-level elements for consistency (optional)
+            # 5. Sort top-level elements
             result.elements.sort(
                 key=lambda el: el.range.start_line if el.range else float("inf")
             )
@@ -897,7 +875,6 @@ class ExtractionService:
                 f"Critical error in `extract_all` for language {self.language_code}: {e}",
                 exc_info=True,
             )
-            # Return empty result on severe error
             return CodeElementsResult(elements=[])
 
         logger.info(
