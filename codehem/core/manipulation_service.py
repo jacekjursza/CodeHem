@@ -8,7 +8,7 @@ from typing import Optional
 from codehem import CodeElementType
 from codehem.core.engine.xpath_parser import XPathParser
 from codehem.core.registry import registry
-from codehem.core.Language_service import LanguageService
+from codehem.core.language_service import LanguageService
 from codehem.languages import (
     get_language_service_for_code,
     get_language_service_for_file,

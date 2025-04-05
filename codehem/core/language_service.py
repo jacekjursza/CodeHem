@@ -12,30 +12,36 @@ from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 
 logger = logging.getLogger(__name__)
 
+
 class LanguageService(ABC):
     """
     Base class for language-specific services.
     Defines the interface for language-specific operations and combines finder, formatter, and manipulator.
     """
+
     LANGUAGE_CODE: str
-    _instances: Dict[str, 'LanguageService'] = {}
+    _instances: Dict[str, "LanguageService"] = {}
 
     def __new__(cls, *args, **kwargs):
-        language_code = getattr(cls, 'LANGUAGE_CODE', None)
+        language_code = getattr(cls, "LANGUAGE_CODE", None)
         if language_code is None:
             raise ValueError(f"{cls.__name__} must define a LANGUAGE_CODE.")
         if language_code not in cls._instances:
-            logger.debug(f"[__new__] Creating new singleton instance for {language_code}")
+            logger.debug(
+                f"[__new__] Creating new singleton instance for {language_code}"
+            )
             cls._instances[language_code] = super().__new__(cls)
         else:
             logger.debug(f"[__new__] Reusing existing instance for {language_code}")
         return cls._instances[language_code]
 
-    def __init__(self,
-                 extractors: Dict[str, Type[BaseExtractor]],
-                 manipulators: Dict[str, Type[ManipulatorBase]],
-                 element_type_descriptors: Dict[str, Dict[str, ElementTypeLanguageDescriptor]],
-                 formatter_class: Optional[Type[BaseFormatter]]=None):
+    def __init__(
+        self,
+        extractors: Dict[str, Type[BaseExtractor]],
+        manipulators: Dict[str, Type[ManipulatorBase]],
+        element_type_descriptors: Dict[str, Dict[str, ElementTypeLanguageDescriptor]],
+        formatter_class: Optional[Type[BaseFormatter]] = None,
+    ):
         """
         Initialize the language service with components.
         Args:
@@ -54,37 +60,57 @@ class LanguageService(ABC):
         self.formatter = formatter_class() if formatter_class else BaseFormatter()
         try:
             from codehem.core.extraction_service import ExtractionService
+
             self._extraction_service = ExtractionService(self.language_code)
         except Exception as e:
-            logger.error(f'Error creating extraction service for {self.language_code}: {e}')
-        logger.debug(f'Initializing language service for {self.language_code}, registered manipulators: {list(manipulators.keys())}')
+            logger.error(
+                f"Error creating extraction service for {self.language_code}: {e}"
+            )
+        logger.debug(
+            f"Initializing language service for {self.language_code}, registered manipulators: {list(manipulators.keys())}"
+        )
         for element_type_key, extractor_class in extractors.items():
-
-            element_type_name = element_type_key.split('/')[1]
-            descriptor = element_type_descriptors.get(self.language_code, {}).get(element_type_name)
+            element_type_name = element_type_key.split("/")[1]
+            descriptor = element_type_descriptors.get(self.language_code, {}).get(
+                element_type_name
+            )
             if descriptor:
                 self.element_type_descriptors[element_type_name] = descriptor
                 if extractor_class:
                     try:
-                        self.extractors[element_type_key] = extractor_class(self.language_code, descriptor)
+                        self.extractors[element_type_key] = extractor_class(
+                            self.language_code, descriptor
+                        )
                     except Exception as e:
-                        logger.error(f'Error creating extractor for {element_type_name}: {e}')
+                        logger.error(
+                            f"Error creating extractor for {element_type_name}: {e}"
+                        )
         self._init_manipulators(manipulators)
 
     def _init_manipulators(self, manipulators: Dict[str, Type[ManipulatorBase]]):
         """Initialize all manipulators for this language service."""
         for key, manipulator_class in manipulators.items():
-            if key.startswith(f'{self.language_code}_'):
-                element_type_name = key[len(self.language_code) + 1:]
+            if key.startswith(f"{self.language_code}_"):
+                element_type_name = key[len(self.language_code) + 1 :]
                 try:
                     element_type_enum = self._get_element_type_enum(element_type_name)
                     if element_type_enum:
-                        logger.debug(f'Creating manipulator for {self.language_code}/{element_type_name}')
-                        self.manipulators[element_type_name] = manipulator_class(element_type=element_type_enum, formatter=self.formatter, extraction_service=self._extraction_service)
+                        logger.debug(
+                            f"Creating manipulator for {self.language_code}/{element_type_name}"
+                        )
+                        self.manipulators[element_type_name] = manipulator_class(
+                            element_type=element_type_enum,
+                            formatter=self.formatter,
+                            extraction_service=self._extraction_service,
+                        )
                 except Exception as e:
-                    logger.error(f'Error creating manipulator for {element_type_name}: {e}')
+                    logger.error(
+                        f"Error creating manipulator for {element_type_name}: {e}"
+                    )
 
-    def _get_element_type_enum(self, element_type_name: str) -> Optional[CodeElementType]:
+    def _get_element_type_enum(
+        self, element_type_name: str
+    ) -> Optional[CodeElementType]:
         """Convert element type name to enum value."""
         try:
             return getattr(CodeElementType, element_type_name.upper(), None)
@@ -98,9 +124,11 @@ class LanguageService(ABC):
     def language_code(self) -> str:
         return self.LANGUAGE_CODE
 
-    def get_element_descriptor(self, element_type: Union[str, CodeElementType]) -> Optional[ElementTypeLanguageDescriptor]:
+    def get_element_descriptor(
+        self, element_type: Union[str, CodeElementType]
+    ) -> Optional[ElementTypeLanguageDescriptor]:
         """Get an extractor class by element type."""
-        if hasattr(element_type, 'value'):
+        if hasattr(element_type, "value"):
             element_type = element_type.value
         return self.element_type_descriptors.get(element_type.lower())
 
@@ -109,12 +137,14 @@ class LanguageService(ABC):
         element_type = element_type.lower()
         manipulator = self.manipulators.get(element_type)
         if not manipulator:
-            logger.debug(f"No manipulator found for '{element_type}' in {self.language_code}. Available manipulators: {list(self.manipulators.keys())}")
+            logger.debug(
+                f"No manipulator found for '{element_type}' in {self.language_code}. Available manipulators: {list(self.manipulators.keys())}"
+            )
         return manipulator
 
     def get_extractor(self, element_type: str) -> BaseExtractor:
-        primary_key = f'{self.language_code}/{element_type.lower()}'
-        secondary_key = f'__all__/{element_type.lower()}'
+        primary_key = f"{self.language_code}/{element_type.lower()}"
+        secondary_key = f"__all__/{element_type.lower()}"
 
         if primary_key in self.extractors:
             return self.extractors[primary_key]
@@ -150,26 +180,31 @@ class LanguageService(ABC):
 
     def extract(self, code: str) -> CodeElementsResult:
         """Extract code elements from source code."""
-        logger.debug(f'Starting extraction for {self.language_code}')
+        logger.debug(f"Starting extraction for {self.language_code}")
         from codehem.core.extraction_service import ExtractionService
+
         extractor = ExtractionService(self.language_code)
         result = extractor.extract_all(code)
         result = self.extract_language_specific(code, result)
-        logger.debug(f'Completed extraction with {len(result.elements)} elements')
+        logger.debug(f"Completed extraction with {len(result.elements)} elements")
         return result
 
-    def extract_language_specific(self, code: str, current_result: CodeElementsResult) -> CodeElementsResult:
+    def extract_language_specific(
+        self, code: str, current_result: CodeElementsResult
+    ) -> CodeElementsResult:
         return current_result
 
     def resolve_xpath(self, xpath: str) -> Tuple[str, Optional[str]]:
         """Resolve an XPath expression to element name and parent name."""
-        parts = xpath.split('.')
+        parts = xpath.split(".")
         if len(parts) == 1:
             return (parts[0], None)
         return (parts[-1], parts[-2])
 
     @abstractmethod
-    def get_text_by_xpath_internal(self, code: str, xpath_nodes: List['CodeElementXPathNode']) -> Optional[str]:
+    def get_text_by_xpath_internal(
+        self, code: str, xpath_nodes: List["CodeElementXPathNode"]
+    ) -> Optional[str]:
         """
         Internal method to retrieve text content based on parsed XPath nodes.
         To be implemented by language-specific services.

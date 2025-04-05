@@ -3,7 +3,7 @@ import re
 import logging
 from typing import List, Optional, Tuple
 from codehem import CodeElementType, CodeElementXPathNode
-from codehem.core.Language_service import LanguageService
+from codehem.core.language_service import LanguageService
 from codehem.core.registry import language_service
 from codehem.core.engine.xpath_parser import XPathParser
 from codehem.models import CodeRange

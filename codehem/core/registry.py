@@ -8,7 +8,7 @@ import traceback
 from typing import Any, List, Optional, Type
 import rich
 
-from codehem.core.Language_service import LanguageService
+from codehem.core.language_service import LanguageService
 from codehem.core.extractors.base import BaseExtractor
 # Usunięto importy nieistniejących już klas, jeśli były
 # from codehem.core.extractors.template_property_getter_extractor import TemplatePropertyGetterExtractor # USUNIĘTE

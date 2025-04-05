@@ -1,13 +1,15 @@
 # codehem/core/extractors/template_method_extractor.py
 import logging
 import re
-from typing import Dict, List, Any, Optional, Tuple
-from codehem.core.extractors.extraction_base import TemplateExtractor, ExtractorHelpers
-from codehem.models.enums import CodeElementType
-from codehem.core.registry import extractor
+from typing import Any, Dict, List, Optional, Tuple
+
 from tree_sitter import Node
-from codehem.models.range import CodeRange
+
+from codehem.core.extractors.extraction_base import ExtractorHelpers, TemplateExtractor
+from codehem.core.registry import extractor
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
+from codehem.models.enums import CodeElementType
+
 logger = logging.getLogger(__name__)
 
 @extractor
