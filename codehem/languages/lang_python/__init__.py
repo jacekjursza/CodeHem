@@ -1,29 +1,35 @@
-"""
-Python language module for CodeHem.
-"""
-# Ensure standard manipulators are registered via decorators in their respective files
-# No explicit initialization function needed here anymore.
-from codehem.core.registry import registry
-from .service import PythonLanguageService
-# Import manipulators to ensure they are discovered by the registry via decorators
-from .manipulator.class_handler import PythonClassManipulator
-from .manipulator.function_handler import PythonFunctionManipulator
-from .manipulator.import_handler import PythonImportManipulator
-from .manipulator.method_handler import PythonMethodManipulator
-from .manipulator.property_handler import PythonPropertyManipulator
+# MODIFIED FILE: Import new extractor modules
+""" Python language module for CodeHem. """
+# Import service, components etc.
+from . import service # Registers PythonLanguageService
+from . import config # Registers LANGUAGE_CONFIG
+from . import detector # Registers PythonLanguageDetector
+from . import formatting # Imports PythonFormatter (used by service/config)
+# Import manipulator modules to register them
+from .manipulator import base
+from .manipulator import class_handler
+from .manipulator import function_handler
+from .manipulator import import_handler
+from .manipulator import method_handler
+from .manipulator import property_handler
+# Import type descriptor modules to register them
+from . import type_class
+from . import type_decorator # Needed if we have decorator extractor/manipulator
+from . import type_function
+from . import type_import
+from . import type_method
+from . import type_property_getter
+from . import type_property_setter
+from . import type_static_property
+# Import existing extractor modules (if any were already in lang_python)
+# Example: from .extractors import python_property_extractor # If kept
 
-# Import type descriptors to ensure they are discovered
-from .type_class import PythonClassHandlerElementType
-from .type_decorator import PythonDecoratorHandlerElementType
-from .type_function import PythonFunctionHandlerElementType
-from .type_import import PythonImportHandlerElementType
-from .type_method import PythonMethodHandlerElementType
-from .type_property_getter import PythonPropertyGetterHandlerElementType
-from .type_property_setter import PythonPropertySetterHandlerElementType
-from .type_static_property import PythonStaticPropertyHandlerElementType
-
-# Import detector and formatter
-from .detector import PythonLanguageDetector
-from .formatting.python_formatter import PythonFormatter
-
-# Note: NODE_CONFIG was removed as it was related to the removed AST manipulator.
+# *** CHANGE START: Import new extractor modules ***
+# Ensure the extractors package is recognized
+from . import extractors
+# The line above might be sufficient if __init__.py inside extractors imports the specific files.
+# Alternatively, be more explicit (safer if __init__.py is simple):
+# from .extractors import python_decorator_extractor
+# from .extractors import python_property_getter_extractor
+# from .extractors import python_property_setter_extractor
+# *** CHANGE END ***
