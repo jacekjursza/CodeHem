@@ -3,7 +3,8 @@ Integration tests for CodeHem2 main class.
 """
 import unittest
 import re # Import re for regex assertion
-from codehem import CodeElementType, CodeHem
+from codehem.models.code_element import CodeElementType
+from codehem import CodeHem
 from ..helpers.code_examples import TestHelper
 
 class CodeHem2Tests(unittest.TestCase):

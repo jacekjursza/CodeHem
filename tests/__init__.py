@@ -1,7 +1,5 @@
 """
-Test package for CodeHem2.
+Test package for CodeHem.
 """
-from codehem.languages.lang_python import initialize_python_language
-
-# Ensure Python manipulators are registered before tests run
-initialize_python_language()
+# Removed the call to initialize_python_language() as it's no longer needed.
+# Components should be registered automatically via decorators.

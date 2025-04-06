@@ -5,6 +5,7 @@ from typing import Dict, List, Any
 import re
 import logging
 from codehem.core.extractors.base import BaseExtractor
+from codehem.core.extractors.extraction_base import ExtractorHelpers
 from codehem.models.enums import CodeElementType
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.core.registry import extractor
@@ -31,30 +32,127 @@ class FunctionExtractor(BaseExtractor):
             return self._extract_with_regex(code, handler, context)
         return []
 
-    def _extract_with_tree_sitter(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
-        """Extract functions using TreeSitter."""
+    def _extract_with_tree_sitter(
+        self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]
+    ) -> List[Dict]:
+        """Extract functions using TreeSitter.
+        [MODIFIED V2: Correctly capture full range including decorators and body]"""
         ast_handler = self._get_ast_handler()
         if not ast_handler:
             return []
         try:
             root, code_bytes = ast_handler.parse(code)
-            query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
+            # Use the function definition query provided by the handler
+            query_results = ast_handler.execute_query(
+                handler.tree_sitter_query, root, code_bytes
+            )
             functions = []
+            processed_node_ids = set()
+
             for node, capture_name in query_results:
-                if capture_name == 'function_def':
-                    function_def = node
-                elif capture_name == 'func_name':
-                    func_name = ast_handler.get_node_text(node, code_bytes)
-                    function_node = ast_handler.find_parent_of_type(node, 'function_definition')
-                    if function_node:
-                        start_line, end_line = ast_handler.get_node_range(function_node)
-                        content = ast_handler.get_node_text(function_node, code_bytes)
-                        parameters = self._extract_parameters(function_node, code_bytes, ast_handler)
-                        return_info = self._extract_return_info(function_node, code_bytes, ast_handler)
-                        functions.append({'type': 'function', 'name': func_name, 'content': content, 'range': {'start': {'line': function_node.start_point[0] + 1, 'column': function_node.start_point[1]}, 'end': {'line': function_node.end_point[0] + 1, 'column': function_node.end_point[1]}}, 'parameters': parameters, 'return_info': return_info})
+                definition_node = None
+                node_for_content_start = (
+                    None  # Node representing the absolute start (incl. decorators)
+                )
+                node_for_content_end = None  # Node representing the absolute end
+
+                # Identify the core function_definition node
+                if capture_name == "function_def":
+                    # Ensure it's actually a function definition node type
+                    if node.type == "function_definition":
+                        definition_node = node
+                    else:
+                        logger.warning(
+                            f"Node captured as 'function_def' has unexpected type: {node.type}"
+                        )
+                        continue
+                elif capture_name == "function_name":
+                    parent_def = ast_handler.find_parent_of_type(
+                        node, "function_definition"
+                    )
+                    if parent_def:
+                        definition_node = parent_def
+                    else:
+                        continue  # Name outside a function def
+
+                if definition_node and definition_node.id not in processed_node_ids:
+                    # --- Check if it's inside a class (skip methods) ---
+                    parent_class = ast_handler.find_parent_of_type(
+                        definition_node, "class_definition"
+                    )
+                    if parent_class:
+                        # logger.debug(f"Skipping node {definition_node.id} (function query); it's inside a class.")
+                        processed_node_ids.add(definition_node.id)
+                        continue
+                    # --- End Class Check ---
+
+                    # Determine the full range node
+                    node_for_range = definition_node
+                    parent_node = definition_node.parent
+                    if parent_node and parent_node.type == "decorated_definition":
+                        node_for_range = parent_node  # decorated_definition covers decorators + function_definition
+
+                    # Extract common info using the core definition node
+                    from codehem.core.engine.code_node_wrapper import CodeNodeWrapper
+
+                    wrapper = CodeNodeWrapper(
+                        ast_handler,
+                        definition_node,
+                        code_bytes,
+                        language_code=self.language_code,
+                        element_type="function",
+                    )
+                    func_name = wrapper.get_name()
+                    if not func_name:
+                        logger.warning(
+                            f"Could not extract name for function node id {definition_node.id}"
+                        )
+                        processed_node_ids.add(definition_node.id)
+                        continue
+
+                    # Get full content and precise range using the node_for_range
+                    content = ast_handler.get_node_text(node_for_range, code_bytes)
+                    start_point = node_for_range.start_point
+                    end_point = node_for_range.end_point
+
+                    # Extract other details
+                    parameters = wrapper.get_parameters(skip_self_or_cls=False)
+                    return_info = wrapper.get_return_info()
+                    # Use helper for decorators based on the definition_node's parent context
+                    decorators_raw = ExtractorHelpers.extract_decorators(
+                        ast_handler, definition_node, code_bytes
+                    )
+
+                    functions.append(
+                        {
+                            "type": CodeElementType.FUNCTION.value,  # Use enum value
+                            "name": func_name,
+                            "content": content,  # Full content
+                            "range": {
+                                "start": {
+                                    "line": start_point[0] + 1,
+                                    "column": start_point[1],
+                                },
+                                "end": {
+                                    "line": end_point[0] + 1,
+                                    "column": end_point[1],
+                                },
+                            },
+                            "parameters": parameters,
+                            "return_info": return_info,
+                            "decorators": decorators_raw,
+                            # Keep definition start line for reference if needed
+                            "definition_start_line": definition_node.start_point[0] + 1,
+                        }
+                    )
+                    processed_node_ids.add(definition_node.id)  # Mark as processed
+
             return functions
         except Exception as e:
-            logger.debug(f'TreeSitter extraction error: {str(e)}')
+            logger.error(
+                f"TreeSitter extraction error in FunctionExtractor: {str(e)}",
+                exc_info=True,
+            )
             return []
 
     def _extract_parameters(self, function_node, code_bytes, ast_handler) -> List[Dict]:
@@ -256,3 +354,9 @@ class FunctionExtractor(BaseExtractor):
         except Exception as e:
             logger.debug(f'Regex extraction error: {e}')
             return []
+
+    def _get_class_name_from_node(self, class_node, ast_handler, code_bytes):
+        name_node = ast_handler.find_child_by_field_name(class_node, 'name')
+        if name_node:
+            return ast_handler.get_node_text(name_node, code_bytes)
+        return "UnnamedClass?"

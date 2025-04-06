@@ -61,31 +61,77 @@ class ImportExtractor(BaseExtractor):
         return []
 
     def _extract_with_tree_sitter(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
-        """Extract imports using TreeSitter."""
+        """Extract imports using TreeSitter. [Added Print Logging]"""
         ast_handler = self._get_ast_handler()
         if not ast_handler:
+            # Use print for visibility with pytest -s
+            print("ImportExtractor: ERROR - No AST handler available.", file=sys.stderr)
             return []
-        root, code_bytes = ast_handler.parse(code)
-        query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
         imports = []
-        for node, capture_name in query_results:
-            if capture_name in ('import', 'import_from'):
-                content = ast_handler.get_node_text(node, code_bytes)
-                name = 'import'
-                if 'from ' in content:
+        processed_node_ids = set()
+        try:
+            root, code_bytes = ast_handler.parse(code)
+            print(f"ImportExtractor: DEBUG - Executing TreeSitter query: {repr(handler.tree_sitter_query)}", file=sys.stderr)
+            query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
+            print(f"ImportExtractor: DEBUG - TreeSitter query returned {len(query_results)} captures.", file=sys.stderr)
+
+            for node, capture_name in query_results:
+                 # Use node.id directly as the key identifier
+                 node_id = node.id
+                 if node_id in processed_node_ids:
+                      continue
+
+                 # Check if the capture name matches expected captures from the query
+                 if capture_name in ('import_simple', 'import_from'):
+                    node_type = node.type # Check the actual node type
+                    if node_type not in ('import_statement', 'import_from_statement'):
+                         print(f"ImportExtractor: WARNING - Captured node via '{capture_name}' has unexpected type '{node_type}'. Skipping.", file=sys.stderr)
+                         continue # Skip if the node type doesn't match the capture name intent
+
+                    content = ast_handler.get_node_text(node, code_bytes)
+                    name = 'import' # Default
                     try:
-                        name = re.search('from\\s+([^\\s]+)', content).group(1)
+                        if node_type == 'import_from_statement':
+                            module_node = node.child_by_field_name('module_name')
+                            if module_node:
+                                 name = ast_handler.get_node_text(module_node, code_bytes)
+                        # Keep name = 'import' for simple import_statement for simplicity
                     except Exception as e:
-                        logger.warning(f"Failed to parse 'from' import name in content: '{content}'. Error: {e}")
-                        raise
-                elif 'import ' in content:
-                    try:
-                        name = re.search('import\\s+([^\\s]+)', content).group(1)
-                    except Exception as e:
-                        logger.warning(f"Failed to parse 'import' name in content: '{content}'. Error: {e}")
-                        raise
-                imports.append({'type': 'import', 'name': name, 'content': content, 'range': {'start': {'line': node.start_point[0] + 1, 'column': node.start_point[1]}, 'end': {'line': node.end_point[0] + 1, 'column': node.end_point[1]}}})
-        return imports
+                        print(f"ImportExtractor: WARNING - Error deriving name for import content '{content[:50]}...': {e}", file=sys.stderr)
+
+                    start_point = node.start_point
+                    end_point = node.end_point
+                    import_data = {
+                        'type': CodeElementType.IMPORT.value,
+                        'name': name,
+                        'content': content,
+                        'range': {
+                            'start': {'line': start_point[0] + 1, 'column': start_point[1]},
+                            'end': {'line': end_point[0] + 1, 'column': end_point[1]}
+                        }
+                    }
+                    imports.append(import_data)
+                    processed_node_ids.add(node_id)
+                    print(f"ImportExtractor: DEBUG - Extracted individual import: {import_data['name']} at line {import_data['range']['start']['line']}", file=sys.stderr)
+                 else:
+                     print(f"ImportExtractor: DEBUG - Skipping capture '{capture_name}' with node type '{node.type}'", file=sys.stderr)
+
+            print(f"ImportExtractor: DEBUG - Finished TreeSitter processing, found {len(imports)} individual imports.", file=sys.stderr)
+            return imports
+        except QueryError as qe:
+             # Make QueryError visible
+             print(f"ImportExtractor: ERROR - TreeSitter Query FAILED with QueryError: {qe}", file=sys.stderr)
+             print(f"  Error Type: {qe.error_type}", file=sys.stderr)
+             print(f"  Offset: {qe.offset}", file=sys.stderr)
+             print(f"  Row: {qe.row}", file=sys.stderr)
+             print(f"  Column: {qe.column}", file=sys.stderr)
+             return []
+        except Exception as e:
+            print(f'ImportExtractor: ERROR - Unexpected error during TreeSitter execution: {e}', file=sys.stderr)
+            # Optionally print traceback for unexpected errors:
+            # import traceback
+            # traceback.print_exc(file=sys.stderr)
+            return []
 
     def _extract_with_regex(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         """Extract imports using regex."""

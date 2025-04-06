@@ -123,40 +123,6 @@ class TemplateMethodExtractor(TemplateExtractor):
 
         return decorators
 
-    def _determine_element_type(self, decorators: List[Dict[str, Any]], element_name: str) -> Tuple[CodeElementType, Optional[str]]:
-        """ Determines the element type (METHOD, PROPERTY_GETTER, PROPERTY_SETTER) based on decorators. """
-        is_getter, is_setter, setter_prop_name = False, False, None
-        logger.debug(f"  _determine_element_type: Checking type for '{element_name}' based on {len(decorators)} decorators...")
-
-        for idx, dec in enumerate(decorators):
-            dec_name = dec.get('name')
-            logger.debug(f"    _determine_element_type: Checking decorator [{idx}]: name='{dec_name}'")
-
-            # Python specific checks
-            if dec_name == 'property':
-                is_getter = True
-                logger.debug(f'      -> Recognized as @property (potential GETTER).')
-            if isinstance(dec_name, str) and dec_name.endswith('.setter'):
-                # Check if the part before .setter matches the element name
-                prop_name_candidate = dec_name[:-len('.setter')]
-                if prop_name_candidate == element_name:
-                    is_setter = True
-                    setter_prop_name = prop_name_candidate
-                    logger.debug(f'      -> Recognized as {dec_name} (SETTER for property {setter_prop_name}).')
-                    # Setter usually takes precedence if both @property and @name.setter are somehow present
-                    break # Found definitive setter for this method name
-
-        final_type = CodeElementType.METHOD
-        if is_setter:
-            final_type = CodeElementType.PROPERTY_SETTER
-        elif is_getter:
-            final_type = CodeElementType.PROPERTY_GETTER
-
-        # Add checks for other languages here if needed (e.g., annotations)
-
-        logger.debug(f"  _determine_element_type: Final classification for '{element_name}' -> {final_type.value}")
-        return final_type, setter_prop_name
-
     def _extract_common_info(self, definition_node: Node, ast_handler: Any, code_bytes: bytes) -> Optional[Dict[str, Any]]:
         """Extracts common information (name, parameters, return type, content, range)."""
         from codehem.core.engine.code_node_wrapper import CodeNodeWrapper
@@ -189,76 +155,91 @@ class TemplateMethodExtractor(TemplateExtractor):
         return info
 
     def _process_tree_sitter_results(self, query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: Any, context: Dict[str, Any]) -> List[Dict]:
-        """Processes TreeSitter query results, identifying methods/getters/setters."""
+        """
+        Processes TreeSitter query results for potential methods.
+        Assigns provisional 'method' type; specific classification (getter/setter)
+        is deferred to the language-specific post-processor.
+        """
         potential_elements = []
-        processed_definition_node_ids = set() # Track definition nodes to avoid duplicates
-
+        processed_definition_node_ids = set()
         logger.debug(f'_process_tree_sitter_results: Received {len(query_results)} results from TreeSitter query.')
 
         for node, capture_name in query_results:
             definition_node = None
+            # Identify the core function definition node from captures like 'method_def', 'decorated_method_def', or name captures
+            if capture_name in ['method_def', 'decorated_method_def']:
+                 potential_def = node
+                 if node.type == 'decorated_definition':
+                      def_child = ast_handler.find_child_by_field_name(node, 'definition')
+                      if def_child and def_child.type == 'function_definition':
+                           definition_node = def_child
+                      else: # Fallback if structure is unexpected
+                           definition_node = node # Keep the decorated_definition node for range? Revisit needed.
+                           logger.warning(f"Could not find 'function_definition' child within 'decorated_definition' node ID {node.id}")
+                           # Attempt to find name anyway for logging/debugging
+                           temp_name_node = ast_handler.find_child_by_field_name(node, 'name') or \
+                                            (def_child and ast_handler.find_child_by_field_name(def_child, 'name'))
+                           temp_name = ast_handler.get_node_text(temp_name_node, code_bytes) if temp_name_node else "UNKNOWN"
+                           logger.warning(f"  Decorated definition name (approx): {temp_name}")
 
-            # Identify the core function definition node
-            if node.type == 'function_definition':
-                definition_node = node
-            elif node.type == 'decorated_definition':
-                # Find the actual function_definition within the decorated_definition
-                def_child = ast_handler.find_child_by_field_name(node, 'definition')
-                if def_child and def_child.type == 'function_definition':
-                    definition_node = def_child
-            elif capture_name in ['method_name', 'property_name', 'function_name']: # If capture is the name identifier
-                 # Find the containing function definition
-                 parent_func = ast_handler.find_parent_of_type(node, 'function_definition')
-                 if parent_func:
-                      definition_node = parent_func
+                 elif node.type == 'function_definition':
+                      definition_node = node
+                 else:
+                     logger.warning(f"Unexpected node type '{node.type}' captured as '{capture_name}'")
 
-            # Process if we found a valid function definition node and haven't processed it yet
+            elif capture_name in ['method_name', 'property_name', 'function_name']: # Handle cases where name is captured directly
+                parent_func = ast_handler.find_parent_of_type(node, 'function_definition')
+                if parent_func:
+                    definition_node = parent_func
+                else:
+                     # Could be a name capture outside a function def context, ignore
+                     logger.debug(f"Name capture '{capture_name}' found outside function_definition context.")
+                     continue # Skip this capture if it's not part of a function definition
+
+            # Process if we found a valid definition node not already processed
             if definition_node and definition_node.id not in processed_definition_node_ids:
-                # Determine if it's within a class (i.e., a method/property)
+                # Check if it's within a class context
                 class_name = self._get_actual_parent_class_name(definition_node, ast_handler, code_bytes)
-
-                if class_name: # Only process if it's inside a class
+                if class_name: # Only process if it's actually a method (inside a class)
                     logger.debug(f"  _process_tree_sitter_results: Processing definition (Node ID: {definition_node.id}) in class '{class_name}'.")
                     common_info = self._extract_common_info(definition_node, ast_handler, code_bytes)
-
                     if common_info:
                         element_name = common_info['name']
+                        # Extract decorators but DO NOT classify type here
                         decorators = self._extract_all_decorators(definition_node, ast_handler, code_bytes)
-                        element_type, setter_prop_name = self._determine_element_type(decorators, element_name)
+
+                        # Assign provisional type METHOD - Post processor will refine
+                        provisional_type = CodeElementType.METHOD.value
 
                         element_info = {
                             'node_id': definition_node.id, # Temporary ID for deduplication
-                            'type': element_type.value,
+                            'type': provisional_type, # Provisional type
                             'name': element_name,
                             'content': common_info['content'],
                             'class_name': class_name,
                             'range': common_info['range'],
-                            'decorators': decorators,
+                            'decorators': decorators, # Pass raw decorator info
                             'parameters': common_info['parameters'],
                             'return_info': common_info['return_info'],
-                            'definition_start_line': common_info['definition_start_line'], # Store actual def start
+                            'definition_start_line': common_info['definition_start_line'],
                             'definition_start_col': common_info['definition_start_col']
                         }
-                        # Add property name if it's a setter derived from decorator
-                        if element_type == CodeElementType.PROPERTY_SETTER and setter_prop_name:
-                            element_info['property_name'] = setter_prop_name
-
                         potential_elements.append(element_info)
                         processed_definition_node_ids.add(definition_node.id)
                     else:
-                         logger.warning(f'  _process_tree_sitter_results: Failed to extract common_info for node id {definition_node.id}.')
-                # else: logger.debug(f"  _process_tree_sitter_results: Skipping node id {definition_node.id} - not inside a class.")
+                        logger.warning(f'  _process_tree_sitter_results: Failed to extract common_info for node id {definition_node.id}.')
+                else:
+                     logger.debug(f"  _process_tree_sitter_results: Skipping definition node id {definition_node.id} - not inside a class.")
 
-        # Post-process results (e.g., remove temporary IDs)
+        # Final processing: remove temporary node_id and return
         final_results = []
         for elem in potential_elements:
-             logger.debug(f"Processed finally: {elem['class_name']}.{elem['name']} as {elem['type']} (Start def: L{elem['definition_start_line']})")
-             elem.pop('node_id', None) # Remove temporary ID
-             final_results.append(elem)
+            logger.debug(f"Processed extractor result: {elem.get('class_name')}.{elem.get('name')} as provisional type {elem.get('type')}")
+            elem.pop('node_id', None) # Remove temporary ID
+            final_results.append(elem)
 
-        logger.debug(f'Finished TreeSitter processing. Returned {len(final_results)} unique elements (methods/getters/setters).')
+        logger.debug(f'Finished TreeSitter processing in TemplateMethodExtractor. Returned {len(final_results)} potential methods.')
         return final_results
-
 
     def _process_regex_results(self, matches: Any, code: str, context: Dict[str, Any]) -> List[Dict]:
         """Processes regex match results (currently lower priority)."""

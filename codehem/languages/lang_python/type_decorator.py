@@ -1,52 +1,42 @@
-# codehem/languages/lang_python/type_decorator.py
-"""Handler for Python decorator elements."""
-import re
-from typing import Any, Dict, List, Optional
+import logging
+import sys
+
+from codehem.models.element_type_template import create_element_type_descriptor
+
+# --- Debug Print Added ---
+print(f"--- Executing {__name__} ---")
+# --- End Debug Print ---
 from codehem.core.registry import element_type_descriptor
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.models.enums import CodeElementType
 
+
+logger = logging.getLogger(__name__)
+
 @element_type_descriptor
 class PythonDecoratorHandlerElementType(ElementTypeLanguageDescriptor):
-    """Handler for Python decorator elements."""
-    language_code = 'python'
-    element_type = CodeElementType.DECORATOR
-    # Ten query jest używany głównie do *znalezienia* dekoratorów,
-    # a TemplateMethodExtractor zajmuje się ich *ekstrakcją* w kontekście metody/funkcji/klasy
-    tree_sitter_query = """
-    (decorator) @decorator_node
-    """
-    # Regex może być przydatny jako fallback, ale na razie wyłączamy custom_extract
-    regexp_pattern = r'@([a-zA-Z_][a-zA-Z0-9_]*(?:\s*\.\s*[a-zA-Z_][a-zA-Z0-9_]*)*)(?:\([^)]*\))?'
-    # --- ZMIANA ---
-    # Wyłączamy custom_extract, polegamy na ekstrakcji w TemplateMethodExtractor
-    custom_extract = False
+    """Handler for Python decorator elements, using templates."""
+    # Define language and type for this specific handler
+    _LANGUAGE = 'python'
+    _TYPE = CodeElementType.DECORATOR
 
-    # --- ZMIANA ---
-    # Metoda extract staje się nieużywana przy custom_extract = False,
-    # ale zostawiamy ją zakomentowaną lub usuwamy.
-    # def extract(self, code: str, context: Optional[Dict[str, Any]]=None) -> List[Dict]:
-    #     """Custom extraction for decorators to properly associate with their targets."""
-    #     # Ta logika jest teraz prawdopodobnie obsługiwana lepiej przez TreeSitter
-    #     # w TemplateMethodExtractor._extract_all_decorators
-    #     logger.warning("PythonDecoratorHandlerElementType.extract jest wyłączona (custom_extract=False)")
-    #     return []
-    #     # Stara logika oparta na regex:
-    #     # results = []
-    #     # pattern = re.compile(self.regexp_pattern, re.MULTILINE | re.DOTALL)
-    #     # # Poprawiony regex do asocjacji z następną linią def/class
-    #     # assoc_pattern = re.compile(self.regexp_pattern + r'\s*\n\s*(?:def|class)\s+([a-zA-Z_][a-zA-Z0-9_]*)', re.MULTILINE | re.DOTALL)
-    #     # for match in assoc_pattern.finditer(code):
-    #     #     decorator_name = match.group(1)
-    #     #     target_name = match.group(2) # Nazwa funkcji/klasy
-    #     #     content = match.group(0).split('\n')[0] # Tylko linia z @...
-    #     #     start_pos = match.start()
-    #     #     # ... reszta logiki obliczania zakresu ...
-    #     #     results.append({
-    #     #         'type': 'decorator',
-    #     #         'name': decorator_name,
-    #     #         'content': content,
-    #     #         'parent_name': target_name, # Asocjacja z celem
-    #     #         'range': { ... }
-    #     #     })
-    #     # return results
+    # --- Dynamic generation ---
+    _attrs = create_element_type_descriptor(_LANGUAGE, _TYPE)
+    # ---
+
+    # --- Assign attributes, falling back if generation failed ---
+    language_code = _LANGUAGE
+    element_type = _TYPE
+
+    if _attrs:
+        # Successfully generated attributes from template
+        tree_sitter_query = _attrs.get('tree_sitter_query')
+        regexp_pattern = _attrs.get('regexp_pattern')
+        # Use generated custom_extract value, default to False if missing in template result
+        custom_extract = _attrs.get('custom_extract', False)
+    else:
+        # Failed to generate attributes from template
+        logger.error(f'Could not generate descriptor attributes for {_LANGUAGE}/{_TYPE.value} from template. Check template definitions and placeholders.')
+        tree_sitter_query = None
+        regexp_pattern = None
+        custom_extract = False

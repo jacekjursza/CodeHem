@@ -3,11 +3,13 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Type, Union
 
-from codehem import CodeElementType, CodeElementXPathNode
 from codehem.core.extractors.base import BaseExtractor
 from codehem.core.formatting.formatter import BaseFormatter
 from codehem.core.manipulators.manipulator_base import ManipulatorBase
-from codehem.models.code_element import CodeElementsResult
+
+from codehem.models.enums import CodeElementType
+from codehem.models.xpath import CodeElementXPathNode
+
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 
 logger = logging.getLogger(__name__)
@@ -90,23 +92,23 @@ class LanguageService(ABC):
     def _init_manipulators(self, manipulators: Dict[str, Type[ManipulatorBase]]):
         """Initialize all manipulators for this language service."""
         for key, manipulator_class in manipulators.items():
-            if key.startswith(f"{self.language_code}_"):
-                element_type_name = key[len(self.language_code) + 1 :]
-                try:
-                    element_type_enum = self._get_element_type_enum(element_type_name)
-                    if element_type_enum:
-                        logger.debug(
-                            f"Creating manipulator for {self.language_code}/{element_type_name}"
-                        )
-                        self.manipulators[element_type_name] = manipulator_class(
-                            element_type=element_type_enum,
-                            formatter=self.formatter,
-                            extraction_service=self._extraction_service,
-                        )
-                except Exception as e:
-                    logger.error(
-                        f"Error creating manipulator for {element_type_name}: {e}"
+            if key.startswith(f'{self.language_code}_'):
+                element_type_name = key[len(self.language_code) + 1:]
+                # --- Start Removed Try ---
+                element_type_enum = self._get_element_type_enum(element_type_name)
+                if element_type_enum:
+                    logger.debug(f'Creating manipulator for {self.language_code}/{element_type_name}')
+                    # Allow exceptions during instantiation to propagate
+                    self.manipulators[element_type_name] = manipulator_class(
+                        element_type=element_type_enum,
+                        formatter=self.formatter,
+                        extraction_service=self._extraction_service # Pass the potentially None service
                     )
+                else:
+                    logger.warning(f"Could not resolve CodeElementType enum for manipulator key '{key}'. Skipping.")
+                # --- End Removed Try ---
+                # except Exception as e:
+                #     logger.error(f'Error creating manipulator for {element_type_name}: {e}')
 
     def _get_element_type_enum(
         self, element_type_name: str
@@ -178,7 +180,7 @@ class LanguageService(ABC):
         """
         pass
 
-    def extract(self, code: str) -> CodeElementsResult:
+    def extract(self, code: str) -> 'CodeElementsResult':
         """Extract code elements from source code."""
         logger.debug(f"Starting extraction for {self.language_code}")
         from codehem.core.extraction_service import ExtractionService
@@ -190,8 +192,8 @@ class LanguageService(ABC):
         return result
 
     def extract_language_specific(
-        self, code: str, current_result: CodeElementsResult
-    ) -> CodeElementsResult:
+        self, code: str, current_result: 'CodeElementsResult'
+    ) -> 'CodeElementsResult':
         return current_result
 
     def resolve_xpath(self, xpath: str) -> Tuple[str, Optional[str]]:
@@ -202,11 +204,15 @@ class LanguageService(ABC):
         return (parts[-1], parts[-2])
 
     @abstractmethod
-    def get_text_by_xpath_internal(
-        self, code: str, xpath_nodes: List["CodeElementXPathNode"]
-    ) -> Optional[str]:
+    @abstractmethod
+    def get_text_by_xpath_internal(self, code: str, xpath_nodes: List['CodeElementXPathNode']) -> Optional[str]:
         """
         Internal method to retrieve text content based on parsed XPath nodes.
         To be implemented by language-specific services.
+        [Implementation moved to language-specific file, e.g., lang_python/service.py.
+        Broad try-except should be removed there.]
         """
-        pass
+        # This method should ideally be implemented in the subclass (e.g., PythonLanguageService)
+        # The try-except should be removed from that implementation.
+        logger.error(f"get_text_by_xpath_internal not implemented in base LanguageService for {self.language_code}")
+        return None # Or raise NotImplementedError

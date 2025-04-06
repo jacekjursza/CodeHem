@@ -43,8 +43,11 @@ def greet(self) -> str:
 '''
 new_method = '''
 def new_method(self) -> str:
+    """ A new method to add to a class."""
+    
     print("Hello, World!")
-    return f"THIS IS NEW METHOD!!!!!!!!!!!!"
+    
+    return f"THIS IS+ 11111 NEW METHOD!!!!!!!!!!!!@"
 '''
 
 def test_services():

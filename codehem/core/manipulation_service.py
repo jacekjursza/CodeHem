@@ -5,7 +5,7 @@ Acts as a facade for the various manipulation strategies.
 import logging
 from typing import Optional
 
-from codehem import CodeElementType
+from codehem.models.enums import CodeElementType
 from codehem.core.engine.xpath_parser import XPathParser
 from codehem.core.registry import registry
 from codehem.core.language_service import LanguageService

@@ -1,19 +1,42 @@
+import logging
+import sys
+
+from codehem.models.element_type_template import create_element_type_descriptor
+
+# --- Debug Print Added ---
+print(f"--- Executing {__name__} ---")
+# --- End Debug Print ---
 from codehem.core.registry import element_type_descriptor
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.models.enums import CodeElementType
 
 
+logger = logging.getLogger(__name__)
+
 @element_type_descriptor
 class PythonClassHandlerElementType(ElementTypeLanguageDescriptor):
-    """Handler for Python class elements."""
-    language_code = 'python'
-    element_type = CodeElementType.CLASS
-    # Fixed tree-sitter query to properly match Python classes
-    tree_sitter_query = """
-    (class_definition
-      name: (identifier) @class_name
-      body: (block) @body) @class_def
-    """
-    # Fixed regex to properly match Python classes
-    regexp_pattern = 'class\\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*\\([^)]*\\))?\\s*:'
-    custom_extract = False
+    """Handler for Python class elements, using templates."""
+    # Define language and type for this specific handler
+    _LANGUAGE = 'python'
+    _TYPE = CodeElementType.CLASS
+
+    # --- Dynamic generation ---
+    _attrs = create_element_type_descriptor(_LANGUAGE, _TYPE)
+    # ---
+
+    # --- Assign attributes, falling back if generation failed ---
+    language_code = _LANGUAGE
+    element_type = _TYPE
+
+    if _attrs:
+        # Successfully generated attributes from template
+        tree_sitter_query = _attrs.get('tree_sitter_query')
+        regexp_pattern = _attrs.get('regexp_pattern')
+        # Use generated custom_extract value, default to False if missing in template result
+        custom_extract = _attrs.get('custom_extract', False)
+    else:
+        # Failed to generate attributes from template
+        logger.error(f'Could not generate descriptor attributes for {_LANGUAGE}/{_TYPE.value} from template. Check template definitions and placeholders.')
+        tree_sitter_query = None
+        regexp_pattern = None
+        custom_extract = False

@@ -13,38 +13,101 @@ class PythonExtractionPostProcessor(BaseExtractionPostProcessor):
     """
 
     def process_imports(self, raw_imports: List[Dict]) -> List[CodeElement]:
+        """ [Added Print Logging] """
+        # Use print for visibility with pytest -s
+        import sys
+        print(f"ProcessImports: DEBUG - Received {len(raw_imports)} raw import elements.", file=sys.stderr)
+        if raw_imports:
+            print(f"ProcessImports: DEBUG - First raw import: {raw_imports[0]}", file=sys.stderr)
+
         if not raw_imports:
+            print("ProcessImports: DEBUG - No raw imports received, returning empty list.", file=sys.stderr)
             return []
 
-        # If we received one collective 'imports' element
-        if len(raw_imports) == 1 and raw_imports[0].get("name") == "imports":
-            raw_element = raw_imports[0]
-            range_data = raw_element.get("range")
-            code_range = None
-            if range_data:
-                from codehem.models.code_element import CodeRange
-                from codehem.models.enums import CodeElementType
+        # Sort by line number first
+        try:
+            # Ensure sorting handles potential missing range data gracefully
+            raw_imports.sort(key=lambda x: x.get('range', {}).get('start', {}).get('line', float('inf')))
+            print(f"ProcessImports: DEBUG - Sorted {len(raw_imports)} raw imports by line.", file=sys.stderr)
+        except Exception as e:
+            print(f"ProcessImports: ERROR - Error sorting raw_imports: {e}. Proceeding without sorting.", file=sys.stderr)
 
-                code_range = CodeRange(
-                    start_line=range_data.get("start", {}).get("line", 1),
-                    start_column=range_data.get("start", {}).get("column", 0),
-                    end_line=range_data.get("end", {}).get("line", 1),
-                    end_column=range_data.get("end", {}).get("column", 0),
+        # Combine individual imports into one section
+        first_import = raw_imports[0]
+        last_import = raw_imports[-1]
+
+        first_range = first_import.get('range', {})
+        last_range = last_import.get('range', {})
+        start_data = first_range.get('start', {})
+        end_data = last_range.get('end', {})
+
+        start_line = start_data.get('line')
+        start_col = start_data.get('column', 0) # Default column to 0
+        end_line = end_data.get('line')
+        end_col = end_data.get('column', 0) # Default column to 0
+
+        # Basic validation and fallback for range
+        if not all(isinstance(i, int) for i in [start_line, end_line]): # Removed col checks, less critical
+             print(f"ProcessImports: WARNING - Invalid line number data found in first/last import. Using fallback range. First: {first_range}, Last: {last_range}", file=sys.stderr)
+             valid_lines = sorted([
+                 item.get('range', {}).get('start', {}).get('line')
+                 for item in raw_imports
+                 if isinstance(item.get('range', {}).get('start', {}).get('line'), int)
+             ] + [
+                 item.get('range', {}).get('end', {}).get('line')
+                 for item in raw_imports
+                 if isinstance(item.get('range', {}).get('end', {}).get('line'), int)
+             ])
+             if valid_lines:
+                 start_line = valid_lines[0]
+                 end_line = valid_lines[-1]
+                 start_col = 0
+                 end_col = 0 # Estimate end column is hard, default to 0
+                 print(f"ProcessImports: WARNING - Fallback range calculated: {start_line}-{end_line}", file=sys.stderr)
+             else:
+                 print("ProcessImports: ERROR - No valid line numbers found in any import range data. Using default range 1-1.", file=sys.stderr)
+                 start_line, start_col, end_line, end_col = 1, 0, 1, 0 # Absolute fallback
+
+        # Combine content - This is inherently tricky if lines aren't contiguous
+        # A better way requires the original source code access here, which we don't have directly.
+        # For now, just joining the extracted contents might be the best guess.
+        combined_content = "\n".join([imp.get('content', '') for imp in raw_imports])
+        print(f"ProcessImports: DEBUG - Combining {len(raw_imports)} imports from estimated line {start_line} to {end_line}.", file=sys.stderr)
+
+        from codehem.models.code_element import CodeElement, CodeRange
+        from codehem.models.enums import CodeElementType
+        from pydantic import ValidationError
+
+        combined_range = None
+        try:
+            # Ensure start/end lines are valid integers before creating range
+            if isinstance(start_line, int) and isinstance(end_line, int) and start_line > 0 and end_line >= start_line:
+                combined_range = CodeRange(
+                    start_line=start_line,
+                    start_column=start_col, # Use default 0
+                    end_line=end_line,
+                    end_column=end_col # Use default 0
                 )
-            element = CodeElement(
+                print(f"ProcessImports: DEBUG - Created combined CodeRange: {combined_range}", file=sys.stderr)
+            else:
+                 print(f"ProcessImports: WARNING - Invalid calculated lines for combined range: start={start_line}, end={end_line}. Range will be None.", file=sys.stderr)
+
+        except (ValidationError, Exception) as e:
+            print(f"ProcessImports: ERROR - Failed to create combined CodeRange: {e}", file=sys.stderr)
+
+        # Create the single 'imports' element
+        try:
+            combined_element = CodeElement(
                 type=CodeElementType.IMPORT,
-                name="imports",
-                content=raw_element.get("content", ""),
-                range=code_range,
-                additional_data={"imports_list": raw_element.get("imports", [])},
+                name='imports',
+                content=combined_content,
+                range=combined_range, # Use the created or None range
+                additional_data={'individual_imports': raw_imports}
             )
-            return [element]
-        else:
-            # If (unexpectedly) we got a list of individual imports
-            logger.warning(
-                "Received a list of individual imports instead of expected collective element."
-            )
-            # Could implement combining logic here, but for now return empty list
+            print("ProcessImports: DEBUG - Successfully created combined 'imports' CodeElement.", file=sys.stderr)
+            return [combined_element]
+        except (ValidationError, Exception) as e:
+            print(f"ProcessImports: ERROR - Failed to create combined 'imports' CodeElement: {e}", file=sys.stderr)
             return []
 
     def process_functions(self, raw_functions: List[Dict]) -> List[CodeElement]:
@@ -265,39 +328,66 @@ class PythonExtractionPostProcessor(BaseExtractionPostProcessor):
 
         return param_elements
 
-    def _process_method_element(
-        self, method_data: Dict, parent_class_element: 'CodeElement'
-    ) -> 'CodeElement':
+    def _process_method_element(self, method_data: Dict, parent_class_element: 'CodeElement') -> 'CodeElement':
+        """
+        Process raw method/property data into a CodeElement with children,
+        including classification based on Python decorators (@property, @name.setter).
+        """
         from codehem.models.code_element import CodeElement
         from codehem.models.enums import CodeElementType
 
-        element_name = method_data.get("name", "unknown_member")
+        element_name = method_data.get('name', 'unknown_member')
         parent_name = parent_class_element.name
-        logger.debug(
-            f"Processing class member: {element_name} (raw type: {method_data.get('type')}) in class {parent_name}"
-        )
+        # Initial type comes from the extractor (should be 'method' provisionally)
+        initial_type_str = method_data.get('type', CodeElementType.METHOD.value) 
+        logger.debug(f"PostProcessing member: {element_name} (initial type: {initial_type_str}) in class {parent_name}")
 
-        element_type_str = method_data.get("type")
+        # Create the base element first using the provisional type
         try:
-            element_type_enum = CodeElementType(element_type_str)
+            element_type_enum = CodeElementType(initial_type_str)
         except ValueError:
-            logger.warning(
-                f"Received invalid type '{element_type_str}' for member '{element_name}' in class '{parent_name}'. Setting to UNKNOWN."
-            )
-            method_data["type"] = CodeElementType.UNKNOWN.value
-            element_type_enum = CodeElementType.UNKNOWN
+            logger.warning(f"Received invalid initial type '{initial_type_str}' for member '{element_name}' in class '{parent_name}'. Using METHOD.")
+            method_data['type'] = CodeElementType.METHOD.value # Force to method if invalid
+            element_type_enum = CodeElementType.METHOD
 
         element = CodeElement.from_dict(method_data)
         element.parent_name = parent_name
 
-        element.children.extend(self._process_decorators(method_data))
-        element.children.extend(
-            self._process_parameters(element, method_data.get("parameters", []))
-        )
+        # --- Python-specific classification based on decorators ---
+        raw_decorators = method_data.get('decorators', [])
+        is_getter = False
+        is_setter = False
 
-        return_element = self._process_return_value(
-            element, method_data.get("return_info", {})
-        )
+        for dec_info in raw_decorators:
+            dec_name = dec_info.get('name')
+            if dec_name == 'property':
+                is_getter = True
+                logger.debug(f"  Decorator '@property' found for {element_name}.")
+            elif isinstance(dec_name, str) and dec_name.endswith('.setter'):
+                # Check if the part before '.setter' matches the element name
+                if dec_name == f"{element_name}.setter":
+                     is_setter = True
+                     logger.debug(f"  Decorator '@{element_name}.setter' found for {element_name}.")
+                     break # Setter takes precedence for classification
+
+        # Update type based on decorators
+        if is_setter:
+            element.type = CodeElementType.PROPERTY_SETTER
+            logger.debug(f"  Classifying {element_name} as PROPERTY_SETTER.")
+            # Optionally add property_name if needed by consumers, though name is the same
+            element.additional_data['property_name'] = element_name
+        elif is_getter:
+            element.type = CodeElementType.PROPERTY_GETTER
+            logger.debug(f"  Classifying {element_name} as PROPERTY_GETTER.")
+        # Else: keep the provisional type (METHOD)
+
+        # --- End Python-specific classification ---
+
+        # Process and add children (decorators, parameters, return value)
+        # Note: _process_decorators now just creates CodeElement children from raw data
+        element.children.extend(self._process_decorators(method_data))
+        element.children.extend(self._process_parameters(element, method_data.get('parameters', [])))
+        return_element = self._process_return_value(element, method_data.get('return_info', {}))
         if return_element:
             element.children.append(return_element)
 

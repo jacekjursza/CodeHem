@@ -332,56 +332,66 @@ class TemplateExtractor(BaseExtractor):
         raise NotImplementedError
 
     def _extract_with_patterns(self, code: str, handler: Optional[ElementTypeLanguageDescriptor], context: Dict[str, Any]) -> List[Dict]:
-        """Extract using TreeSitter first, fall back to regex if needed."""
+        """Extract using TreeSitter first, fall back to regex if needed.
+        [DEBUGGING: Reverted to direct logic, removed undefined helper methods]"""
         if not handler:
-             logger.error(f'Cannot extract patterns for {self.__class__.__name__} - no handler (descriptor) provided.')
-             return []
+            logger.error(f'Cannot extract patterns for {self.__class__.__name__} - no handler (descriptor) provided.')
+            return []
 
         elements = []
         tree_sitter_attempted = False
         tree_sitter_error = False
+        regex_attempted = False
+        regex_error = False # Keep track of regex errors too
 
-        # Attempt TreeSitter extraction if query exists
-        if handler.tree_sitter_query:
+        # --- TreeSitter Attempt ---
+        # Check if we should attempt TreeSitter
+        should_try_ts = bool(handler.tree_sitter_query) and self._get_ast_handler() is not None
+        if should_try_ts:
+            tree_sitter_attempted = True
             ast_handler = self._get_ast_handler()
-            if ast_handler:
-                tree_sitter_attempted = True
-                try:
-                    logger.debug(f'Attempting TreeSitter extraction for {self.language_code}/{handler.element_type.value}')
-                    root, code_bytes = ast_handler.parse(code)
-                    query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
-                    elements = self._process_tree_sitter_results(query_results, code_bytes, ast_handler, context)
-                except Exception as e:
-                    # Log the full traceback for query errors
-                    logger.error(f'TreeSitter error for {self.language_code}/{handler.element_type.value}: {e}', exc_info=True) # Use exc_info=True
-                    elements = [] # Clear elements on error
-                    tree_sitter_error = True
-            else:
-                logger.warning(f'No AST Handler for {self.language_code}, skipping TreeSitter.')
+            handler_type_name = handler.element_type.value if handler.element_type else 'unknown_handler'
+            logger.debug(f'Attempting TreeSitter extraction for {self.language_code} (handler: {handler_type_name}).')
+            # --- Removed Inner Try-Except ---
+            # Allow exceptions during parsing or processing to propagate for debugging
+            root, code_bytes = ast_handler.parse(code)
+            query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
+            elements = self._process_tree_sitter_results(query_results, code_bytes, ast_handler, context)
+            # --- End Removed Inner Try-Except ---
+            # except Exception as e:
+            #    logger.error(f'Error during TreeSitter extraction for {self.language_code} ({handler_type_name}): {e}', exc_info=False)
+            #    elements = []
+            #    tree_sitter_error = True # Mark TS attempt as failed
 
-        # Determine if fallback to regex is needed
-        # Fallback if: TreeSitter wasn't attempted OR TreeSitter had an error OR TreeSitter succeeded but found nothing
-        should_fallback = not tree_sitter_attempted or tree_sitter_error or (tree_sitter_attempted and not elements)
+        # --- Regex Fallback/Attempt ---
+        # Determine if fallback is needed
+        should_fallback = (not tree_sitter_attempted or tree_sitter_error or (tree_sitter_attempted and not elements))
 
-        # Attempt Regex extraction if pattern exists and fallback is needed
         if handler.regexp_pattern and should_fallback:
-            if tree_sitter_attempted:
-                 logger.debug(f'Using Regex fallback for {self.language_code}/{handler.element_type.value} (TreeSitter attempted: {tree_sitter_attempted}, error: {tree_sitter_error}, found elements: {bool(elements)})')
-            else:
-                 logger.debug(f'Using Regex (no TreeSitter attempt) for {self.language_code}/{handler.element_type.value}')
+            regex_attempted = True
+            handler_type_name = handler.element_type.value if handler.element_type else 'unknown_handler'
+            logger.debug(f'Using Regex fallback for {self.language_code} (handler: {handler_type_name}).')
+            # --- Removed Inner Try-Except ---
+            # Allow exceptions during regex processing to propagate
+            matches = re.finditer(handler.regexp_pattern, code, re.MULTILINE | re.DOTALL)
+            regex_elements = self._process_regex_results(matches, code, context)
+            # Only use regex results if TS failed or returned nothing
+            if not elements or tree_sitter_error:
+                 elements = regex_elements
+            # --- End Removed Inner Try-Except ---
+            # except Exception as e:
+            #     logger.error(f'Error during Regex extraction for {self.language_code} (handler: {handler_type_name}): {e}', exc_info=False)
+            #     # If TS also failed, ensure elements is empty
+            #     if tree_sitter_error:
+            #         elements = []
+            #     regex_error = True
 
-            try:
-                matches = re.finditer(handler.regexp_pattern, code, re.MULTILINE | re.DOTALL)
-                # Use the specific extractor's regex processing
-                regex_elements = self._process_regex_results(matches, code, context)
-                # Only use regex results if TreeSitter didn't produce results or errored
-                if not elements or tree_sitter_error:
-                    elements = regex_elements
-            except Exception as e:
-                logger.error(f'Regex error for {self.language_code}/{handler.element_type.value}: {e}', exc_info=False)
-                # Keep potential (empty) TreeSitter results if Regex errors out
-                if tree_sitter_error: # If both failed, ensure elements is empty
-                     elements = []
-
+        # --- Logging after attempts ---
+        handler_type_name = handler.element_type.value if handler.element_type else 'unknown_handler'
+        if not elements:
+            if tree_sitter_attempted and not tree_sitter_error:
+                 logger.debug(f'TreeSitter extraction for {self.language_code} (handler: {handler_type_name}) returned no elements.')
+            if regex_attempted and not regex_error and should_fallback:
+                 logger.debug(f'Regex extraction for {self.language_code} (handler: {handler_type_name}) returned no elements.')
 
         return elements
