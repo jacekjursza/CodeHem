@@ -1,0 +1,12 @@
+## class_name: Calculator
+## method_name: add
+## start_line: 5
+## end_line: 7
+
+class Calculator {
+    currentValue: number = 0;
+
+    add(a: number, b: number): number {
+        return a + b;
+    }
+}
