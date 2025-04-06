@@ -1,11 +1,21 @@
+# MODIFIED FILE: Changed LanguageService import to string literal to fix circular import
 import importlib
 import logging
 import os
+import sys # Added sys import for checking module existence
 import traceback
-from typing import Any, List, Optional, Type
+from typing import Any, List, Optional, Type, Dict, TYPE_CHECKING # Added Dict, TYPE_CHECKING
+
 import rich
-from codehem.core.language_service import LanguageService
+# *** CHANGE START ***
+# Use TYPE_CHECKING block for LanguageService import or string literals
+# from codehem.core.language_service import LanguageService # Removed direct import
+if TYPE_CHECKING:
+    from codehem.core.language_service import LanguageService # Keep for type checkers
+# *** CHANGE END ***
 from codehem.core.extractors.base import BaseExtractor
+from codehem.core.manipulators.manipulator_base import ManipulatorBase
+from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +24,9 @@ class Registry:
     _instance = None
 
     def __init__(self):
+        # Prevent re-initialization
+        if hasattr(self, '_initialized') and self._initialized:
+            return
         self._initialized = False
         self._initialize()
 
@@ -23,103 +36,126 @@ class Registry:
         return cls._instance
 
     def _initialize(self):
-        """Initializes empty registries."""
-        if hasattr(self, '_initialized') and self._initialized:
-            return
-        self.language_detectors = {}
-        self.language_services = {}
-        self.all_descriptors = {}
-        self.all_extractors = {}
-        self.all_manipulators = {}
-        self.discovered_modules = set()
-        self.language_service_instances = {}
-        self._initialized = False
+        """Initializes empty registries. Only runs once."""
+        logger.debug('Registry initializing...')
+        self.language_detectors: Dict[str, Any] = {} # Type hint added
+        self.language_services: Dict[str, Type['LanguageService']] = {} # Type hint added, uses string literal
+        self.all_descriptors: Dict[str, Dict[str, ElementTypeLanguageDescriptor]] = {} # Type hint added
+        self.all_extractors: Dict[str, Type[BaseExtractor]] = {} # Type hint added
+        self.all_manipulators: Dict[str, Type[ManipulatorBase]] = {} # Type hint added
+        self.language_configs: Dict[str, Dict] = {}
+        self.discovered_modules: set[str] = set() # Type hint added
+        # Cache for LanguageService instances
+        self.language_service_instances: Dict[str, 'LanguageService'] = {} # Type hint added, uses string literal
         logger.debug('Registry _initialize completed.')
 
     def register_language_detector(self, cls):
         """Registers a language detector class."""
-        # --- Start Removed Try ---
-        instance = cls()
-        language_code = instance.language_code.lower()
-        if language_code in self.language_detectors:
-            logger.warning(f"Language detector for '{language_code}' is already registered ({self.language_detectors[language_code].__class__.__name__}). Overwriting with {cls.__name__}.")
-        self.language_detectors[language_code] = instance
-        rich.print(f'Registered language detector: {cls.__name__} for {language_code}')
-        # --- End Removed Try ---
-        # except Exception as e:
-        #     logger.error(f'Error during registration of language detector {cls.__name__}: {e}', exc_info=True)
+        try:
+            instance = cls()
+            # Add check for necessary attribute
+            if not hasattr(instance, 'language_code'):
+                 raise AttributeError(f"Detector class {cls.__name__} needs a 'language_code' attribute.")
+            language_code = instance.language_code.lower()
+            if language_code in self.language_detectors:
+                logger.warning(f"Language detector for '{language_code}' is already registered ({self.language_detectors[language_code].__class__.__name__}). Overwriting with {cls.__name__}.")
+            self.language_detectors[language_code] = instance
+            rich.print(f'Registered language detector: {cls.__name__} for {language_code}')
+        except Exception as e:
+             logger.error(f"Failed to register language detector {cls.__name__}: {e}", exc_info=True)
         return cls
 
-    def register_language_service(self, cls: Type[LanguageService]):
+    def register_language_service(self, cls: Type['LanguageService']): # Type hint uses string literal
         """Registers a language service class."""
-        # --- Start Removed Try ---
-        language_code = cls.LANGUAGE_CODE.lower()
-        if language_code in self.language_services:
-            logger.warning(f"Language service for '{language_code}' is already registered ({self.language_services[language_code].__name__}). Overwriting with {cls.__name__}.")
-        self.language_services[language_code] = cls
-        rich.print(f'Registered language service: {cls.__name__} for {language_code}')
-        # --- End Removed Try ---
-        # except Exception as e:
-        #     logger.error(f'Error during registration of language service {cls.__name__}: {e}', exc_info=True)
+        try:
+            if not hasattr(cls, 'LANGUAGE_CODE') or not cls.LANGUAGE_CODE:
+                 raise ValueError(f"LanguageService class {cls.__name__} must define LANGUAGE_CODE.")
+            language_code = cls.LANGUAGE_CODE.lower()
+            if language_code in self.language_services:
+                logger.warning(f"Language service for '{language_code}' is already registered ({self.language_services[language_code].__name__}). Overwriting with {cls.__name__}.")
+            self.language_services[language_code] = cls
+            rich.print(f'Registered language service: {cls.__name__} for {language_code}')
+        except Exception as e:
+            logger.error(f"Failed to register language service {cls.__name__}: {e}", exc_info=True)
         return cls
 
     def register_extractor(self, cls: Type[BaseExtractor]):
         """Registers an extractor class."""
-        # --- Start Removed Try ---
-        language_code = cls.LANGUAGE_CODE.lower()
-        element_type = cls.ELEMENT_TYPE.value.lower()
-        extractor_key = f'{language_code}/{element_type}'
-        if extractor_key in self.all_extractors:
-            logger.warning(f"Extractor for '{extractor_key}' is already registered ({self.all_extractors[extractor_key].__name__}). Overwriting with {cls.__name__}.")
-        self.all_extractors[extractor_key] = cls
-        rich.print(f'Registered extractor: {cls.__name__} for {extractor_key}')
-        # --- End Removed Try ---
-        # except Exception as e:
-        #     logger.error(f'Error during registration of extractor {cls.__name__}: {e}', exc_info=True)
+        try:
+            if not hasattr(cls, 'LANGUAGE_CODE') or not hasattr(cls, 'ELEMENT_TYPE'):
+                 raise ValueError(f"Extractor class {cls.__name__} must define LANGUAGE_CODE and ELEMENT_TYPE.")
+            language_code = cls.LANGUAGE_CODE.lower()
+            element_type = cls.ELEMENT_TYPE.value.lower()
+            extractor_key = f'{language_code}/{element_type}'
+            if extractor_key in self.all_extractors:
+                logger.warning(f"Extractor for '{extractor_key}' is already registered ({self.all_extractors[extractor_key].__name__}). Overwriting with {cls.__name__}.")
+            self.all_extractors[extractor_key] = cls
+            rich.print(f'Registered extractor: {cls.__name__} for {extractor_key}')
+        except Exception as e:
+            logger.error(f"Failed to register extractor {cls.__name__}: {e}", exc_info=True)
         return cls
 
-    def register_manipulator(self, cls):
+    def register_manipulator(self, cls: Type[ManipulatorBase]):
         """Registers a manipulator class."""
-        # --- Start Removed Try ---
-        language_code = cls.LANGUAGE_CODE.lower()
-        element_type = cls.ELEMENT_TYPE.value.lower()
-        key = f'{language_code}_{element_type}'
-        if key in self.all_manipulators:
-            logger.warning(f"Manipulator for '{key}' is already registered ({self.all_manipulators[key].__name__}). Overwriting with {cls.__name__}.")
-        self.all_manipulators[key] = cls
-        rich.print(f'Registered manipulator: {cls.__name__} for {language_code}/{element_type}')
-        # --- End Removed Try ---
-        # except Exception as e:
-        #     logger.error(f'Error during registration of manipulator {cls.__name__}: {e}', exc_info=True)
+        try:
+            if not hasattr(cls, 'LANGUAGE_CODE') or not hasattr(cls, 'ELEMENT_TYPE'):
+                 raise ValueError(f"Manipulator class {cls.__name__} must define LANGUAGE_CODE and ELEMENT_TYPE.")
+            language_code = cls.LANGUAGE_CODE.lower()
+            element_type = cls.ELEMENT_TYPE.value.lower()
+            key = f'{language_code}_{element_type}'
+            if key in self.all_manipulators:
+                logger.warning(f"Manipulator for '{key}' is already registered ({self.all_manipulators[key].__name__}). Overwriting with {cls.__name__}.")
+            self.all_manipulators[key] = cls
+            rich.print(f'Registered manipulator: {cls.__name__} for {language_code}/{element_type}')
+        except Exception as e:
+             logger.error(f"Failed to register manipulator {cls.__name__}: {e}", exc_info=True)
         return cls
 
-    def register_element_type_descriptor(self, cls):
-        """Registers an element type descriptor class."""
-        # --- Start Removed Try ---
-        instance = cls()
-        language_code = instance.language_code.lower()
-        element_type = instance.element_type.value.lower()
-        if language_code not in self.all_descriptors:
-            self.all_descriptors[language_code] = {}
-        if element_type in self.all_descriptors[language_code]:
-            logger.warning(f"Descriptor for '{language_code}/{element_type}' is already registered ({self.all_descriptors[language_code][element_type].__class__.__name__}). Overwriting with {cls.__name__}.")
-        self.all_descriptors[language_code][element_type] = instance
-        rich.print(f'Registered descriptor: {cls.__name__} for {language_code}/{element_type}')
-        # --- End Removed Try ---
-        # except Exception as e:
-        #     logger.error(f'Error during registration of descriptor {cls.__name__}: {e}', exc_info=True)
+    def register_element_type_descriptor(self, cls: Type[ElementTypeLanguageDescriptor]):
+        """Registers an element type descriptor class instance."""
+        try:
+            instance = cls()
+            if not hasattr(instance, 'language_code') or not hasattr(instance, 'element_type'):
+                 raise ValueError(f"ElementTypeLanguageDescriptor class {cls.__name__} instance must have language_code and element_type.")
+            language_code = instance.language_code.lower()
+            element_type = instance.element_type.value.lower()
+
+            if language_code not in self.all_descriptors:
+                self.all_descriptors[language_code] = {}
+            if element_type in self.all_descriptors[language_code]:
+                logger.warning(f"Descriptor for '{language_code}/{element_type}' is already registered ({self.all_descriptors[language_code][element_type].__class__.__name__}). Overwriting with {cls.__name__}.")
+            self.all_descriptors[language_code][element_type] = instance
+            rich.print(f'Registered descriptor: {cls.__name__} for {language_code}/{element_type}')
+        except Exception as e:
+            logger.error(f"Failed to register element type descriptor {cls.__name__}: {e}", exc_info=True)
         return cls
+
+    def register_language_config(self, language_code: str, config: Dict):
+        """Stores the configuration dictionary for a language."""
+        lang_code_lower = language_code.lower()
+        if lang_code_lower in self.language_configs:
+            logger.warning(f"Language config for '{lang_code_lower}' is already registered. Overwriting.")
+        self.language_configs[lang_code_lower] = config
+        logger.debug(f"Registered language config for '{lang_code_lower}'. Keys: {list(config.keys())}")
+
+    def get_language_config(self, language_code: str) -> Optional[Dict]:
+        """Retrieves the stored configuration dictionary for a language."""
+        return self.language_configs.get(language_code.lower())
 
     def get_language_detector(self, language_code: str) -> Optional[Any]:
         """Gets a language detector instance."""
         return self.language_detectors.get(language_code.lower())
 
-    def get_language_service(self, language_code: str) -> Optional[LanguageService]:
+    # *** CHANGE START ***
+    # Updated return type hint to use string literal
+    def get_language_service(self, language_code: str) -> Optional['LanguageService']:
+    # *** CHANGE END ***
         """Gets or creates a language service instance (singleton per language)."""
         if not isinstance(language_code, str):
             logger.error(f'Invalid language_code type: {type(language_code)}')
             return None
         lang_code_lower = language_code.lower()
+
         if lang_code_lower in self.language_service_instances:
             logger.debug(f"Returning existing LanguageService instance for '{lang_code_lower}'.")
             return self.language_service_instances[lang_code_lower]
@@ -129,73 +165,98 @@ class Registry:
             logger.error(f"No registered LanguageService class found for '{lang_code_lower}'.")
             return None
 
-        logger.debug(f"Creating new LanguageService instance for '{lang_code_lower}'.")
-        # --- Start Removed Try ---
-        formatter_class = None
-        # This dynamic import based on lang_code_lower might be better handled
-        # during registration or via a more robust mechanism.
-        if lang_code_lower == 'python':
-            from codehem.languages.lang_python.formatting.python_formatter import PythonFormatter
-            formatter_class = PythonFormatter
-        # Add similar blocks for other languages if they have specific formatters
+        logger.debug(f"Attempting to create new LanguageService instance for '{lang_code_lower}'.")
 
-        # Allow exceptions during instantiation to propagate
-        instance = language_service_cls(
-            extractors=self.all_extractors,
-            manipulators=self.all_manipulators,
-            element_type_descriptors=self.all_descriptors,
-            formatter_class=formatter_class
-        )
-        self.language_service_instances[lang_code_lower] = instance
-        logger.debug(f"Created and cached LanguageService instance for '{lang_code_lower}'.")
-        return instance
-        # --- End Removed Try ---
-        # except Exception as e:
-        #     logger.exception(f"Critical error during LanguageService initialization for '{lang_code_lower}': {e}")
-        #     return None
+        lang_config = self.get_language_config(lang_code_lower)
+        formatter_class = None
+        if lang_config:
+             # Attempt to get formatter_class from the loaded config
+             formatter_class = lang_config.get('formatter_class')
+             if formatter_class:
+                  logger.debug(f"Using formatter {formatter_class.__name__} from config for {lang_code_lower}")
+        else:
+            logger.warning(f"No language config found for '{lang_code_lower}' when creating service.")
+
+        try:
+            # Instantiate the service, passing only the formatter class found (if any)
+            # The service __init__ will handle initializing its components
+            instance = language_service_cls(
+                formatter_class=formatter_class
+                # Pass language_code explicitly if needed by __init__ and not set via class attr
+                # language_code=lang_code_lower
+            )
+            self.language_service_instances[lang_code_lower] = instance
+            logger.debug(f"Created and cached LanguageService instance for '{lang_code_lower}'.")
+            return instance
+        except Exception as e:
+             logger.error(f"Failed to instantiate LanguageService {language_service_cls.__name__} for {lang_code_lower}: {e}", exc_info=True)
+             return None
 
     def get_supported_languages(self) -> List[str]:
-        """Returns a list of supported language codes."""
+        """Returns a list of supported language codes based on registered services."""
         return list(self.language_services.keys())
 
     def discover_modules(self, package_name='codehem', recursive=True):
         """Discovers and imports modules in the package to trigger registration."""
-        rich.print(f'Discovering modules in package: {package_name}')
+        # Avoid printing during discovery unless debugging
+        # rich.print(f'Discovering modules in package: {package_name}')
+        logger.debug(f"Discovering modules in package: {package_name}")
         try:
             package = importlib.import_module(package_name)
-            package_dir = os.path.dirname(package.__file__)
-            for item in os.listdir(package_dir):
-                full_path = os.path.join(package_dir, item)
-                if item.startswith('_') or item.startswith('.'):
-                    continue
-
-                if item.endswith('.py'):
-                    module_name = f'{package_name}.{item[:-3]}'
-                    if module_name not in self.discovered_modules:
-                        try:
-                            # Allow import errors other than ModuleNotFoundError to propagate
-                            importlib.import_module(module_name)
-                            self.discovered_modules.add(module_name)
-                            # rich.print(f'  Imported module: {module_name}') # Optional debug
-                        except ModuleNotFoundError:
-                            # This is expected if a file exists but isn't a valid module/dependency missing
-                            logger.warning(f'Cannot import module {module_name} (not found or dependency issue).')
-                        # Removed broad except Exception
-                        # except Exception as e:
-                        #    logger.warning(f'Error importing module {module_name}: {e}\n{traceback.format_exc(limit=1)}')
-
-                elif os.path.isdir(full_path) and recursive:
-                    # Only recurse into directories that are packages (contain __init__.py)
-                    if os.path.exists(os.path.join(full_path, '__init__.py')):
-                        subpackage_name = f'{package_name}.{item}'
-                        self.discover_modules(subpackage_name, recursive=recursive)
-
         except ModuleNotFoundError:
-            # This is a critical error if the starting package is not found
-            logger.error(f'Cannot find starting package for discovery: {package_name}')
-        # Removed broad except Exception
-        # except Exception as e:
-        #    logger.error(f'Error discovering modules in {package_name}: {e}', exc_info=True)
+             logger.error(f'Cannot find starting package for discovery: {package_name}')
+             return
+
+        # Handle packages with or without __file__ (like namespace packages)
+        try:
+             # Prefer __path__ for directories
+             package_dirs = getattr(package, '__path__', [os.path.dirname(package.__file__)])
+        except AttributeError:
+             logger.warning(f"Package {package_name} seems to lack both __path__ and __file__. Cannot discover.")
+             return
+
+        for package_dir in package_dirs:
+             if not os.path.isdir(package_dir): # Skip if path isn't a directory
+                  continue
+             logger.debug(f"Scanning directory: {package_dir}")
+             try:
+                  items = os.listdir(package_dir)
+             except FileNotFoundError:
+                  logger.warning(f"Directory not found during discovery: {package_dir}")
+                  continue # Skip this directory if it doesn't exist
+
+             for item in items:
+                 full_path = os.path.join(package_dir, item)
+                 if item.startswith('_') or item.startswith('.'):
+                     continue
+
+                 if item.endswith('.py'):
+                     module_name = f'{package_name}.{item[:-3]}'
+                     if module_name not in self.discovered_modules:
+                         try:
+                             logger.debug(f"Attempting to import module: {module_name}")
+                             imported_module = importlib.import_module(module_name)
+                             self.discovered_modules.add(module_name)
+                             logger.debug(f"Successfully imported: {module_name}")
+
+                             # Check for LANGUAGE_CONFIG and register it
+                             if hasattr(imported_module, 'LANGUAGE_CONFIG') and isinstance(imported_module.LANGUAGE_CONFIG, dict):
+                                 config = imported_module.LANGUAGE_CONFIG
+                                 if 'language_code' in config:
+                                     self.register_language_config(config['language_code'], config)
+                                 else:
+                                     logger.warning(f"Found LANGUAGE_CONFIG in {module_name} but it lacks 'language_code' key.")
+
+                         except ModuleNotFoundError as mnfe:
+                              logger.warning(f'Cannot import module {module_name}. Reason: {mnfe}. Check dependencies or structure.')
+                         except Exception as e:
+                              logger.error(f"Error importing module {module_name}: {e}\n{traceback.format_exc(limit=1)}") # Limit traceback length
+
+                 elif os.path.isdir(full_path) and recursive:
+                     # Check if it's a package (contains __init__.py) before recursing
+                     if os.path.exists(os.path.join(full_path, '__init__.py')):
+                         subpackage_name = f'{package_name}.{item}'
+                         self.discover_modules(subpackage_name, recursive=recursive)
 
     def initialize_components(self):
         """Discovers and initializes all components. Called once."""
@@ -203,40 +264,38 @@ class Registry:
             logger.debug('Components already initialized.')
             return
         logger.info('Starting CodeHem component initialization...')
-        self.discover_modules() # Imports modules, triggering decorators
+        self.discover_modules() # Discover modules, trigger decorators & config registration
         self._initialized = True
-        # --- Debug Print Added ---
-        print("--- Registry Content After Discovery ---")
-        print(f"Language Detectors: {list(self.language_detectors.keys())}")
-        print(f"Language Services: {list(self.language_services.keys())}")
-        print(f"All Descriptors: { {lang: list(descs.keys()) for lang, descs in self.all_descriptors.items()} }")
-        print(f"All Extractors: {list(self.all_extractors.keys())}")
-        print(f"All Manipulators: {list(self.all_manipulators.keys())}")
-        print("--- End Registry Content ---")
-        # --- End Debug Print ---
-        rich.print(f'Components initialized: {len(self.language_detectors)} detectors, {len(self.language_services)} services, {len(self.all_extractors)} extractors, {len(self.all_manipulators)} manipulators registered.')
+        # Print summary after initialization
+        print('--- Registry Content After Discovery ---')
+        print(f'Language Detectors: {list(self.language_detectors.keys())}')
+        print(f'Language Services: {list(self.language_services.keys())}')
+        print(f'Language Configs: {list(self.language_configs.keys())}')
+        # Limit descriptor output for brevity
+        descriptor_summary = {lang: f"{len(descs)} descriptors" for lang, descs in self.all_descriptors.items()}
+        print(f'All Descriptors: {descriptor_summary}')
+        print(f'All Extractors: {len(self.all_extractors)} registered classes')
+        print(f'All Manipulators: {len(self.all_manipulators)} registered classes')
+        print('--- End Registry Content ---')
+        # Use rich.print for the final summary line if preferred
+        rich.print(f'Components initialized: {len(self.language_detectors)} detectors, {len(self.language_services)} services, {len(self.language_configs)} configs, {len(self.all_extractors)} extractors, {len(self.all_manipulators)} manipulators registered.')
         logger.info('Component initialization finished.')
 
-# Global registry instance
+# Singleton instance
 registry = Registry()
 
-# Decorators for registration
+# Decorators remain the same
 def language_detector(cls):
-    """Decorator for registering a language detector."""
     return registry.register_language_detector(cls)
 
 def language_service(cls):
-    """Decorator for registering a language service."""
     return registry.register_language_service(cls)
 
 def extractor(cls):
-    """Decorator for registering an extractor."""
     return registry.register_extractor(cls)
 
 def manipulator(cls):
-    """Decorator for registering a manipulator."""
     return registry.register_manipulator(cls)
 
 def element_type_descriptor(cls):
-    """Decorator for registering an element type descriptor."""
     return registry.register_element_type_descriptor(cls)

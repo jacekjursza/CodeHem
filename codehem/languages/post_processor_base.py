@@ -1,6 +1,6 @@
+# NEW FILE: Base class for post-processors, moved from core
 from abc import ABC, abstractmethod
 from typing import List, Dict
-
 from codehem.models.code_element import CodeElement
 
 class BaseExtractionPostProcessor(ABC):
@@ -18,10 +18,5 @@ class BaseExtractionPostProcessor(ABC):
         pass
 
     @abstractmethod
-    def process_classes(
-        self,
-        raw_classes: List[Dict],
-        members: List[Dict],
-        static_props: List[Dict]
-    ) -> List[CodeElement]:
+    def process_classes(self, raw_classes: List[Dict], members: List[Dict], static_props: List[Dict]) -> List[CodeElement]:
         pass
