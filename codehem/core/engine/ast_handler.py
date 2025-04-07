@@ -79,7 +79,7 @@ class ASTHandler:
         try:
             query = Query(self.language, query_string)
             raw_captures = query.captures(root, lambda n: self.get_node_text(n, code_bytes))
-            return self._process_captures(raw_captures)
+            return self.process_captures(raw_captures)
         except Exception as e:
             print("--------------- ASTHandler.execute_query ---------------")
             print(f"Error executing query: {e}")
@@ -88,7 +88,8 @@ class ASTHandler:
             print("--------------- ASTHandler.execute_query ---------------")
             return []
 
-    def _process_captures(self, captures: Any) -> List[Tuple[Node, str]]:
+    @staticmethod
+    def process_captures(captures: Any) -> List[Tuple[Node, str]]:
         """
         Process tree-sitter query captures into a normalized format.
 
@@ -117,16 +118,26 @@ class ASTHandler:
 
     def find_parent_of_type(self, node: Node, parent_type: str) -> Optional[Node]:
         """
-        Find the nearest parent node of a specified type.
-        
+        Find the nearest parent node matching the specified type or one of the specified types.
         Args:
             node: Starting node
-            parent_type: Type of parent to find
-            
+            parent_types: A single type string or a list of type strings to find.
+
         Returns:
             Parent node or None if not found
         """
-        current = node
+        if not node:
+            return None
+
+        if isinstance(parent_type, str):
+            target_types = {parent_type}
+        elif isinstance(parent_type, list):
+            target_types = set(parent_type)
+        else:
+            print(f"Invalid parent_types format in find_parent_of_type: {type(parent_type)}. Expected str or List[str].")
+            return None
+
+        current = node.parent
         while current is not None:
             if current.type == parent_type:
                 return current

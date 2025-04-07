@@ -29,25 +29,27 @@ def handle_extraction_errors(func: Callable) -> Callable:
     Returns:
         Wrapped function with error handling
     """
+
     def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except ExtractionError as e:
-            logger.error(f"Extraction error: {str(e)}")
-            # Return empty result instead of raising exception
-            return []
-        except UnsupportedLanguageError as e:
-            logger.error(f"Unsupported language: {str(e)}")
-            # Return empty result instead of raising exception
-            return []
-        except AttributeError as e:
-            logger.error(f"! Could not find extractor for {func.__name__} / {args[0].language_code}")
-            print(f"{e}")
-            # Return empty result instead of raising exception
-            return []
-        except Exception as e:
-            logger.exception(f"Unexpected error during extraction: {str(e)}")
-            # Re-raise other exceptions
-            raise
+        return func(*args, **kwargs)
+        # try:
+        #     return func(*args, **kwargs)
+        # except ExtractionError as e:
+        #     logger.error(f"Extraction error: {str(e)}")
+        #     # Return empty result instead of raising exception
+        #     return []
+        # except UnsupportedLanguageError as e:
+        #     logger.error(f"Unsupported language: {str(e)}")
+        #     # Return empty result instead of raising exception
+        #     return []
+        # except AttributeError as e:
+        #     logger.error(f"! Could not find extractor for {func.__name__} / {args[0].language_code}")
+        #     print(f"{e}")
+        #     # Return empty result instead of raising exception
+        #     return []
+        # except Exception as e:
+        #     logger.exception(f"Unexpected error during extraction: {str(e)}")
+        #     # Re-raise other exceptions
+        #     raise
     
     return wrapper

@@ -1,26 +1,26 @@
+# Content of codehem\languages\lang_typescript\type_class.py
 import logging
+from typing import Optional # Added Optional
 from codehem.core.registry import element_type_descriptor
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.models.enums import CodeElementType
-
 logger = logging.getLogger(__name__)
 
 @element_type_descriptor
 class TypeScriptClassHandlerElementType(ElementTypeLanguageDescriptor):
     """ Handler descriptor for TypeScript/JavaScript class elements. """
-    language_code: str = 'typescript'
-    element_type: CodeElementType = CodeElementType.CLASS
-    # Patterns are loaded dynamically from config by the extractor/service
-    tree_sitter_query: str | None = None
-    regexp_pattern: str | None = None
-    custom_extract: bool = False # Use pattern-based extraction
+    # Define constants for registration and identification
+    _LANGUAGE: str = 'typescript'
+    _TYPE: CodeElementType = CodeElementType.CLASS
 
-    def __init__(self):
-        super().__init__(
-            language_code=self.language_code,
-            element_type=self.element_type,
-            tree_sitter_query=self.tree_sitter_query,
-            regexp_pattern=self.regexp_pattern,
-            custom_extract=self.custom_extract
-        )
-        logger.debug(f"Initialized {self.__class__.__name__}")
+    # Set identifying attributes for the instance
+    language_code: str = _LANGUAGE
+    element_type: CodeElementType = _TYPE
+
+    # Initialize pattern fields to None - they will be populated by initialize_patterns()
+    tree_sitter_query: Optional[str] = None
+    regexp_pattern: Optional[str] = None
+    custom_extract: bool = False # Default unless template overrides during init
+
+    # __init__ is no longer needed here as __post_init__ handles defaults
+    # and initialize_patterns handles the rest

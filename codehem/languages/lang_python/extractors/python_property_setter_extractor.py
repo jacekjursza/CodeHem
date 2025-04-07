@@ -1,5 +1,6 @@
 # NEW FILE: Extractor for Python property setters (@name.setter)
 import logging
+import re
 from typing import List, Dict, Any, Tuple, Optional
 from tree_sitter import Node
 from codehem.core.extractors.extraction_base import TemplateExtractor, ExtractorHelpers
