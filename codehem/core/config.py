@@ -21,7 +21,7 @@ class Configuration:
             'extraction': {
                 'prefer_tree_sitter': True,
                 'fallback_to_regex': True,
-                'cache_results': True,
+                'cache_results': False,
                 'cache_size': 100
             },
             'formatting': {
