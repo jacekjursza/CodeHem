@@ -1,6 +1,7 @@
 """
 AST Handler for CodeHem providing a unified interface for tree-sitter operations.
 """
+import traceback
 from typing import Tuple, List, Any, Optional, Dict, Callable
 
 import rich
@@ -84,8 +85,9 @@ class ASTHandler:
             print("--------------- ASTHandler.execute_query ---------------")
             print(f"Error executing query: {e}")
             print(f"query_string: {query_string}")
-            rich.print(f"root: {root}")
-            print("--------------- ASTHandler.execute_query ---------------")
+            rich.print(root)
+            print(traceback.format_exc())
+            print(f"--------------- ASTHandler.execute_query [{self.language.version}] ---------------")
             return []
 
     @staticmethod

@@ -4,40 +4,27 @@ import sys
 import os
 from codehem.core.engine.ast_handler import ASTHandler
 from codehem.core.engine.languages import get_parser, TS_LANGUAGE  # Używamy get_parser z CodeHem
+from codehem.languages.lang_typescript.config import LANGUAGE_CONFIG, TS_PLACEHOLDERS
 from codehem.models.enums import CodeElementType     # Import dla typów
-try:
-    # Próba importu konfiguracji języka TS, aby użyć aktualnych zapytań
-    from codehem.languages.lang_typescript.config import TS_PLACEHOLDERS, LANGUAGE_CONFIG
-    TS_LANGUAGE_CODE = LANGUAGE_CONFIG.get('language_code', 'typescript')
-    # Wydobycie zapytań dla poszczególnych typów
-    QUERIES_FROM_CONFIG = {
-        "IMPORT": TS_PLACEHOLDERS.get(CodeElementType.IMPORT, {}).get('tree_sitter_query'),
-        "FUNCTION": TS_PLACEHOLDERS.get(CodeElementType.FUNCTION, {}).get('tree_sitter_query'),
-        "INTERFACE": TS_PLACEHOLDERS.get(CodeElementType.INTERFACE, {}).get('tree_sitter_query'),
-        "CLASS": TS_PLACEHOLDERS.get(CodeElementType.CLASS, {}).get('tree_sitter_query'),
-        "METHOD": TS_PLACEHOLDERS.get(CodeElementType.METHOD, {}).get('tree_sitter_query'),
-        "PROPERTY": TS_PLACEHOLDERS.get(CodeElementType.PROPERTY, {}).get('tree_sitter_query'),
-        "DECORATOR": TS_PLACEHOLDERS.get(CodeElementType.DECORATOR, {}).get('tree_sitter_query'),
-        "GETTER": TS_PLACEHOLDERS.get(CodeElementType.PROPERTY_GETTER, {}).get('tree_sitter_query', TS_PLACEHOLDERS.get(CodeElementType.METHOD, {}).get('tree_sitter_query')), # Getter może używać zapytania metody
-        "SETTER": TS_PLACEHOLDERS.get(CodeElementType.PROPERTY_SETTER, {}).get('tree_sitter_query', TS_PLACEHOLDERS.get(CodeElementType.METHOD, {}).get('tree_sitter_query')), # Setter może używać zapytania metody
-    }
-    # Usuń None jeśli zapytanie nie istnieje
-    QUERIES_FROM_CONFIG = {k: v for k, v in QUERIES_FROM_CONFIG.items() if v}
-    print("--- Successfully loaded queries from config.py ---")
-    # print(QUERIES_FROM_CONFIG) # Opcjonalnie: odkomentuj, aby zobaczyć załadowane zapytania
-    CONFIG_LOADED = True
-except ImportError as ie:
-    print(f"--- WARNING: Could not import queries from config.py: {ie} ---")
-    print("--- Falling back to hardcoded test queries (might be outdated!) ---")
-    QUERIES_FROM_CONFIG = { # Zastępcze zapytania, jeśli import się nie uda
-        'IMPORT_ATTEMPT_1': '\n(import_statement) @import_statement\n(export_statement declaration: (import_statement)) @exported_import\n    ',
-        'FUNCTION_ATTEMPT_1': '\n(function_declaration name: (identifier) @func_decl_name) @func_decl\n(export_statement declaration: (function_declaration name: (identifier) @exported_func_decl_name)) @exported_func_decl\n(lexical_declaration (variable_declarator name: (identifier) @arrow_func_name value: (arrow_function))) @arrow_func_lexical\n(export_statement declaration: (lexical_declaration (variable_declarator name: (identifier) @exported_arrow_func_name value: (arrow_function)))) @exported_arrow_func_lexical\n    ',
-        'INTERFACE_WORKING': '\n(interface_declaration name: (type_identifier) @interface_name body: (object_type) @interface_body) @interface_def\n(export_statement declaration: (interface_declaration name: (type_identifier) @interface_name body: (object_type) @interface_body)) @interface_def_exported\n    ',
-        'METHOD_ATTEMPT_1': '\n(method_definition name: (property_identifier) @method_name) @method_def\n(method_definition name: (constructor)) @constructor_def\n(method_definition kind: (get) name: (property_identifier) @getter_name) @getter_def\n(method_definition kind: (set) name: (property_identifier) @setter_name) @setter_def\n     ',
-        'PROPERTY_ATTEMPT_1': '\n(public_field_definition name: (property_identifier) @prop_name) @prop_def\n     ',
-        'DECORATOR_ATTEMPT_1': '\n(decorator) @decorator_node\n     '
-    }
-    CONFIG_LOADED = False
+TS_LANGUAGE_CODE = LANGUAGE_CONFIG.get('language_code', 'typescript')
+# Wydobycie zapytań dla poszczególnych typów
+QUERIES_FROM_CONFIG = {
+    "IMPORT": TS_PLACEHOLDERS.get(CodeElementType.IMPORT, {}).get('tree_sitter_query'),
+    "FUNCTION": TS_PLACEHOLDERS.get(CodeElementType.FUNCTION, {}).get('tree_sitter_query'),
+    "INTERFACE": TS_PLACEHOLDERS.get(CodeElementType.INTERFACE, {}).get('tree_sitter_query'),
+    "CLASS": TS_PLACEHOLDERS.get(CodeElementType.CLASS, {}).get('tree_sitter_query'),
+    "METHOD": TS_PLACEHOLDERS.get(CodeElementType.METHOD, {}).get('tree_sitter_query'),
+    "PROPERTY": TS_PLACEHOLDERS.get(CodeElementType.PROPERTY, {}).get('tree_sitter_query'),
+    "DECORATOR": TS_PLACEHOLDERS.get(CodeElementType.DECORATOR, {}).get('tree_sitter_query'),
+    "GETTER": TS_PLACEHOLDERS.get(CodeElementType.PROPERTY_GETTER, {}).get('tree_sitter_query', TS_PLACEHOLDERS.get(CodeElementType.METHOD, {}).get('tree_sitter_query')), # Getter może używać zapytania metody
+    "SETTER": TS_PLACEHOLDERS.get(CodeElementType.PROPERTY_SETTER, {}).get('tree_sitter_query', TS_PLACEHOLDERS.get(CodeElementType.METHOD, {}).get('tree_sitter_query')), # Setter może używać zapytania metody
+}
+# Usuń None jeśli zapytanie nie istnieje
+QUERIES_FROM_CONFIG = {k: v for k, v in QUERIES_FROM_CONFIG.items() if v}
+print("--- Successfully loaded queries from config.py ---")
+# print(QUERIES_FROM_CONFIG) # Opcjonalnie: odkomentuj, aby zobaczyć załadowane zapytania
+CONFIG_LOADED = True
+
 
 try:
     import rich

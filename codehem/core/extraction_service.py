@@ -1,20 +1,14 @@
-# MODIFIED FILE: Corrected circular import issue with string type hints
 import logging
 import os
 # Use TYPE_CHECKING to avoid runtime circular imports for type hints
 from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+
+import rich
+
 from codehem.core.error_handling import handle_extraction_errors
 from codehem.core.registry import registry
 from codehem.languages import get_language_service_for_code, get_language_service_for_file
 from codehem.models.enums import CodeElementType
-# Import models only when TYPE_CHECKING is True (for static analysis)
-# Or use string literals for type hints directly in the code.
-# Let's use string literals for simplicity here.
-
-# *** CHANGE START ***
-# Removed direct import of CodeElementsResult, CodeElement
-# from codehem.models.code_element import CodeElementsResult, CodeElement
-# *** CHANGE END ***
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +57,7 @@ class ExtractionService:
             raise ValueError(f"Failed to get language_service for '{language_code}'. Check if it's registered.")
 
         lang_config = registry.get_language_config(language_code)
+        rich.print(lang_config)
         post_processor_class = None
         if lang_config:
             post_processor_class = lang_config.get('post_processor_class')

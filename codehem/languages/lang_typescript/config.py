@@ -90,45 +90,22 @@ _TS_CLASS_QUERY = """
 """
 
 # Methods / Getters / Setters - REVISED (Removed invalid predicates, capture modifiers as children)
-_TS_METHOD_QUERY = """
+_TS_METHOD_QUERY = '''
 (method_definition
-  ;; Capture modifiers as simple child nodes if needed by logic later
-  (accessibility_modifier)? @accessibility
-  (static)? @static_modifier
-  (readonly)? @readonly_modifier
-  (async)? @async_modifier
-
-  ;; These are OK - 'kind' is a named field in the grammar
-  kind: (get)? @getter_kind
-  kind: (set)? @setter_kind
-
   name: (property_identifier) @method_name
   parameters: (formal_parameters) @params
   return_type: (type_annotation)? @return_type
   body: (statement_block)? @body
 ) @method_def
-"""
+'''
 
 # Properties (Class Fields / Interface Signatures) - REVISED
 _TS_PROPERTY_QUERY = """
-(public_field_definition ;; Type from AST for class fields
-  ;; Capture modifiers as children
-  (accessibility_modifier)? @accessibility
-  (static)? @static_modifier
-  (readonly)? @readonly_modifier
-
+(public_field_definition
   name: (property_identifier) @property_name
   type: (type_annotation)? @type
-  value: (_)? @value ;; Capture optional initial value
+  value: (_)? @value
 ) @property_def
-
-;; For properties within interfaces
-(property_signature
-  (readonly)? @readonly ;; This predicate might be valid here
-  name: (property_identifier) @property_name
-  (question_mark)? @optional
-  type: (type_annotation)? @type
-) @interface_property_def
 """
 
 # Decorators - REVISED (Removed invalid 'expression:' field)

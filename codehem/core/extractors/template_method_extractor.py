@@ -1,6 +1,8 @@
 import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
+
+import rich
 from tree_sitter import Node
 
 from codehem.core.extractors.extraction_base import ExtractorHelpers, TemplateExtractor
@@ -323,7 +325,11 @@ class TemplateMethodExtractor(TemplateExtractor):
 
     def _parse_code_with_tree_sitter(self, code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]) -> List[Dict]:
         ast_handler = self._get_ast_handler()
+
         handler_type_name = handler.element_type.value if handler.element_type else 'unknown_handler'
+        rich.print(f"Using: {ast_handler.language_code} / {handler_type_name}")
+        print(handler)
+
         root, code_bytes = ast_handler.parse(code)
         query_results = ast_handler.execute_query(handler.tree_sitter_query, root, code_bytes)
         return self._process_tree_sitter_results(query_results, code_bytes, ast_handler, context)
