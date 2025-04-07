@@ -254,34 +254,54 @@ class ExtractionService:
     def _extract_file_raw(self, code: str) -> Dict[str, List[Dict]]:
         """
         Extract all supported code elements from the provided code.
+        Now includes PROPERTY and DECORATOR types.
         """
         logger.info(f'Starting raw extraction of all elements for {self.language_code}')
         results = {}
-
+        # Extract imports
         results['imports'] = self.extract_imports(code)
         logger.debug(f"Raw extracted {len(results.get('imports', []))} import elements.")
-
+        # Extract standalone functions
         results['functions'] = self.extract_functions(code)
         logger.debug(f"Raw extracted {len(results.get('functions', []))} functions.")
-
+        # Extract classes (and potentially interfaces depending on language service)
         results['classes'] = self.extract_classes(code)
         logger.debug(f"Raw extracted {len(results.get('classes', []))} classes.")
-
+        # Extract members (methods, getters, setters)
         all_members = self.extract_methods(code, class_name=None)
         results['members'] = all_members
         logger.debug(f'Raw extracted {len(all_members)} potential class members (methods/getters/setters).')
-
+        # Extract regular properties (fields) - ADDED
+        props = self._get_raw_extractor_results(code, CodeElementType.PROPERTY.value)
+        results['properties'] = props
+        logger.debug(f'Raw extracted {len(props)} regular properties.')
+        # Extract static properties (class variables)
         static_props = self._get_raw_extractor_results(code, CodeElementType.STATIC_PROPERTY.value)
         results['static_properties'] = static_props
         logger.debug(f'Raw extracted {len(static_props)} static properties.')
+        # Extract decorators - ADDED
+        decorators = self._get_raw_extractor_results(code, CodeElementType.DECORATOR.value)
+        results['decorators'] = decorators
+        logger.debug(f'Raw extracted {len(decorators)} decorators.')
 
-        logger.info(f'Completed raw extraction for {self.language_code}.')
+        # TODO: Consider adding other types like INTERFACE, ENUM, TYPE_ALIAS, NAMESPACE here
+        # if they are not handled within extract_classes or other specific methods
+        # Example (if needed):
+        # results['interfaces'] = self._get_raw_extractor_results(code, CodeElementType.INTERFACE.value)
+        # logger.debug(f"Raw extracted {len(results.get('interfaces', []))} interfaces.")
+        # results['enums'] = self._get_raw_extractor_results(code, CodeElementType.ENUM.value)
+        # logger.debug(f"Raw extracted {len(results.get('enums', []))} enums.")
+        # results['type_aliases'] = self._get_raw_extractor_results(code, CodeElementType.TYPE_ALIAS.value)
+        # logger.debug(f"Raw extracted {len(results.get('type_aliases', []))} type aliases.")
+        # results['namespaces'] = self._get_raw_extractor_results(code, CodeElementType.NAMESPACE.value)
+        # logger.debug(f"Raw extracted {len(results.get('namespaces', []))} namespaces.")
+
+        logger.info(f'Completed raw extraction for {self.language_code}. Collected types: {list(results.keys())}')
         return results
 
     # *** CHANGE START ***
     # Updated type hint to use string literal
     def extract_all(self, code: str) -> 'CodeElementsResult':
-    # *** CHANGE END ***
         """
         Extract all code elements and convert them to a structured CodeElementsResult.
         Relies on the language-specific post-processor.
@@ -291,49 +311,54 @@ class ExtractionService:
         Returns:
         CodeElementsResult containing extracted elements
         """
-        # *** CHANGE START ***
-        # Import model here locally to avoid top-level cycle,
-        # or rely on post-processor returning the correctly typed object.
-        # For now, let's assume post-processor returns the correct type.
         from codehem.models.code_element import CodeElementsResult
-        # *** CHANGE END ***
-
         logger.info(f'Starting full extraction and post-processing for {self.language_code}')
-        result = CodeElementsResult(elements=[]) # Initialize empty result
-
+        result = CodeElementsResult(elements=[])
         try:
+            # Step 1: Get raw dictionaries from extractors using the modified _extract_file_raw
             raw_elements = self._extract_file_raw(code)
 
+            # Ensure post-processor exists
             if not self.post_processor:
                 logger.error(f'No post-processor available for language {self.language_code}. Cannot structure results.')
-                return result # Return empty result
+                return result
 
+            # Step 2: Process raw elements into CodeElement objects using post-processor
+            # Process imports
             imports = self.post_processor.process_imports(raw_elements.get('imports', []))
             result.elements.extend(imports)
 
+            # Process standalone functions
             functions = self.post_processor.process_functions(raw_elements.get('functions', []))
             result.elements.extend(functions)
 
+            # Process classes/containers, passing all relevant member/property types
+            # Ensure all necessary lists from raw_elements are passed to the post-processor
             classes = self.post_processor.process_classes(
-                raw_classes=raw_elements.get('classes', []),
-                members=raw_elements.get('members', []),
-                static_props=raw_elements.get('static_properties', [])
+                raw_classes=raw_elements.get('classes', []), # Includes interfaces if applicable extractor ran
+                members=raw_elements.get('members', []), # Methods, getters, setters
+                static_props=raw_elements.get('static_properties', []),
+                properties=raw_elements.get('properties', []) # Pass the newly extracted regular properties
+                # TODO: Pass 'decorators' list from raw_elements if decorator processing requires the full list
             )
             result.elements.extend(classes)
 
-            result.elements.sort(key=lambda el: el.range.start_line if el.range else float('inf'))
+            # TODO: Process other top-level elements if added to _extract_file_raw and post-processor
+            # (e.g., enums, type_aliases, namespaces)
 
+            # Step 3: Sort final elements by line number
+            result.elements.sort(key=lambda el: el.range.start_line if el.range else float('inf'))
             logger.info(f'Completed full extraction for {self.language_code}. Top-level element count: {len(result.elements)}')
 
         except Exception as e:
-             logger.error(f"Error during extract_all for {self.language_code}: {e}", exc_info=True)
-             return result # Return potentially partially filled or empty result
+            logger.error(f'Error during extract_all for {self.language_code}: {e}', exc_info=True)
+            # Return potentially partial result or empty result on significant error
+            return result
 
-        # Ensure the return type matches the annotation
+        # Final check on result type (defensive programming)
         if not isinstance(result, CodeElementsResult):
-             logger.error(f"extract_all final result is not CodeElementsResult, but {type(result)}")
-             # Attempt conversion or return empty
-             return CodeElementsResult(elements=getattr(result, 'elements', []))
+             logger.error(f'extract_all final result is not CodeElementsResult, but {type(result)}')
+             return CodeElementsResult(elements=getattr(result, 'elements', [])) # Attempt recovery
 
         return result
 

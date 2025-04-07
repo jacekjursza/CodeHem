@@ -18,5 +18,9 @@ class BaseExtractionPostProcessor(ABC):
         pass
 
     @abstractmethod
-    def process_classes(self, raw_classes: List[Dict], members: List[Dict], static_props: List[Dict]) -> List[CodeElement]:
+    def process_classes(self, raw_classes: List[Dict], members: List[Dict], static_props: List[Dict], properties: List[Dict] = None) -> List[CodeElement]:
+        """
+        Processes raw class/interface data, associating members, static properties,
+        and optionally regular properties.
+        """
         pass
