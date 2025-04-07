@@ -120,156 +120,104 @@ class PythonExtractionPostProcessor(BaseExtractionPostProcessor):
             )
             return []  # Return empty list on failure
 
-    def process_functions(self, raw_functions: List[Dict]) -> List[CodeElement]:
+    def process_functions(self, raw_functions: List[Dict], all_decorators: List[Dict] = None) -> List[CodeElement]:
+        """ Processes raw standalone function data. Accepts all_decorators but doesn't use it yet. """
         processed_functions = []
+        logger.debug(f"Python process_functions received {len(all_decorators or [])} decorators (currently unused).")
         for function_data in raw_functions:
             if not isinstance(function_data, dict):
-                logger.warning(
-                    f"Skipping non-dict item in raw_functions: {type(function_data)}"
-                )
-                continue
-            func_name = function_data.get("name", "unknown_func")
-            logger.debug(f"Processing function: {func_name}")
-            function_data["type"] = CodeElementType.FUNCTION.value  # Ensure type is set
+                    logger.warning(f'Skipping non-dict item in raw_functions: {type(function_data)}')
+                    continue
+            func_name = function_data.get('name', 'unknown_func')
+            logger.debug(f'Processing function: {func_name}')
+            function_data['type'] = CodeElementType.FUNCTION.value
             try:
-                func_element = CodeElement.from_dict(function_data)
-                func_element.parent_name = None  # Functions are top-level
-                # Process children
-                func_element.children.extend(self._process_decorators(function_data))
-                func_element.children.extend(
-                    self._process_parameters(
-                        func_element, function_data.get("parameters", [])
-                    )
-                )
-                return_element = self._process_return_value(
-                    func_element, function_data.get("return_info", {})
-                )
-                if return_element:
-                    func_element.children.append(return_element)
-                processed_functions.append(func_element)
+                    func_element = CodeElement.from_dict(function_data)
+                    func_element.parent_name = None
+                    # Process decorators associated directly by the extractor (if any)
+                    func_element.children.extend(self._process_decorators(function_data))
+                    func_element.children.extend(self._process_parameters(func_element, function_data.get('parameters', [])))
+                    return_element = self._process_return_value(func_element, function_data.get('return_info', {}))
+                    if return_element:
+                        func_element.children.append(return_element)
+                    # TODO: Add logic here to use 'all_decorators' to find and add decorators if needed
+                    processed_functions.append(func_element)
             except (ValidationError, Exception) as e:
-                logger.error(
-                    f"Failed to process function '{func_name}': {e}. Data: {function_data}",
-                    exc_info=True,
-                )
+                logger.error(f"Failed to process function '{func_name}': {e}. Data: {function_data}", exc_info=True)
         return processed_functions
 
-    def process_classes(
-        self,
-        raw_classes: List[Dict],
-        members: List[Dict],
-        static_props: List[Dict],
-        properties: List[Dict] = None,
-    ) -> List[CodeElement]:
+    def process_classes(self, raw_classes: List[Dict], members: List[Dict], static_props: List[Dict], properties: List[Dict] = None, all_decorators: List[Dict] = None) -> List[CodeElement]:
         """
         Processes raw Python class data, associating members and static properties.
-        Accepts 'properties' argument for signature compatibility but does not currently use it.
+        Accepts 'properties' and 'all_decorators' arguments for signature compatibility but does not currently use them extensively.
         """
         processed_classes = []
         member_lookup = {}
-        for m in members:
-            if isinstance(m, dict) and "class_name" in m:
-                class_name = m["class_name"]
-                if class_name not in member_lookup:
-                    member_lookup[class_name] = []
-                member_lookup[class_name].append(m)
-        static_prop_lookup = {}
-        for p in static_props:
-            if isinstance(p, dict) and "class_name" in p:
-                class_name = p["class_name"]
-                if class_name not in static_prop_lookup:
-                    static_prop_lookup[class_name] = []
-                static_prop_lookup[class_name].append(p)
-        # Log if regular properties are received, even though not processed yet
-        if properties is not None:
-            logger.debug(
-                f"Python process_classes received {len(properties)} regular properties (currently unused by Python post-processor)."
-            )
-        for class_data in raw_classes:
+        # Simplified: Build lookups only if data is not None
+        if members:
+            for m in members:
+                if isinstance(m, dict) and 'class_name' in m:
+                    class_name = m['class_name']
+                    if class_name not in member_lookup: member_lookup[class_name] = []
+                    member_lookup[class_name].append(m)
+        if static_props:
+            static_prop_lookup = {}
+            for p in static_props:
+                if isinstance(p, dict) and 'class_name' in p:
+                    class_name = p['class_name']
+                    if class_name not in static_prop_lookup: static_prop_lookup[class_name] = []
+                    static_prop_lookup[class_name].append(p)
+        else:
+            static_prop_lookup = {} # Ensure it exists even if static_props is None
+
+        # Log received arguments for debugging
+        logger.debug(f"Python process_classes received {len(properties or [])} regular properties (unused).")
+        logger.debug(f"Python process_classes received {len(all_decorators or [])} decorators (unused).")
+
+        for class_data in raw_classes or []: # Handle potential None for raw_classes
             if not isinstance(class_data, dict):
-                logger.warning(
-                    f"Skipping non-dict item in raw_classes: {type(class_data)}"
-                )
-                continue
-            class_name = class_data.get("name")
-            logger.debug(f"Processing class: {class_name}")
+                    logger.warning(f'Skipping non-dict item in raw_classes: {type(class_data)}')
+                    continue
+            class_name = class_data.get('name')
+            logger.debug(f'Processing class: {class_name}')
             if not class_name:
-                logger.error(
-                    f"Found class definition without a name! Data: {class_data}"
-                )
+                logger.error(f'Found class definition without a name! Data: {class_data}')
                 continue
-            class_data["type"] = (
-                CodeElementType.CLASS.value
-            )  # Ensure type is set correctly
+            class_data['type'] = CodeElementType.CLASS.value
             try:
                 class_element = CodeElement.from_dict(class_data)
                 class_element.parent_name = None
-                # Process decorators directly associated with the class
-                class_element.children.extend(
-                    self._process_decorators(class_data)
-                )  # Assumes _process_decorators handles this
-                processed_members = {}  # Using dict to prevent duplicates by (type, name)
-                # Process members (methods, getters, setters)
+                    # Process decorators directly associated with the class - current limited approach
+                class_element.children.extend(self._process_decorators(class_data))
+
+                processed_members = {}
                 members_for_this_class = member_lookup.get(class_name, [])
-                members_for_this_class.sort(
-                    key=lambda m: m.get(
-                        "definition_start_line",
-                        m.get("range", {}).get("start", {}).get("line", 0),
-                    )
-                )
+                members_for_this_class.sort(key=lambda m: m.get('definition_start_line', m.get('range', {}).get('start', {}).get('line', 0)))
                 for member_data in members_for_this_class:
-                    if not isinstance(member_data, dict):
-                        continue
-                    # Use the specific method processor which handles type classification
-                    processed_member = self._process_method_element(
-                        member_data, class_element
-                    )
+                    if not isinstance(member_data, dict): continue
+                    processed_member = self._process_method_element(member_data, class_element)
                     if processed_member:
-                        member_key = (
-                            processed_member.type.value,
-                            processed_member.name,
-                        )
-                        processed_members[member_key] = processed_member
-                # Process static properties
-                static_props_for_this_class = static_prop_lookup.get(class_name, [])
-                static_props_for_this_class.sort(
-                    key=lambda p: p.get("range", {}).get("start", {}).get("line", 0)
-                )
+                        processed_members[(processed_member.type.value, processed_member.name)] = processed_member
+
                 processed_static_props = {}
+                static_props_for_this_class = static_prop_lookup.get(class_name, [])
+                static_props_for_this_class.sort(key=lambda p: p.get('range', {}).get('start', {}).get('line', 0))
                 for prop_data in static_props_for_this_class:
-                    if not isinstance(prop_data, dict):
-                        continue
-                    prop_name = prop_data.get("name")
-                    # Ensure static prop doesn't overwrite an existing member (method/getter/setter)
-                    member_exists = any(
-                        key[1] == prop_name for key in processed_members.keys()
-                    )
-                    if prop_name and not member_exists:
-                        processed_prop = self._process_static_property(
-                            prop_data, class_element
-                        )
-                        if processed_prop:
-                            # Use dict to store, key by name to avoid duplicates if extractor somehow finds multiple
-                            processed_static_props[processed_prop.name] = processed_prop
-                    elif prop_name and member_exists:
-                        logger.debug(
-                            f"Skipping static property '{prop_name}' as a member with the same name already exists."
-                        )
-                # Add processed members and static properties as children
+                        if not isinstance(prop_data, dict): continue
+                        prop_name = prop_data.get('name')
+                        if prop_name and not any(key[1] == prop_name for key in processed_members.keys()):
+                            processed_prop = self._process_static_property(prop_data, class_element)
+                            if processed_prop:
+                                processed_static_props[processed_prop.name] = processed_prop
+                        elif prop_name:
+                            logger.debug(f"Skipping static property '{prop_name}' as a member with the same name already exists.")
+
                 class_element.children.extend(list(processed_members.values()))
                 class_element.children.extend(list(processed_static_props.values()))
-                # Sort all children by start line
-                class_element.children.sort(
-                    key=lambda child: child.range.start_line
-                    if child.range
-                    else float("inf")
-                )
+                class_element.children.sort(key=lambda child: child.range.start_line if child.range else float('inf'))
                 processed_classes.append(class_element)
             except (ValidationError, Exception) as e:
-                logger.error(
-                    f"Failed to process class '{class_name}': {e}. Data: {class_data}",
-                    exc_info=True,
-                )
+                    logger.error(f"Failed to process class '{class_name}': {e}. Data: {class_data}", exc_info=True)
         return processed_classes
 
     def _process_parameters(

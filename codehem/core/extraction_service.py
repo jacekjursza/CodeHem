@@ -315,8 +315,8 @@ class ExtractionService:
         logger.info(f'Starting full extraction and post-processing for {self.language_code}')
         result = CodeElementsResult(elements=[])
         try:
-            # Step 1: Get raw dictionaries from extractors using the modified _extract_file_raw
-            raw_elements = self._extract_file_raw(code)
+            # Step 1: Get raw dictionaries from extractors
+            raw_elements = self._extract_file_raw(code) # Already collects 'decorators' now
 
             # Ensure post-processor exists
             if not self.post_processor:
@@ -324,27 +324,30 @@ class ExtractionService:
                 return result
 
             # Step 2: Process raw elements into CodeElement objects using post-processor
+            all_decorators_list = raw_elements.get('decorators', []) # Get the collected decorators
+
             # Process imports
             imports = self.post_processor.process_imports(raw_elements.get('imports', []))
             result.elements.extend(imports)
 
-            # Process standalone functions
-            functions = self.post_processor.process_functions(raw_elements.get('functions', []))
+            # Process standalone functions, passing the list of all decorators
+            functions = self.post_processor.process_functions(
+                raw_functions=raw_elements.get('functions', []),
+                all_decorators=all_decorators_list # Pass decorators list
+            )
             result.elements.extend(functions)
 
-            # Process classes/containers, passing all relevant member/property types
-            # Ensure all necessary lists from raw_elements are passed to the post-processor
+            # Process classes/containers, passing all relevant member/property types and all decorators
             classes = self.post_processor.process_classes(
-                raw_classes=raw_elements.get('classes', []), # Includes interfaces if applicable extractor ran
-                members=raw_elements.get('members', []), # Methods, getters, setters
+                raw_classes=raw_elements.get('classes', []),
+                members=raw_elements.get('members', []),
                 static_props=raw_elements.get('static_properties', []),
-                properties=raw_elements.get('properties', []) # Pass the newly extracted regular properties
-                # TODO: Pass 'decorators' list from raw_elements if decorator processing requires the full list
+                properties=raw_elements.get('properties', []),
+                all_decorators=all_decorators_list # Pass decorators list
             )
             result.elements.extend(classes)
 
-            # TODO: Process other top-level elements if added to _extract_file_raw and post-processor
-            # (e.g., enums, type_aliases, namespaces)
+            # TODO: Process other top-level elements if needed, passing all_decorators if they can be decorated
 
             # Step 3: Sort final elements by line number
             result.elements.sort(key=lambda el: el.range.start_line if el.range else float('inf'))
@@ -352,13 +355,11 @@ class ExtractionService:
 
         except Exception as e:
             logger.error(f'Error during extract_all for {self.language_code}: {e}', exc_info=True)
-            # Return potentially partial result or empty result on significant error
             return result
 
-        # Final check on result type (defensive programming)
         if not isinstance(result, CodeElementsResult):
-             logger.error(f'extract_all final result is not CodeElementsResult, but {type(result)}')
-             return CodeElementsResult(elements=getattr(result, 'elements', [])) # Attempt recovery
+                logger.error(f'extract_all final result is not CodeElementsResult, but {type(result)}')
+                return CodeElementsResult(elements=getattr(result, 'elements', []))
 
         return result
 
