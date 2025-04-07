@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Dict, List, Any, Tuple, Optional
 from tree_sitter import Node, QueryError
 from codehem.core.extractors.extraction_base import TemplateExtractor, ExtractorHelpers

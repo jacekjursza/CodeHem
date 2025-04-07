@@ -193,25 +193,41 @@ class ExtractorHelpers:
         return {'return_type': return_type, 'return_values': list(set(return_values))}
 
     @staticmethod
+    @staticmethod
     def extract_decorators(ast_handler, node, code_bytes):
-        """Extract decorators from a node."""
+        """Extract decorators from a node (Improved Logging)."""
         decorators = []
-        current_node = node
-        if node.parent and node.parent.type in ['decorated_definition', 'export_statement']:
-            parent_node = node.parent
-            if parent_node.type == 'export_statement':
-                 for i in range(parent_node.child_count):
-                      child = parent_node.child(i)
-                      if child.type == 'decorator':
-                           dec_info = ExtractorHelpers._extract_single_decorator_info(ast_handler, child, code_bytes)
-                           if dec_info: decorators.append(dec_info)
-                      elif child.type == getattr(node, 'type', None): break
-            elif parent_node.type == 'decorated_definition':
-                 for child in parent_node.children:
-                      if child.type == 'decorator':
-                           dec_info = ExtractorHelpers._extract_single_decorator_info(ast_handler, child, code_bytes)
-                           if dec_info: decorators.append(dec_info)
-                      elif child == node: break
+        # Look for decorators attached to the parent node (common pattern)
+        parent_node = node.parent
+        node_to_check_for_decorators = None
+
+        if parent_node and parent_node.type in ['decorated_definition', 'export_statement']:
+            node_to_check_for_decorators = parent_node
+            logger.debug(f"ExtractorHelpers.extract_decorators: Checking parent node '{parent_node.type}' (ID: {parent_node.id}) for decorators associated with node ID {node.id}")
+        # Add other potential parent structures if necessary for different languages/patterns
+        # else:
+        #    node_to_check_for_decorators = node # Less common, check the node itself?
+
+        if node_to_check_for_decorators:
+            processed_decorator_nodes = set()
+            # Iterate children of the potential decorator container
+            for child in node_to_check_for_decorators.children:
+                if child.type == 'decorator' and child.id not in processed_decorator_nodes:
+                     logger.debug(f"ExtractorHelpers.extract_decorators: Found 'decorator' node (ID: {child.id}).")
+                     dec_info = ExtractorHelpers._extract_single_decorator_info(ast_handler, child, code_bytes)
+                     if dec_info:
+                         decorators.append(dec_info)
+                         processed_decorator_nodes.add(child.id)
+                     else:
+                         logger.warning(f"ExtractorHelpers.extract_decorators: Failed to extract info for decorator node ID {child.id}")
+                # Stop if we encounter the actual definition node among siblings
+                elif child.id == node.id:
+                    logger.debug(f"ExtractorHelpers.extract_decorators: Reached the definition node (ID: {node.id}), stopping decorator search for this level.")
+                    break # Decorators must precede the definition
+
+        if not decorators:
+            logger.debug(f"ExtractorHelpers.extract_decorators: No decorators found directly associated with node ID {node.id} or its common parents.")
+
         return decorators
 
     @staticmethod

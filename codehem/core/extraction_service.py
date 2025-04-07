@@ -57,7 +57,7 @@ class ExtractionService:
             raise ValueError(f"Failed to get language_service for '{language_code}'. Check if it's registered.")
 
         lang_config = registry.get_language_config(language_code)
-        rich.print(lang_config)
+
         post_processor_class = None
         if lang_config:
             post_processor_class = lang_config.get('post_processor_class')
@@ -311,55 +311,63 @@ class ExtractionService:
         Returns:
         CodeElementsResult containing extracted elements
         """
-        from codehem.models.code_element import CodeElementsResult
-        logger.info(f'Starting full extraction and post-processing for {self.language_code}')
+        from codehem.models.code_element import CodeElementsResult # Local import
+        logger.info(f'ExtractionService: Starting full extraction and post-processing for {self.language_code}') # MODIFIED LOG LEVEL
         result = CodeElementsResult(elements=[])
         try:
-            # Step 1: Get raw dictionaries from extractors
-            raw_elements = self._extract_file_raw(code) # Already collects 'decorators' now
-
-            # Ensure post-processor exists
+            raw_elements = self._extract_file_raw(code)
             if not self.post_processor:
-                logger.error(f'No post-processor available for language {self.language_code}. Cannot structure results.')
+                logger.error(f'ExtractionService: No post-processor available for language {self.language_code}. Cannot structure results.')
                 return result
 
-            # Step 2: Process raw elements into CodeElement objects using post-processor
-            all_decorators_list = raw_elements.get('decorators', []) # Get the collected decorators
+            logger.debug(f"ExtractionService: Using post-processor: {self.post_processor.__class__.__name__}") # ADDED LOG
 
-            # Process imports
+            # Ensure all_decorators are extracted if the post-processor needs them
+            all_decorators_list = raw_elements.get('decorators', [])
+            logger.debug(f"ExtractionService: Passing {len(all_decorators_list)} raw decorators to post-processor.") # ADDED LOG
+
             imports = self.post_processor.process_imports(raw_elements.get('imports', []))
+            logger.debug(f"ExtractionService: Post-processor returned {len(imports)} import elements.") # ADDED LOG
             result.elements.extend(imports)
 
-            # Process standalone functions, passing the list of all decorators
             functions = self.post_processor.process_functions(
                 raw_functions=raw_elements.get('functions', []),
-                all_decorators=all_decorators_list # Pass decorators list
+                all_decorators=all_decorators_list # Pass decorators
             )
+            logger.debug(f"ExtractionService: Post-processor returned {len(functions)} function elements.") # ADDED LOG
             result.elements.extend(functions)
 
-            # Process classes/containers, passing all relevant member/property types and all decorators
+            # Pass all relevant raw data to process_classes
             classes = self.post_processor.process_classes(
                 raw_classes=raw_elements.get('classes', []),
-                members=raw_elements.get('members', []),
+                members=raw_elements.get('members', []), # Includes methods, getters, setters
                 static_props=raw_elements.get('static_properties', []),
-                properties=raw_elements.get('properties', []),
-                all_decorators=all_decorators_list # Pass decorators list
+                properties=raw_elements.get('properties', []), # Pass regular properties
+                all_decorators=all_decorators_list # Pass decorators
             )
+            logger.debug(f"ExtractionService: Post-processor returned {len(classes)} class/container elements.") # ADDED LOG
             result.elements.extend(classes)
 
-            # TODO: Process other top-level elements if needed, passing all_decorators if they can be decorated
-
-            # Step 3: Sort final elements by line number
+            # Sort final top-level elements by start line
             result.elements.sort(key=lambda el: el.range.start_line if el.range else float('inf'))
-            logger.info(f'Completed full extraction for {self.language_code}. Top-level element count: {len(result.elements)}')
+            logger.info(f'ExtractionService: Completed full extraction for {self.language_code}. Top-level element count: {len(result.elements)}') # MODIFIED LOG LEVEL
 
         except Exception as e:
             logger.error(f'Error during extract_all for {self.language_code}: {e}', exc_info=True)
-            return result
+            # Return empty result on error, but ensure it's the correct type
+            return CodeElementsResult(elements=[])
 
+        # Final type check before returning
         if not isinstance(result, CodeElementsResult):
-                logger.error(f'extract_all final result is not CodeElementsResult, but {type(result)}')
-                return CodeElementsResult(elements=getattr(result, 'elements', []))
+            logger.error(f'extract_all final result is not CodeElementsResult, but {type(result)}')
+            return CodeElementsResult(elements=getattr(result, 'elements', []))
+
+        # Log final elements for debugging
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Final Extracted Elements Structure (Top-Level):")
+            for i, element in enumerate(result.elements):
+                 children_summary = f", Children: {[(c.name, c.type.value) for c in element.children]}" if element.children else ""
+                 logger.debug(f"  [{i}] Name: {element.name}, Type: {element.type.value}, Parent: {element.parent_name}, Range: {element.range.start_line if element.range else 'N/A'}{children_summary}")
 
         return result
 

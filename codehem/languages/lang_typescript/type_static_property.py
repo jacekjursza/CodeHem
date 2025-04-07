@@ -1,4 +1,3 @@
-# New file: d:\code\codehem\codehem\languages\lang_typescript\type_static_property.py
 import logging
 from typing import Optional
 from codehem.core.registry import element_type_descriptor

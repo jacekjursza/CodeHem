@@ -26,83 +26,113 @@ class TypeScriptDecoratorExtractor(TemplateExtractor):
             expression_node = None
 
             if capture_name == 'decorator_node' and node.type == 'decorator':
-                 decorator_node = node
-                 # The actual expression (identifier or call) is usually the first named child after '@'
-                 if node.named_child_count > 0:
-                      expression_node = node.named_child(0)
-                 elif node.child_count > 1 and node.child(0).type == '@': # Handle cases where '@' is separate node
-                     expression_node = node.child(1)
+                decorator_node = node
+                # Attempt to find the expression node within the decorator node
+                if node.named_child_count > 0:
+                    expression_node = node.named_child(0)
+                elif node.child_count > 1 and node.child(0).type == '@':
+                    expression_node = node.child(1) # Skip the '@' symbol
+                else:
+                     logger.warning(f"TS Decorator Extractor: Decorator node (ID: {node.id}) has unexpected structure, no clear expression found.")
 
             elif capture_name == 'decorator_expression':
-                 expression_node = node
-                 # Need to find the parent 'decorator' node for full range/content
-                 decorator_node = ast_handler.find_parent_of_type(node, 'decorator')
-                 if not decorator_node:
-                      logger.warning(f"Could not find parent 'decorator' node for expression capture: {ast_handler.get_node_text(node, code_bytes)}")
-                      continue
+                expression_node = node
+                # Find the parent decorator node
+                decorator_node = ast_handler.find_parent_of_type(node, 'decorator')
+                if not decorator_node:
+                    logger.warning(f"TS Decorator Extractor: Could not find parent 'decorator' node for expression capture: {ast_handler.get_node_text(node, code_bytes)}")
+                    continue
+            else:
+                # Skip captures not relevant to this extractor
+                continue
 
             if decorator_node and decorator_node.id not in processed_node_ids:
                 node_id = decorator_node.id
                 content = ast_handler.get_node_text(decorator_node, code_bytes)
                 name = None
 
+                # Extract name based on expression type (identifier or call_expression)
                 if expression_node:
-                    if expression_node.type == 'identifier':
-                         name = ast_handler.get_node_text(expression_node, code_bytes)
-                    elif expression_node.type == 'call_expression':
-                         func_node = expression_node.child_by_field_name('function')
-                         if func_node and func_node.type == 'identifier':
-                              name = ast_handler.get_node_text(func_node, code_bytes)
-                         elif func_node: # Handle member expressions etc. if needed
-                              name = ast_handler.get_node_text(func_node, code_bytes) # Fallback to full text
-                    else: # Handle member expressions etc. directly if not a call
-                         name = ast_handler.get_node_text(expression_node, code_bytes) # Fallback
+                    exp_type = expression_node.type
+                    logger.debug(f"TS Decorator Extractor: Analyzing expression node type '{exp_type}' for decorator: {content}") # ADDED LOG
+                    if exp_type == 'identifier':
+                        name = ast_handler.get_node_text(expression_node, code_bytes)
+                    elif exp_type == 'call_expression':
+                        func_node = expression_node.child_by_field_name('function')
+                        if func_node:
+                            if func_node.type == 'identifier':
+                                name = ast_handler.get_node_text(func_node, code_bytes)
+                            else: # Handle member access like @Namespace.Decorator
+                                name = ast_handler.get_node_text(func_node, code_bytes)
+                        else:
+                             logger.warning(f"TS Decorator Extractor: Decorator call expression missing function node: {content}")
+                    else:
+                        # Fallback for other potential expression types if needed
+                        name = ast_handler.get_node_text(expression_node, code_bytes)
+                        logger.warning(f"TS Decorator Extractor: Decorator expression has unexpected type '{exp_type}'. Using raw text: {name}")
                 else:
-                     # Fallback if expression node wasn't found easily
-                     name = content.lstrip('@').split('(')[0].strip()
-                     logger.warning(f"Using fallback name extraction for decorator: {name} from {content}")
+                    # Fallback if expression node wasn't found directly
+                    name = content.lstrip('@').split('(')[0].strip()
+                    logger.warning(f'TS Decorator Extractor: Using fallback name extraction for decorator: {name} from {content}')
 
-                if not name: # If name extraction failed, use content as fallback
-                    name = content
+                if not name: name = content # Ensure name is never None
 
                 start_point = decorator_node.start_point
                 end_point = decorator_node.end_point
 
-                # Try to determine parent element (class or method/property)
+                # Try to find the decorated element to set parent_name
                 parent_name = None
-                parent_node = decorator_node.parent
-                if parent_node:
-                     # Common patterns: decorator -> export_statement -> class/func OR decorator -> class/method
-                     target_node = None
-                     if parent_node.type == 'export_statement':
-                          target_node = parent_node.child_by_field_name('declaration')
-                     elif parent_node.type in ['class_declaration', 'method_definition', 'public_field_definition', 'function_declaration']:
-                           target_node = parent_node
+                actual_parent_node = decorator_node.parent
+                decorated_node = None
+                if actual_parent_node:
+                     # Find the sibling node that is being decorated
+                     dec_index = -1
+                     for i, child in enumerate(actual_parent_node.children):
+                         if child.id == decorator_node.id:
+                             dec_index = i
+                             break
+                     # The decorated node is often the next named sibling after the last decorator
+                     if dec_index != -1:
+                        potential_target_node = None
+                        for i in range(dec_index + 1, actual_parent_node.child_count):
+                             sibling = actual_parent_node.child(i)
+                             # Check if it's a meaningful node type (not comment, etc.)
+                             if sibling.is_named:
+                                 potential_target_node = sibling
+                                 break
+                        decorated_node = potential_target_node
 
-                     if target_node:
-                          target_name_node = ast_handler.find_child_by_field_name(target_node, 'name')
-                          if target_name_node:
-                               parent_name = ast_handler.get_node_text(target_name_node, code_bytes)
-                               # If parent is a class member, find the class name
-                               if target_node.type in ['method_definition', 'public_field_definition']:
-                                   class_node = ast_handler.find_parent_of_type(target_node, 'class_declaration')
-                                   if class_node:
-                                       class_name_node = ast_handler.find_child_by_field_name(class_node, 'name')
-                                       if class_name_node:
-                                           parent_name = f"{ast_handler.get_node_text(class_name_node, code_bytes)}.{parent_name}"
+                if decorated_node:
+                    decorated_node_type = decorated_node.type
+                    logger.debug(f"TS Decorator Extractor: Decorator '{name}' appears to decorate node type: {decorated_node_type}") # ADDED LOG
+                    target_name_node = ast_handler.find_child_by_field_name(decorated_node, 'name')
+                    if target_name_node:
+                        parent_name = ast_handler.get_node_text(target_name_node, code_bytes)
+
+                        # If the decorated element is a class member, prepend class name
+                        if decorated_node_type in ['method_definition', 'public_field_definition']:
+                            class_node = ast_handler.find_parent_of_type(decorated_node, 'class_declaration')
+                            if class_node:
+                                class_name_node = ast_handler.find_child_by_field_name(class_node, 'name')
+                                if class_name_node:
+                                    parent_name = f'{ast_handler.get_node_text(class_name_node, code_bytes)}.{parent_name}'
+                else:
+                     logger.warning(f"TS Decorator Extractor: Could not determine the parent element being decorated by '{name}'")
 
                 decorator_info = {
                     'type': CodeElementType.DECORATOR.value,
                     'name': name,
                     'content': content,
-                    'range': {'start': {'line': start_point[0] + 1, 'column': start_point[1]},
-                              'end': {'line': end_point[0] + 1, 'column': end_point[1]}},
-                    'parent_name': parent_name, # Store the associated element name if found
-                    'node': decorator_node
+                    'range': {
+                        'start': {'line': start_point[0] + 1, 'column': start_point[1]},
+                        'end': {'line': end_point[0] + 1, 'column': end_point[1]}
+                    },
+                    'parent_name': parent_name, # Store the potential parent name
+                    'node': decorator_node # Keep node temporarily if needed
                 }
                 decorators.append(decorator_info)
                 processed_node_ids.add(node_id)
-                logger.debug(f"TS Decorator Extractor: Processed decorator '{name}' attached to '{parent_name or 'Unknown'}'")
+                logger.debug(f"TS Decorator Extractor: Processed decorator '{name}' decorating '{parent_name or 'Unknown'}'")
 
         logger.debug(f'TS Decorator Extractor: Finished processing. Found {len(decorators)} decorators.')
         return decorators
