@@ -1,28 +1,60 @@
-# Create this file as d:\code\CodeHem\test_ts2.py
+# test_ts2.py
 import logging
 import sys
 import os
-
 from codehem.core.engine.ast_handler import ASTHandler
-from codehem.core.engine.languages import get_parser, TS_LANGUAGE
+from codehem.core.engine.languages import get_parser, TS_LANGUAGE  # Używamy get_parser z CodeHem
+from codehem.models.enums import CodeElementType     # Import dla typów
+try:
+    # Próba importu konfiguracji języka TS, aby użyć aktualnych zapytań
+    from codehem.languages.lang_typescript.config import TS_PLACEHOLDERS, LANGUAGE_CONFIG
+    TS_LANGUAGE_CODE = LANGUAGE_CONFIG.get('language_code', 'typescript')
+    # Wydobycie zapytań dla poszczególnych typów
+    QUERIES_FROM_CONFIG = {
+        "IMPORT": TS_PLACEHOLDERS.get(CodeElementType.IMPORT, {}).get('tree_sitter_query'),
+        "FUNCTION": TS_PLACEHOLDERS.get(CodeElementType.FUNCTION, {}).get('tree_sitter_query'),
+        "INTERFACE": TS_PLACEHOLDERS.get(CodeElementType.INTERFACE, {}).get('tree_sitter_query'),
+        "CLASS": TS_PLACEHOLDERS.get(CodeElementType.CLASS, {}).get('tree_sitter_query'),
+        "METHOD": TS_PLACEHOLDERS.get(CodeElementType.METHOD, {}).get('tree_sitter_query'),
+        "PROPERTY": TS_PLACEHOLDERS.get(CodeElementType.PROPERTY, {}).get('tree_sitter_query'),
+        "DECORATOR": TS_PLACEHOLDERS.get(CodeElementType.DECORATOR, {}).get('tree_sitter_query'),
+        "GETTER": TS_PLACEHOLDERS.get(CodeElementType.PROPERTY_GETTER, {}).get('tree_sitter_query', TS_PLACEHOLDERS.get(CodeElementType.METHOD, {}).get('tree_sitter_query')), # Getter może używać zapytania metody
+        "SETTER": TS_PLACEHOLDERS.get(CodeElementType.PROPERTY_SETTER, {}).get('tree_sitter_query', TS_PLACEHOLDERS.get(CodeElementType.METHOD, {}).get('tree_sitter_query')), # Setter może używać zapytania metody
+    }
+    # Usuń None jeśli zapytanie nie istnieje
+    QUERIES_FROM_CONFIG = {k: v for k, v in QUERIES_FROM_CONFIG.items() if v}
+    print("--- Successfully loaded queries from config.py ---")
+    # print(QUERIES_FROM_CONFIG) # Opcjonalnie: odkomentuj, aby zobaczyć załadowane zapytania
+    CONFIG_LOADED = True
+except ImportError as ie:
+    print(f"--- WARNING: Could not import queries from config.py: {ie} ---")
+    print("--- Falling back to hardcoded test queries (might be outdated!) ---")
+    QUERIES_FROM_CONFIG = { # Zastępcze zapytania, jeśli import się nie uda
+        'IMPORT_ATTEMPT_1': '\n(import_statement) @import_statement\n(export_statement declaration: (import_statement)) @exported_import\n    ',
+        'FUNCTION_ATTEMPT_1': '\n(function_declaration name: (identifier) @func_decl_name) @func_decl\n(export_statement declaration: (function_declaration name: (identifier) @exported_func_decl_name)) @exported_func_decl\n(lexical_declaration (variable_declarator name: (identifier) @arrow_func_name value: (arrow_function))) @arrow_func_lexical\n(export_statement declaration: (lexical_declaration (variable_declarator name: (identifier) @exported_arrow_func_name value: (arrow_function)))) @exported_arrow_func_lexical\n    ',
+        'INTERFACE_WORKING': '\n(interface_declaration name: (type_identifier) @interface_name body: (object_type) @interface_body) @interface_def\n(export_statement declaration: (interface_declaration name: (type_identifier) @interface_name body: (object_type) @interface_body)) @interface_def_exported\n    ',
+        'METHOD_ATTEMPT_1': '\n(method_definition name: (property_identifier) @method_name) @method_def\n(method_definition name: (constructor)) @constructor_def\n(method_definition kind: (get) name: (property_identifier) @getter_name) @getter_def\n(method_definition kind: (set) name: (property_identifier) @setter_name) @setter_def\n     ',
+        'PROPERTY_ATTEMPT_1': '\n(public_field_definition name: (property_identifier) @prop_name) @prop_def\n     ',
+        'DECORATOR_ATTEMPT_1': '\n(decorator) @decorator_node\n     '
+    }
+    CONFIG_LOADED = False
 
-# Use rich for potentially better AST printing, optional
 try:
     import rich
     from rich.tree import Tree
+    from rich.syntax import Syntax
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
 
 from tree_sitter import Language, Parser, Query, Node, QueryError
 
-# --- Konfiguracja ---
-
-# Sample TypeScript Code (skopiowany z test_ts.py)
-# Upewnij się, że ten kod jest DOKŁADNIE taki sam jak ten, który powoduje problemy
+# Ten sam kod testowy co poprzednio
 ts_code = """
 import { Component, OnInit } from '@angular/core';
 import { UserService } from './user-service';
+import * as React from 'react'; // Test importu namespace
+import DefaultExport from 'some-module'; // Test importu domyślnego
 
 // Interface Definition
 interface UserProfile {
@@ -37,9 +69,12 @@ interface UserProfile {
 @Component({ selector: 'app-user' })
 export class UserComponent implements OnInit {
     // Properties (Fields)
-    userId: number = 0;
+    userId: number = 0; // Property (field)
     private profile: UserProfile | null = null;
     readonly creationDate: Date = new Date();
+
+    // Static property
+    static componentType: string = 'UserInterface';
 
     // Constructor Method
     constructor(private userService: UserService) {
@@ -53,6 +88,7 @@ export class UserComponent implements OnInit {
     }
 
     // Async Method Definition
+    @AnotherDecorator() // Dodatkowy dekorator dla testu
     async loadProfile(id: number): Promise<void> {
         // logger.debug(`Attempting to load profile for ID: ${id}`); // Python logger won't work here easily
         console.log(`Attempting to load profile for ID: ${id}`);
@@ -103,57 +139,22 @@ function anotherHelper(count: number = 1): void {
     }
 }
 
-// Example of potentially problematic code (e.g., for testing robustness)
-// let x = { a: 1, b: }; // Syntax error
-"""
-
-# Zapytania do przetestowania (skopiuj/wklej/popraw te z lang_typescript/config.py)
-# Użyj tego słownika do eksperymentowania z zapytaniami
-queries_to_test = {
-    "IMPORT_ORIGINAL_FAILING": """
-(import_statement) @import_simple
-(import_from_statement) @import_from """, # Oryginalne błędne zapytanie
-    "IMPORT_ATTEMPT_1": """
-(import_statement) @import_statement
-(export_statement declaration: (import_statement)) @exported_import
-    """, # Prostsze zapytanie - może wystarczy?
-     "FUNCTION_ORIGINAL_FAILING": """
-(function_definition name: (identifier) @function_name) @function_def
-(decorated_definition definition: (function_definition name: (identifier) @function_name)) @decorated_function_def """, # Oryginalne błędne
-    "FUNCTION_ATTEMPT_1": """
-(function_declaration name: (identifier) @func_decl_name) @func_decl
-(export_statement declaration: (function_declaration name: (identifier) @exported_func_decl_name)) @exported_func_decl
-(lexical_declaration (variable_declarator name: (identifier) @arrow_func_name value: (arrow_function))) @arrow_func_lexical
-(export_statement declaration: (lexical_declaration (variable_declarator name: (identifier) @exported_arrow_func_name value: (arrow_function)))) @exported_arrow_func_lexical
-    """, # Zapytanie bazujące na typach z dokumentacji TS
-    "CLASS_WORKING": """
-(class_declaration name: (type_identifier) @class_name body: (class_body) @body) @class_def
-(export_statement declaration: (class_declaration name: (type_identifier) @class_name body: (class_body) @body)) @class_def_exported
-    """, # Prawdopodobnie działające
-    "INTERFACE_WORKING": """
-(interface_declaration name: (type_identifier) @interface_name body: (object_type) @interface_body) @interface_def
-(export_statement declaration: (interface_declaration name: (type_identifier) @interface_name body: (object_type) @interface_body)) @interface_def_exported
-    """, # Prawdopodobnie działające
-     "METHOD_ATTEMPT_1": """
-(method_definition name: (property_identifier) @method_name) @method_def
-(method_definition name: (constructor)) @constructor_def
-(method_definition kind: (get) name: (property_identifier) @getter_name) @getter_def
-(method_definition kind: (set) name: (property_identifier) @setter_name) @setter_def
-     """, # Zapytanie bazujące na typach z dokumentacji TS
-     "PROPERTY_ATTEMPT_1": """
-(public_field_definition name: (property_identifier) @prop_name) @prop_def
-     """, # Uproszczone zapytanie dla pola publicznego (może wymagać rozszerzenia)
-     "DECORATOR_ATTEMPT_1": """
-(decorator) @decorator_node
-     """,
+// Example Enum
+export enum Status {
+    Pending,
+    Active,
+    Inactive
 }
 
+// Example Type Alias
+type UserID = number | string;
+"""
+
 # --- Konfiguracja Logowania ---
-# Zwiększ poziom logowania dla tree_sitter, aby zobaczyć więcej informacji
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-logging.getLogger('tree_sitter').setLevel(logging.DEBUG) # Debug dla samego tree-sitter
+logging.getLogger('tree_sitter').setLevel(logging.WARNING) # Zmniejszamy gadatliwość tree_sitter
 logger = logging.getLogger('ts_ast_debugger')
-logger.setLevel(logging.DEBUG) # Debug dla naszego skryptu
+logger.setLevel(logging.DEBUG)
 
 # --- Funkcje Pomocnicze ---
 
@@ -162,145 +163,172 @@ def load_ts_language_dynamic() -> Language | None:
     try:
         import tree_sitter_typescript
         logger.info("Próba załadowania języka z zainstalowanego pakietu 'tree_sitter_typescript'...")
-        # Gramatyka TSX jest często bardziej kompletna i kompatybilna wstecz
+        # Sprawdzamy dostępność parsera TSX lub TS
         if hasattr(tree_sitter_typescript, 'language_tsx'):
-             logger.debug("Znaleziono language_tsx(), używam...")
-             return tree_sitter_typescript.language_tsx()
+            logger.debug('Znaleziono language_tsx(), używam...')
+            return tree_sitter_typescript.language_tsx()
         elif hasattr(tree_sitter_typescript, 'language_typescript'):
-             logger.debug("Znaleziono language_typescript(), używam...")
-             return tree_sitter_typescript.language_typescript()
+            logger.debug('Znaleziono language_typescript(), używam...')
+            return tree_sitter_typescript.language_typescript()
         else:
-             logger.error("Zainstalowany pakiet 'tree_sitter_typescript' nie posiada funkcji language_tsx ani language_typescript.")
-             return None
+            logger.error("Zainstalowany pakiet 'tree_sitter_typescript' nie posiada funkcji language_tsx ani language_typescript.")
+            return None
     except ImportError:
         logger.error("Nie znaleziono pakietu 'tree_sitter_typescript'. Upewnij się, że jest zainstalowany (`pip install tree-sitter-typescript`).")
         return None
     except Exception as e:
-        logger.error(f"Błąd podczas ładowania języka z pakietu: {e}", exc_info=True)
+        logger.error(f'Błąd podczas ładowania języka z pakietu: {e}', exc_info=True)
         return None
 
 def traverse_and_print_ast(node: Node, indent_level: int = 0, field_name: str | None = None):
-    """Rekurencyjnie drukuje strukturę AST."""
-    indent = "  " * indent_level
-    field_str = f"field={field_name}: " if field_name else ""
+    """Rekurencyjnie drukuje strukturę AST (wersja bez rich)."""
+    indent = '  ' * indent_level
+    field_str = f'field={field_name}: ' if field_name else ''
     try:
-        # Pokaż fragment tekstu węzła dla kontekstu
-        text_snippet = node.text.decode('utf8').split('\n')[0]
-        text_snippet = (text_snippet[:60] + '...') if len(text_snippet) > 60 else text_snippet
+        # Bezpieczne dekodowanie i skracanie tekstu
+        text_snippet = node.text.decode('utf8', errors='replace').split('\n')[0]
+        text_snippet = text_snippet[:60] + '...' if len(text_snippet) > 60 else text_snippet
     except Exception:
-        text_snippet = "[Błąd dekodowania tekstu]"
-
+        text_snippet = '[Błąd dekodowania tekstu]'
     print(f"{indent}{field_str}{node.type} [{node.start_point} - {node.end_point}] '{text_snippet}'")
-
-    # Rekurencyjnie przejdź przez dzieci
     for i in range(node.child_count):
         child = node.child(i)
-        # Pobierz nazwę pola dla dziecka (jeśli istnieje)
         child_field_name = node.field_name_for_child(i)
         traverse_and_print_ast(child, indent_level + 1, child_field_name)
 
 def build_rich_ast_tree(node: Node, field_name: str | None = None) -> Tree:
     """Buduje drzewo AST dla biblioteki rich."""
-    field_str = f"[dim]field=[/dim][i]{field_name}[/i]: " if field_name else ""
-    try:
-        text_snippet = node.text.decode('utf8').split('\n')[0]
-        text_snippet = (text_snippet[:60] + '...') if len(text_snippet) > 60 else text_snippet
-    except Exception:
-        text_snippet = "[Błąd dekodowania tekstu]"
+    if not HAS_RICH: return None # Zwracamy None jeśli rich nie jest dostępny
 
-    label = f"{field_str}[bold blue]{node.type}[/bold blue] [dim][{node.start_point} - {node.end_point}] '{text_snippet}'[/dim]"
+    field_str = f'[dim]field=[/dim][i]{field_name}[/i]: ' if field_name else ''
+    try:
+        # Bezpieczne dekodowanie i skracanie tekstu
+        text_snippet = node.text.decode('utf8', errors='replace').split('\n')[0]
+        text_snippet = text_snippet[:60] + '...' if len(text_snippet) > 60 else text_snippet
+    except Exception:
+        text_snippet = '[Błąd dekodowania tekstu]'
+
+    # Dodanie informacji o ID węzła może być pomocne w debugowaniu
+    node_info = f"[dim](id={node.id})[/dim]"
+    label = f"{field_str}[bold blue]{node.type}[/bold blue] {node_info} [dim][{node.start_point} - {node.end_point}] '{text_snippet}'[/dim]"
     tree = Tree(label)
 
     for i in range(node.child_count):
         child = node.child(i)
         child_field_name = node.field_name_for_child(i)
         child_tree = build_rich_ast_tree(child, child_field_name)
-        tree.add(child_tree)
+        if child_tree: # Upewniamy się, że rich jest dostępny
+             tree.add(child_tree)
     return tree
 
 # --- Główna Logika Skryptu ---
-if __name__ == "__main__":
-    logger.info("--- Debugger AST TypeScript ---")
+if __name__ == '__main__':
+    logger.info('--- Debugger AST TypeScript ---')
 
-    # 1. Załaduj Język i Parser
-    ts_lang = load_ts_language_dynamic()
+    # --- Ładowanie Języka ---
+    ts_lang = TS_LANGUAGE
     if not ts_lang:
-        logger.critical("Nie udało się załadować języka TypeScript. Przerywam.")
+        logger.critical('Nie udało się załadować języka TypeScript. Przerywam.')
         sys.exit(1)
-    logger.info("Język TypeScript załadowany pomyślnie.")
+    logger.info('Język TypeScript załadowany pomyślnie.')
 
-    parser = get_parser('typescript')
-
-    # 2. Sparsuj Kod
-    logger.info("Parsowanie kodu TypeScript...")
-    code_bytes = ts_code.encode('utf8')
+    # --- Parsowanie Kodu ---
     try:
+        parser = get_parser('typescript') # Używamy parsera z CodeHem
+        if not parser:
+             logger.critical("Nie udało się uzyskać parsera TypeScript z CodeHem. Przerywam.")
+             sys.exit(1)
+        logger.info('Parsowanie kodu TypeScript...')
+        code_bytes = ts_code.encode('utf8')
         tree = parser.parse(code_bytes)
         root_node = tree.root_node
-        logger.info("Kod sparsowany.")
+        logger.info('Kod sparsowany.')
+        if root_node.has_error:
+            logger.warning('Wykryto błędy składni w kodzie! Struktura AST może być niekompletna lub nieprawidłowa.')
+
     except Exception as e:
-        logger.critical(f"Krytyczny błąd podczas parsowania: {e}", exc_info=True)
+        logger.critical(f'Krytyczny błąd podczas parsowania: {e}', exc_info=True)
         sys.exit(1)
 
-    # Sprawdź błędy składni
-    if root_node.has_error:
-        logger.warning("Wykryto błędy składni w kodzie! Struktura AST może być niekompletna lub nieprawidłowa.")
-        # Można dodać logikę wyszukiwania węzłów ERROR
-        # np. traverse_ast(root_node) i szukanie node.type == 'ERROR'
-
-    # 3. Wyświetl Strukturę AST
-    print("\n--- Struktura Drzewa Składni Abstrakcyjnej (AST) ---")
+    # --- Drukowanie Drzewa AST ---
+    print('\n--- Struktura Drzewa Składni Abstrakcyjnej (AST) ---')
     if HAS_RICH:
         rich_tree = build_rich_ast_tree(root_node)
-        rich.print(rich_tree)
+        if rich_tree:
+            rich.print(rich_tree)
+        else:
+            logger.warning("Biblioteka 'rich' nie jest zainstalowana. Drukowanie AST w trybie tekstowym.")
+            traverse_and_print_ast(root_node)
     else:
-        traverse_and_print_ast(root_node) # Wersja tekstowa, jeśli nie ma rich
-    print("--- Koniec Struktury AST ---")
+        traverse_and_print_ast(root_node)
+    print('--- Koniec Struktury AST ---')
 
-
-    # 4. Przetestuj Zapytania
-    print("\n--- Testowanie Zapytań Tree-sitter ---")
+    # --- Testowanie Zapytań ---
+    print('\n--- Testowanie Zapytań Tree-sitter (z config.py jeśli załadowano) ---')
     all_queries_valid = True
-    for name, query_string in queries_to_test.items():
-        print(f"\n--- Zapytanie: {name} ---")
-        print(f"``` S-expression\n{query_string.strip()}\n```")
-        is_valid = True
-        try:
-            query = Query(TS_LANGUAGE, query_string)
-            captures = query.captures(root_node)
-            captures = ASTHandler.process_captures(captures)
-            print(f"Znaleziono {len(captures)} przechwyceń (captures):")
-            if not captures:
-                print("  (Brak dopasowań)")
+    if not QUERIES_FROM_CONFIG:
+         logger.warning("Brak zapytań do przetestowania (nie załadowano z configu ani nie zdefiniowano zastępczych).")
+    else:
+        for name, query_string in QUERIES_FROM_CONFIG.items():
+            print(f'\n--- Zapytanie: {name} ---')
+            if not query_string:
+                print("  (Zapytanie puste lub nie załadowano)")
+                continue
+
+            if HAS_RICH:
+                rich.print(Syntax(query_string, "scheme", theme="default", line_numbers=False))
             else:
-                # Grupuj wyniki wg nazwy przechwycenia dla czytelności
-                captures_by_name = {}
-                for node, capture_name in captures:
-                    if capture_name not in captures_by_name:
-                        captures_by_name[capture_name] = []
-                    captures_by_name[capture_name].append(node)
+                print(f'``` S-expression\n{query_string.strip()}\n```')
 
-                for capture_name, nodes in captures_by_name.items():
-                    print(f"  Przechwycenie: @{capture_name} ({len(nodes)}x)")
-                    for i, node in enumerate(nodes):
-                        node_text = node.text.decode('utf8').split('\n')[0][:60] # Snippet
-                        print(f"    {i+1}. Typ: {node.type}, Zakres: [{node.start_point} - {node.end_point}], Tekst: '{node_text}... summarised'")
+            is_valid = True
+            try:
+                query = Query(ts_lang, query_string) # Używamy załadowanego języka ts_lang
+                # Używamy ASTHandler z CodeHem do przetwarzania wyników
+                ast_handler = ASTHandler('typescript', parser, ts_lang)
 
-        except QueryError as qe:
-            logger.error(f"Zapytanie '{name}' ZAWODZI z błędem QueryError: {qe}")
-            if hasattr(qe, 'message'): print(f"  Komunikat błędu: {qe.message}")
-            if hasattr(qe, 'error_type'): print(f'  Typ błędu: {qe.error_type}')
-            if hasattr(qe, 'offset'): print(f'  Offset: {qe.offset}')
-            if hasattr(qe, 'row'): print(f'  Wiersz: {qe.row}')
-            if hasattr(qe, 'column'): print(f'  Kolumna: {qe.column}')
-            is_valid = False
-            all_queries_valid = False
-        except Exception as e:
-            logger.error(f"Zapytanie '{name}' ZAWODZI z nieoczekiwanym błędem: {e}", exc_info=True)
-            is_valid = False
-            all_queries_valid = False
-        if is_valid:
-             logger.info(f"Zapytanie '{name}' wykonane poprawnie (sprawdź wyniki).")
+                captures_raw = query.captures(root_node)
+                captures = ast_handler.process_captures(captures_raw)
 
-    print(f"\n--- Podsumowanie Testów Zapytań {'(Wszystkie OK!)' if all_queries_valid else '(WYSTĄPIŁY BŁĘDY!)'} ---")
-    print("\n--- Skrypt Debugowania Zakończony ---")
+                print(f'Znaleziono {len(captures)} przechwyceń (captures):')
+                if not captures:
+                    print('  (Brak dopasowań)')
+                else:
+                    # Grupujemy wyniki po nazwie przechwycenia
+                    captures_by_name = {}
+                    for node, capture_name in captures:
+                        if capture_name not in captures_by_name:
+                            captures_by_name[capture_name] = []
+                        captures_by_name[capture_name].append(node)
+
+                    for capture_name, nodes in captures_by_name.items():
+                        print(f'  Przechwycenie: @{capture_name} ({len(nodes)}x)')
+                        for i, node in enumerate(nodes[:5]): # Drukuj tylko kilka pierwszych dla zwięzłości
+                            try:
+                                node_text = node.text.decode('utf8', errors='replace').split('\n')[0][:60]
+                            except Exception:
+                                node_text = "[Błąd dekodowania]"
+                            print(f"    {i + 1}. Typ: {node.type}, Zakres: [{node.start_point} - {node.end_point}], Tekst: '{node_text}... summarised'")
+                        if len(nodes) > 5:
+                            print(f"    ... (i {len(nodes) - 5} więcej)")
+
+            except QueryError as qe:
+                logger.error(f"Zapytanie '{name}' ZAWODZI z błędem QueryError: {qe}")
+                # Drukowanie szczegółów błędu QueryError
+                if hasattr(qe, 'message'): print(f'  Komunikat błędu: {qe.message}')
+                if hasattr(qe, 'error_type'): print(f'  Typ błędu: {qe.error_type}')
+                if hasattr(qe, 'offset'): print(f'  Offset: {qe.offset}')
+                if hasattr(qe, 'row'): print(f'  Wiersz: {qe.row}')
+                if hasattr(qe, 'column'): print(f'  Kolumna: {qe.column}')
+                is_valid = False
+                all_queries_valid = False
+            except Exception as e:
+                logger.error(f"Zapytanie '{name}' ZAWODZI z nieoczekiwanym błędem: {e}", exc_info=True)
+                is_valid = False
+                all_queries_valid = False
+
+            if is_valid:
+                logger.info(f"Zapytanie '{name}' wykonane poprawnie (sprawdź wyniki).")
+
+    # --- Podsumowanie ---
+    print(f"\n--- Podsumowanie Testów Zapytań {('(Wszystkie OK!)' if all_queries_valid else '(WYSTĄPIŁY BŁĘDY!)')} ---")
+    print('\n--- Skrypt Debugowania Zakończony ---')

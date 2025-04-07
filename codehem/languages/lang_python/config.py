@@ -15,10 +15,15 @@ _PY_FUNC_QUERY = "(function_definition name: (identifier) @function_name) @funct
 # Capture decorated definition; extractor must check decorator content
 _PY_GETTER_QUERY = "(decorated_definition) @getter_def"
 _PY_SETTER_QUERY = "(decorated_definition) @setter_def"
-# Capture assignments; extractor must check context and LHS
+# Corrected Static Property Query (v6) - Use list for alternatives within class body block
 _PY_STATIC_PROP_QUERY = """
-(assignment left: (identifier) @static_prop_name) @assignment
-(typed_assignment left: (identifier) @static_prop_name type: (_) @type) @typed_assignment
+(class_definition
+    body: (block [
+        (assignment left: (identifier) @static_prop_name value: (_) @value) @assignment
+        (typed_assignment left: (identifier) @static_prop_name type: (_) @type value: (_) @value) @typed_assignment
+        (expression_statement (assignment left: (identifier) @static_prop_name value: (_) @value)) @expr_assignment
+    ])
+)
 """
 _PY_DECORATOR_QUERY = "(decorator) @decorator_node"
 _PY_CLASS_QUERY = "(class_definition name: (identifier) @class_name) @class_def"

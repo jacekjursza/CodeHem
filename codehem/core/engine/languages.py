@@ -8,6 +8,7 @@ from tree_sitter import Language, Parser
 PY_LANGUAGE = Language(tree_sitter_python.language())
 JS_LANGUAGE = Language(tree_sitter_javascript.language())
 TS_LANGUAGE = Language(tree_sitter_typescript.language_typescript())
+
 TSX_LANGUAGE = Language(tree_sitter_typescript.language_tsx())
 LANGUAGES = {'python': PY_LANGUAGE, 'javascript': JS_LANGUAGE, 'typescript': TS_LANGUAGE, 'tsx': TSX_LANGUAGE}
 FILE_EXTENSIONS = {'.py': 'python', '.js': 'typescript', '.jsx': 'typescript', '.ts': 'typescript', '.tsx': 'typescript'}
