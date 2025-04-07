@@ -257,9 +257,8 @@ class ExtractionService:
         Now includes PROPERTY and DECORATOR types.
         """
         logger.info(f'Starting raw extraction of all elements for {self.language_code}')
-        results = {}
+        results = {'imports': self.extract_imports(code)}
         # Extract imports
-        results['imports'] = self.extract_imports(code)
         logger.debug(f"Raw extracted {len(results.get('imports', []))} import elements.")
         # Extract standalone functions
         results['functions'] = self.extract_functions(code)
@@ -284,17 +283,15 @@ class ExtractionService:
         results['decorators'] = decorators
         logger.debug(f'Raw extracted {len(decorators)} decorators.')
 
-        # TODO: Consider adding other types like INTERFACE, ENUM, TYPE_ALIAS, NAMESPACE here
-        # if they are not handled within extract_classes or other specific methods
-        # Example (if needed):
-        # results['interfaces'] = self._get_raw_extractor_results(code, CodeElementType.INTERFACE.value)
-        # logger.debug(f"Raw extracted {len(results.get('interfaces', []))} interfaces.")
-        # results['enums'] = self._get_raw_extractor_results(code, CodeElementType.ENUM.value)
-        # logger.debug(f"Raw extracted {len(results.get('enums', []))} enums.")
-        # results['type_aliases'] = self._get_raw_extractor_results(code, CodeElementType.TYPE_ALIAS.value)
-        # logger.debug(f"Raw extracted {len(results.get('type_aliases', []))} type aliases.")
-        # results['namespaces'] = self._get_raw_extractor_results(code, CodeElementType.NAMESPACE.value)
-        # logger.debug(f"Raw extracted {len(results.get('namespaces', []))} namespaces.")
+
+        results['interfaces'] = self._get_raw_extractor_results(code, CodeElementType.INTERFACE.value)
+        logger.debug(f"Raw extracted {len(results.get('interfaces', []))} interfaces.")
+        results['enums'] = self._get_raw_extractor_results(code, CodeElementType.ENUM.value)
+        logger.debug(f"Raw extracted {len(results.get('enums', []))} enums.")
+        results['type_aliases'] = self._get_raw_extractor_results(code, CodeElementType.TYPE_ALIAS.value)
+        logger.debug(f"Raw extracted {len(results.get('type_aliases', []))} type aliases.")
+        results['namespaces'] = self._get_raw_extractor_results(code, CodeElementType.NAMESPACE.value)
+        logger.debug(f"Raw extracted {len(results.get('namespaces', []))} namespaces.")
 
         logger.info(f'Completed raw extraction for {self.language_code}. Collected types: {list(results.keys())}')
         return results
