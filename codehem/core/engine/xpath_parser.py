@@ -4,7 +4,7 @@ Provides functionality to parse and work with XPath-like expressions for code el
 """
 import re
 import logging
-from typing import List, Optional, Tuple, Set
+from typing import List, Optional, Tuple, Set, TYPE_CHECKING
 import sys # For printing errors
 
 # Keep direct model imports to prevent circular dependency

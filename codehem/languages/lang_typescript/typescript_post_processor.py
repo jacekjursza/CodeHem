@@ -3,7 +3,7 @@ from typing import List, Dict, Optional
 from codehem.models.code_element import CodeElement, CodeRange
 from codehem.models.enums import CodeElementType
 from pydantic import ValidationError
-from ..post_processor_base import BaseExtractionPostProcessor
+from codehem.languages.post_processor_base import BaseExtractionPostProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -612,3 +612,6 @@ class TypeScriptExtractionPostProcessor(BaseExtractionPostProcessor):
         except (ValidationError, Exception) as e:
             logger.error(f"Failed to create decorator CodeElement for '{name}' (parent: '{parent_name}'): {e}", exc_info=False)
             return None
+
+# Alias for backward compatibility
+TypeScriptPostProcessor = TypeScriptExtractionPostProcessor

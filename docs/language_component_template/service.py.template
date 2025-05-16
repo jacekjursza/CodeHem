@@ -1,0 +1,245 @@
+"""
+{{LANGUAGE_NAME}} language service implementation.
+
+This module provides the implementation of the language service interface for {{LANGUAGE_NAME}}.
+The language service coordinates all language-specific components and provides
+a unified interface for working with {{LANGUAGE_NAME}} code.
+"""
+
+import logging
+from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+
+from codehem.core.components.extended_interfaces import ILanguageService
+from codehem.core.components.interfaces import (
+    ICodeParser, ISyntaxTreeNavigator, IElementExtractor,
+    IPostProcessor, IExtractionOrchestrator
+)
+from codehem.core.components.extended_interfaces import IManipulator, IFormatter
+from codehem.models.enums import CodeElementType
+from codehem.models.code_element import CodeElement, CodeElementsResult
+from codehem.core.registry import registry
+from codehem.core.error_handling import handle_extraction_errors
+
+from .components.parser import {{LANGUAGE_PREFIX}}CodeParser
+from .components.navigator import {{LANGUAGE_PREFIX}}SyntaxTreeNavigator
+from .components.extractor import {{LANGUAGE_PREFIX}}ElementExtractor
+from .components.post_processor import {{LANGUAGE_PREFIX}}PostProcessor
+from .components.orchestrator import {{LANGUAGE_PREFIX}}ExtractionOrchestrator
+from .components.formatter import {{LANGUAGE_PREFIX}}Formatter
+from .detector import {{LANGUAGE_PREFIX}}LanguageDetector
+
+# Import manipulators
+from .manipulator.base import {{LANGUAGE_PREFIX}}ManipulatorBase
+from .manipulator.class_handler import {{LANGUAGE_PREFIX}}ClassManipulator
+from .manipulator.function_handler import {{LANGUAGE_PREFIX}}FunctionManipulator
+from .manipulator.method_handler import {{LANGUAGE_PREFIX}}MethodManipulator
+from .manipulator.import_handler import {{LANGUAGE_PREFIX}}ImportManipulator
+from .manipulator.property_handler import {{LANGUAGE_PREFIX}}PropertyManipulator
+
+logger = logging.getLogger(__name__)
+
+class {{LANGUAGE_PREFIX}}LanguageService(ILanguageService):
+    """
+    {{LANGUAGE_NAME}} language service implementation.
+    
+    Coordinates all {{LANGUAGE_NAME}}-specific components and provides a unified interface
+    for working with {{LANGUAGE_NAME}} code.
+    """
+    
+    # Singleton instance
+    _instance = None
+    
+    def __new__(cls, *args, **kwargs):
+        """Ensure only one instance of the service exists."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self):
+        """Initialize the language service with all necessary components."""
+        if self._initialized:
+            return
+        
+        logger.debug(f"Initializing {{LANGUAGE_PREFIX}}LanguageService")
+        self._language_code = "{{LANGUAGE_CODE}}"
+        
+        # Initialize components
+        self._parser = {{LANGUAGE_PREFIX}}CodeParser()
+        self._navigator = {{LANGUAGE_PREFIX}}SyntaxTreeNavigator()
+        self._extractor = {{LANGUAGE_PREFIX}}ElementExtractor(self._navigator)
+        self._post_processor = {{LANGUAGE_PREFIX}}PostProcessor()
+        self._orchestrator = {{LANGUAGE_PREFIX}}ExtractionOrchestrator(self._post_processor)
+        self._formatter = {{LANGUAGE_PREFIX}}Formatter()
+        
+        # Initialize manipulators
+        self._manipulators = {
+            CodeElementType.CLASS: {{LANGUAGE_PREFIX}}ClassManipulator(),
+            CodeElementType.FUNCTION: {{LANGUAGE_PREFIX}}FunctionManipulator(),
+            CodeElementType.METHOD: {{LANGUAGE_PREFIX}}MethodManipulator(),
+            CodeElementType.IMPORT: {{LANGUAGE_PREFIX}}ImportManipulator(),
+            CodeElementType.PROPERTY: {{LANGUAGE_PREFIX}}PropertyManipulator(),
+            # Add other manipulators as needed
+        }
+        
+        self._initialized = True
+    
+    @property
+    def language_code(self) -> str:
+        """Get the language code."""
+        return self._language_code
+    
+    @property
+    def file_extensions(self) -> List[str]:
+        """Get the file extensions for {{LANGUAGE_NAME}}."""
+        return [{{FILE_EXTENSIONS}}]
+    
+    @property
+    def supported_element_types(self) -> List[str]:
+        """Get the supported element types for {{LANGUAGE_NAME}}."""
+        return [
+            "class",
+            "function",
+            "method",
+            "import",
+            "property",
+            # Add other supported element types
+        ]
+    
+    def get_parser(self) -> ICodeParser:
+        """Get the {{LANGUAGE_NAME}} parser."""
+        return self._parser
+    
+    def get_navigator(self) -> ISyntaxTreeNavigator:
+        """Get the {{LANGUAGE_NAME}} syntax tree navigator."""
+        return self._navigator
+    
+    def get_extractor(self) -> IElementExtractor:
+        """Get the {{LANGUAGE_NAME}} element extractor."""
+        return self._extractor
+    
+    def get_post_processor(self) -> IPostProcessor:
+        """Get the {{LANGUAGE_NAME}} post-processor."""
+        return self._post_processor
+    
+    def get_orchestrator(self) -> IExtractionOrchestrator:
+        """Get the {{LANGUAGE_NAME}} extraction orchestrator."""
+        return self._orchestrator
+    
+    def get_manipulator(self, element_type: Union[str, CodeElementType]) -> IManipulator:
+        """
+        Get the {{LANGUAGE_NAME}} manipulator for a specific element type.
+        
+        Args:
+            element_type: The element type to get a manipulator for
+            
+        Returns:
+            The appropriate manipulator
+        """
+        if isinstance(element_type, str):
+            element_type = CodeElementType[element_type.upper()]
+        
+        return self._manipulators.get(element_type)
+    
+    def get_formatter(self) -> IFormatter:
+        """Get the {{LANGUAGE_NAME}} formatter."""
+        return self._formatter
+    
+    @handle_extraction_errors
+    def detect_element_type(self, code: str) -> str:
+        """
+        Detect the primary element type in a {{LANGUAGE_NAME}} code snippet.
+        
+        Args:
+            code: The code snippet to analyze
+            
+        Returns:
+            The detected element type
+        """
+        # Implementation depends on language
+        # This is a simplified example
+        import re
+        
+        # Check for class definition
+        if re.search(r'class\s+\w+', code):
+            return "class"
+        
+        # Check for function definition
+        if re.search(r'function\s+\w+|def\s+\w+', code):
+            return "function"
+        
+        # Check for imports
+        if re.search(r'import\s+|from\s+.+\s+import', code):
+            return "import"
+        
+        # Default
+        return "unknown"
+    
+    @handle_extraction_errors
+    def extract(self, code: str) -> CodeElementsResult:
+        """
+        Extract all code elements from {{LANGUAGE_NAME}} code.
+        
+        Args:
+            code: The source code to extract from
+            
+        Returns:
+            A CodeElementsResult containing all extracted elements
+        """
+        return self._orchestrator.extract_all(code)
+    
+    @handle_extraction_errors
+    def find_element(self, code: str, element_type: str, 
+                   element_name: Optional[str]=None, 
+                   parent_name: Optional[str]=None) -> Tuple[int, int]:
+        """
+        Find an element in {{LANGUAGE_NAME}} code.
+        
+        Args:
+            code: The source code to search
+            element_type: The type of element to find
+            element_name: Optional name of the element to find
+            parent_name: Optional name of the parent element
+            
+        Returns:
+            Tuple of (start_line, end_line) or (0, 0) if not found
+        """
+        return self._orchestrator.find_element(code, element_type, element_name, parent_name)
+    
+    @handle_extraction_errors
+    def get_text_by_xpath(self, code: str, xpath: str) -> str:
+        """
+        Get the text of an element identified by an XPath expression.
+        
+        Args:
+            code: The source code to search
+            xpath: The XPath expression identifying the element
+            
+        Returns:
+            The text of the element
+        """
+        # Implementation depends on specific language XPath handling
+        # This method would typically use the orchestrator and/or navigator
+        # to find the element and extract its text
+        from codehem.core.engine.xpath_parser import XPathParser
+        
+        # Parse XPath and get element details
+        xpath_nodes = XPathParser.parse(xpath)
+        
+        # Get text by XPath (implementation specific to each language)
+        return self.get_text_by_xpath_internal(code, xpath_nodes)
+    
+    def get_text_by_xpath_internal(self, code: str, xpath_nodes: List) -> str:
+        """
+        Internal implementation for getting text by XPath nodes.
+        
+        Args:
+            code: The source code to search
+            xpath_nodes: The parsed XPath nodes
+            
+        Returns:
+            The text of the element
+        """
+        # Language-specific implementation
+        # This would be implemented based on the language's specific needs
+        pass

@@ -10,7 +10,7 @@ and language service.
 from . import config
 from . import detector
 from . import service
-from . import typescript_post_processor
+from . import components  # Import TypeScript components
 from .formatting import typescript_formatter
 
 # Import newly added type descriptors to ensure registration

@@ -5,12 +5,15 @@ from typing import List, Optional, Tuple
 from .core.engine.xpath_parser import XPathParser
 from .core.extraction_service import ExtractionService
 from .core.manipulation_service import ManipulationService
+from .core.post_processors.factory import PostProcessorFactory
 from .languages import (
     get_language_service,
     get_language_service_for_code,
     get_language_service_for_file,
     get_supported_languages,
 )
+# Import ExtendedLanguageService for feature detection
+from .core.language_service_extended import ExtendedLanguageService
 from .models.code_element import CodeElement, CodeElementsResult
 from .models.enums import CodeElementType
 from .models.xpath import CodeElementXPathNode
@@ -38,9 +41,12 @@ class CodeHem:
             raise ValueError(f"Unsupported language: {language_code}")
 
         # Initialize services lazily or ensure they are created correctly
-        # Assuming services are now initialized within LanguageService or needed here
         try:
+            # Initialize extraction service
+            logger.debug(f"Using ExtractionService for {language_code}")
             self.extraction = ExtractionService(language_code)
+            
+            # Initialize manipulation service
             self.manipulation = ManipulationService(language_code)
         except ValueError as e:
              # Handle cases where services might fail initialization if LanguageService failed
@@ -98,6 +104,16 @@ class CodeHem:
             List of supported language codes
         """
         return get_supported_languages()
+
+    @staticmethod
+    def supported_post_processors() -> List[str]:
+        """
+        Get a list of language codes with post-processor support.
+
+        Returns:
+            List of languages with post-processor support
+        """
+        return PostProcessorFactory.get_supported_languages()
 
     @staticmethod
     def load_file(file_path: str) -> str:
@@ -201,7 +217,6 @@ class CodeHem:
             original_code, processed_xpath, new_code
         )
 
-    # --- ZMIANA: Wykorzystanie _ensure_file_prefix ---
     def find_by_xpath(self, code: str, xpath: str) -> Tuple[int, int]:
         """
         Find an element's location using an XPath expression.
@@ -219,7 +234,6 @@ class CodeHem:
         processed_xpath = self._ensure_file_prefix(xpath)
         return self.extraction.find_by_xpath(code, processed_xpath)
 
-    # --- ZMIANA: Wykorzystanie _ensure_file_prefix ---
     def get_text_by_xpath(self, code: str, xpath: str) -> Optional[str]:
         """
         Get the text content of an element using an XPath expression.
@@ -278,6 +292,7 @@ class CodeHem:
         """
         Filter code elements based on XPath expression.
         Automatically prepends "FILE." if missing.
+        Delegates to the ElementFilter utility class.
 
         Args:
             elements: CodeElementsResult containing elements
@@ -286,74 +301,16 @@ class CodeHem:
         Returns:
             Matching CodeElement or None if not found
         """
-        if not xpath or not elements or not hasattr(elements, 'elements') or not elements.elements:
-            return None
-
-        # Ensure xpath starts with FILE. before parsing
-        processed_xpath = CodeHem._ensure_file_prefix_static(xpath)
-
-        try:
-            # Parse the potentially modified xpath
-            element_name, parent_name, element_type = XPathParser.get_element_info(processed_xpath)
-
-            if processed_xpath.lower().endswith(".[import]") or processed_xpath.lower() == "[import]":
-                 target_type = CodeElementType.IMPORT.value
-                 target_name = "imports" # Assuming collective import element name
-                 parent_name = None # Imports are top-level
-                 logger.debug(f"Filter: Special handling for import XPath '{processed_xpath}'")
-            elif xpath.lower() == 'imports': # Handle simple "imports" case
-                 target_type = CodeElementType.IMPORT.value
-                 target_name = "imports"
-                 parent_name = None
-                 logger.debug(f"Filter: Special handling for simple 'imports' XPath")
-            else:
-                 # Use parsed info, note element_type might be None
-                 target_name = element_name
-                 target_type = element_type # Can be None
-
-            logger.debug(f"Filter: Searching for name='{target_name}', type='{target_type}', parent='{parent_name}'")
-
-            # --- Search Logic ---
-            if parent_name:
-                # Find parent first
-                parent_match = None
-                for el in elements.elements:
-                    # Parent must be a CLASS or INTERFACE (or other container types)
-                    if el.type in [CodeElementType.CLASS, CodeElementType.INTERFACE] and el.name == parent_name:
-                         parent_match = el
-                         break
-                if not parent_match:
-                     logger.debug(f"Filter: Parent '{parent_name}' not found.")
-                     return None
-
-                # Search within parent's children
-                for child in parent_match.children:
-                    name_match = hasattr(child, 'name') and child.name == target_name
-                    # Type match: ignore if target_type is None, otherwise compare values
-                    type_match = (target_type is None) or (hasattr(child, 'type') and child.type.value == target_type)
-
-                    if name_match and type_match:
-                        logger.debug(f"Filter: Found child match: {child.name} ({child.type.value})")
-                        return child
-                logger.debug(f"Filter: Child '{target_name}' (type: {target_type}) not found in parent '{parent_name}'.")
-                return None
-            else:
-                # Search top-level elements
-                for element in elements.elements:
-                    name_match = hasattr(element, 'name') and element.name == target_name
-                    type_match = (target_type is None) or (hasattr(element, 'type') and element.type.value == target_type)
-                    # Ensure it's truly top-level (no parent_name assigned during extraction)
-                    is_top_level = not hasattr(element, 'parent_name') or not element.parent_name
-
-                    if name_match and type_match and is_top_level:
-                         logger.debug(f"Filter: Found top-level match: {element.name} ({element.type.value})")
-                         return element
-                logger.debug(f"Filter: Top-level element '{target_name}' (type: {target_type}) not found.")
-                return None
-
-        except Exception as e:
-             logger.error(f"Error during filtering with XPath '{xpath}': {e}", exc_info=True)
-             return None
+        # Use ElementFilter utility to avoid duplicating filtering logic
+        from codehem.models.element_filter import ElementFilter
+        
+        # Process the xpath first to ensure FILE. prefix (for compatibility)
+        if xpath and not xpath.startswith(XPathParser.ROOT_ELEMENT + '.') and not xpath.startswith('['):
+            processed_xpath = CodeHem._ensure_file_prefix_static(xpath)
+        else:
+            processed_xpath = xpath
+            
+        return ElementFilter.filter(elements, processed_xpath)
 
     @staticmethod
     def parse_xpath(xpath: str) -> List[CodeElementXPathNode]:

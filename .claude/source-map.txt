@@ -1,0 +1,4674 @@
+{
+	"modules": [
+		{
+			"module_path": "d:\\code\\codehem",
+			"module_description": "Katalog główny projektu, zawierający skrypty najwyższego poziomu do testowania, budowania, publikowania i debugowania, a także główny punkt wejścia pakietu.",
+			"module_responsibility": "Konfiguracja projektu, skrypty pomocnicze, inicjalizacja.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"CodeHem",
+				"setup",
+				"main (w cli.py)",
+				"main (w publish.py)",
+				"test_services",
+				"test_extractors"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem",
+			"module_description": "Główny pakiet biblioteki CodeHem.",
+			"module_responsibility": "Dostarczenie głównego interfejsu `CodeHem`, interfejsu wiersza poleceń (CLI) oraz inicjalizacja komponentów poprzez rejestr.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"CodeHem",
+				"registry.initialize_components",
+				"main (w cli.py)"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\core",
+			"module_description": "Podstawowe, niezależne od języka komponenty biblioteki CodeHem.",
+			"module_responsibility": "Zarządzanie rejestrem komponentów, obsługa błędów, konfiguracja, definiowanie usług (LanguageService, ExtractionService, ManipulationService) i bazowych post-procesorów.",
+			"data_structures": [
+				"Configuration"
+			],
+			"important_symbol_names": [
+				"Registry",
+				"registry",
+				"LanguageService",
+				"ExtractionService",
+				"ManipulationService",
+				"LanguagePostProcessor",
+				"CodeHemError",
+				"ExtractionError",
+				"UnsupportedLanguageError",
+				"config",
+				"handle_extraction_errors"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\core\\engine",
+			"module_description": "Komponenty niskopoziomowe do interakcji z parserem tree-sitter i obsługi AST.",
+			"module_responsibility": "Abstrakcja nad tree-sitter, parsowanie kodu do AST, wykonywanie zapytań na AST, definiowanie obsługiwanych języków i rozszerzeń plików, parsowanie wyrażeń XPath.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"ASTHandler",
+				"XPathParser",
+				"CodeNodeWrapper",
+				"get_parser",
+				"get_language_for_file",
+				"LANGUAGES",
+				"FILE_EXTENSIONS"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\core\\formatting",
+			"module_description": "Podstawowa klasa i narzędzia do formatowania kodu.",
+			"module_responsibility": "Dostarczenie bazowej klasy `BaseFormatter` z podstawowymi funkcjami formatowania i obsługi wcięć.",
+			"data_structures": [
+				"BaseFormatter"
+			],
+			"important_symbol_names": [
+				"BaseFormatter"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\core\\extractors",
+			"module_description": "Definicje bazowe i szablony dla ekstraktorów elementów kodu.",
+			"module_responsibility": "Definiowanie interfejsu ekstraktora (`BaseExtractor`), dostarczanie szablonów (`TemplateExtractor`) dla typowych wzorców ekstrakcji (klasy, metody, funkcje, importy, właściwości) oraz pomocników (`ExtractorHelpers`).",
+			"data_structures": [],
+			"important_symbol_names": [
+				"BaseExtractor",
+				"TemplateExtractor",
+				"ExtractorHelpers",
+				"ImportExtractor",
+				"FunctionExtractor",
+				"TemplateClassExtractor",
+				"TemplateMethodExtractor",
+				"TemplatePropertyExtractor",
+				"TemplateStaticPropertyExtractor"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\core\\manipulators",
+			"module_description": "Definicje bazowe i szablony dla manipulatorów kodu.",
+			"module_responsibility": "Definiowanie interfejsu manipulatora (`ManipulatorBase`) i dostarczanie szablonów (`TemplateManipulator`) dla typowych operacji manipulacji (dodawanie, usuwanie, zastępowanie) z obsługą wcięć i pustych linii.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"ManipulatorBase",
+				"TemplateManipulator",
+				"TemplateClassManipulator",
+				"TemplateFunctionManipulator",
+				"TemplateImportManipulator",
+				"TemplateMethodManipulator"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\core\\post_processors",
+			"module_description": "Definicje bazowe i fabryka dla post-procesorów ekstrakcji.",
+			"module_responsibility": "Definiowanie interfejsu `LanguagePostProcessor` (`IPostProcessor`) odpowiedzialnego za strukturyzację surowych wyników ekstrakcji.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"LanguagePostProcessor",
+				"IPostProcessor"
+			]
+		},
+        {
+			"module_path": "d:\\code\\codehem\\codehem\\core\\components",
+			"module_description": "Definicje interfejsów dla kluczowych komponentów architektury oraz ich bazowe implementacje.",
+			"module_responsibility": "Określenie kontraktów dla parserów, nawigatorów AST, ekstraktorów, post-procesorów i orchestratorów, zapewniając spójność architektury.",
+			"data_structures": [],
+			"important_symbol_names": [
+                "ICodeParser",
+                "ISyntaxTreeNavigator",
+                "IElementExtractor",
+                "IPostProcessor",
+                "IExtractionOrchestrator",
+                "BaseCodeParser",
+                "BaseSyntaxTreeNavigator",
+                "BaseElementExtractor",
+                "BaseExtractionOrchestrator"
+			]
+		},
+        {
+			"module_path": "d:\\code\\codehem\\codehem\\core\\components\\python",
+			"module_description": "Konkretne implementacje komponentów dla języka Python.",
+			"module_responsibility": "Dostarczenie implementacji interfejsów `ICodeParser`, `ISyntaxTreeNavigator`, `IElementExtractor`, `IExtractionOrchestrator` dla Pythona.",
+			"data_structures": [],
+			"important_symbol_names": [
+                "PythonCodeParser",
+                "PythonSyntaxTreeNavigator",
+                "PythonElementExtractor",
+                "PythonExtractionOrchestrator"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\models",
+			"module_description": "Modele danych Pydantic używane w bibliotece.",
+			"module_responsibility": "Definiowanie struktur danych reprezentujących elementy kodu (`CodeElement`), wyniki ekstrakcji (`CodeElementsResult`), zakresy kodu (`CodeRange`), typy elementów (`CodeElementType`), węzły XPath (`CodeElementXPathNode`) oraz deskryptory i szablony typów elementów.",
+			"data_structures": [
+				"CodeElement (type, name, content, range, parent_name, value_type, additional_data, children)",
+				"CodeElementsResult (elements)",
+				"CodeRange (start_line, end_line, start_column, end_column, node)",
+				"CodeElementType (Enum: CLASS, METHOD, FUNCTION, etc.)",
+				"CodeElementXPathNode (name, type, part)",
+				"ElementTypeLanguageDescriptor (language_code, element_type, tree_sitter_query, regexp_pattern, custom_extract)",
+				"ElementTypeTemplate (element_type, description, tree_sitter_pattern, regexp_pattern, custom_extract)"
+			],
+			"important_symbol_names": [
+				"CodeElement",
+				"CodeElementsResult",
+				"CodeRange",
+				"CodeElementType",
+				"CodeElementXPathNode",
+				"ElementTypeLanguageDescriptor",
+				"ElementTypeTemplate"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\languages",
+			"module_description": "Główny pakiet dla implementacji specyficznych dla języków.",
+			"module_responsibility": "Routing do odpowiednich usług językowych na podstawie wykrycia języka lub rozszerzenia pliku.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"get_language_service",
+				"get_language_service_for_file",
+				"get_language_service_for_code",
+				"get_supported_languages"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\languages\\lang_python",
+			"module_description": "Komponenty specyficzne dla języka Python.",
+			"module_responsibility": "Definiowanie usługi językowej dla Pythona (`PythonLanguageService`), detektora języka (`PythonLanguageDetector`), konfiguracji wzorców (`LANGUAGE_CONFIG`) oraz deskryptorów dla poszczególnych typów elementów Pythona.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"PythonLanguageService",
+				"PythonLanguageDetector",
+				"LANGUAGE_CONFIG",
+				"PythonClassHandlerElementType",
+				"PythonMethodHandlerElementType",
+				"PythonFunctionHandlerElementType",
+				"PythonImportHandlerElementType",
+				"PythonPropertyGetterHandlerElementType",
+				"PythonPropertySetterHandlerElementType",
+				"PythonStaticPropertyHandlerElementType",
+				"PythonDecoratorHandlerElementType"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\languages\\lang_python\\extractors",
+			"module_description": "Ekstraktory elementów kodu specyficzne dla Pythona.",
+			"module_responsibility": "Implementacja logiki ekstrakcji dla właściwości (getters/setters), zmiennych statycznych i dekoratorów w Pythonie.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"PythonPropertyExtractor",
+				"PythonPropertySetterExtractor",
+				"PythonPropertyGetterExtractor",
+				"PythonDecoratorExtractor"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\languages\\lang_python\\formatting",
+			"module_description": "Formater kodu specyficzny dla Pythona.",
+			"module_responsibility": "Implementacja reguł formatowania kodu dla różnych elementów składni Pythona.",
+			"data_structures": [
+				"PythonFormatter"
+			],
+			"important_symbol_names": [
+				"PythonFormatter"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\languages\\lang_python\\manipulator",
+			"module_description": "Manipulatory kodu specyficzne dla Pythona.",
+			"module_responsibility": "Implementacja logiki dodawania, usuwania i modyfikowania klas, metod, funkcji, właściwości i importów w kodzie Pythona.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"PythonManipulatorBase",
+				"PythonClassManipulator",
+				"PythonFunctionManipulator",
+				"PythonImportManipulator",
+				"PythonMethodManipulator",
+				"PythonPropertyManipulator"
+			]
+		},
+        {
+			"module_path": "d:\\code\\codehem\\codehem\\core\\post_processors\\python",
+			"module_description": "Post-procesor ekstrakcji specyficzny dla Pythona.",
+			"module_responsibility": "Strukturyzacja surowych wyników ekstrakcji dla kodu Python w obiekty `CodeElement`.",
+			"data_structures": [
+                "PythonPostProcessor"
+            ],
+			"important_symbol_names": [
+                "PythonPostProcessor"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\languages\\lang_typescript",
+			"module_description": "Komponenty specyficzne dla języka TypeScript (i JavaScript).",
+			"module_responsibility": "Definiowanie usługi językowej dla TypeScript (`TypeScriptLanguageService`), detektora języka (`TypeScriptLanguageDetector`), konfiguracji wzorców (`LANGUAGE_CONFIG`) oraz deskryptorów dla poszczególnych typów elementów TypeScript.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"TypeScriptLanguageService",
+				"TypeScriptLanguageDetector",
+				"LANGUAGE_CONFIG",
+				"TypeScriptClassHandlerElementType",
+				"TypeScriptFunctionHandlerElementType",
+				"TypeScriptImportHandlerElementType",
+				"TypeScriptInterfaceHandlerElementType",
+				"TypeScriptMethodHandlerElementType",
+				"TypeScriptPropertyHandlerElementType",
+				"TypeScriptStaticPropertyHandlerElementType",
+				"TypeScriptDecoratorHandlerElementType",
+				"TypeScriptEnumHandlerElementType",
+				"TypeScriptNamespaceHandlerElementType",
+				"TypeScriptTypeAliasHandlerElementType",
+                "TypeScriptPropertyGetterHandlerElementType",
+                "TypeScriptPropertySetterHandlerElementType"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors",
+			"module_description": "Ekstraktory elementów kodu specyficzne dla TypeScript.",
+			"module_responsibility": "Implementacja logiki ekstrakcji dla klas, funkcji, importów, interfejsów, metod, właściwości (zwykłych i statycznych), dekoratorów, enumów, przestrzeni nazw i aliasów typów w TypeScript.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"TypeScriptClassExtractor",
+				"TypeScriptFunctionExtractor",
+				"TypeScriptImportExtractor",
+				"TypeScriptInterfaceExtractor",
+				"TypeScriptMethodExtractor",
+				"TypeScriptPropertyExtractor",
+				"TypeScriptStaticPropertyExtractor",
+				"TypeScriptDecoratorExtractor",
+				"TypeScriptEnumExtractor",
+				"TypeScriptNamespaceExtractor",
+				"TypeScriptTypeAliasExtractor"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\formatting",
+			"module_description": "Formater kodu specyficzny dla TypeScript.",
+			"module_responsibility": "Implementacja reguł formatowania kodu dla różnych elementów składni TypeScript.",
+			"data_structures": [
+				"TypeScriptFormatter"
+			],
+			"important_symbol_names": [
+				"TypeScriptFormatter"
+			]
+		},
+        {
+			"module_path": "d:\\code\\codehem\\codehem\\core\\post_processors\\typescript",
+			"module_description": "Post-procesor ekstrakcji specyficzny dla TypeScript.",
+			"module_responsibility": "Strukturyzacja surowych wyników ekstrakcji dla kodu TypeScript w obiekty `CodeElement`.",
+			"data_structures": [
+                "TypeScriptPostProcessor"
+            ],
+			"important_symbol_names": [
+                "TypeScriptPostProcessor"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\tests\\helpers",
+			"module_description": "Moduł pomocniczy dla testów.",
+			"module_responsibility": "Dostarczanie narzędzi do ładowania i zarządzania danymi testowymi (fixtures).",
+			"data_structures": [
+				"CodeFixture (name, category, content, expected_start_line, expected_end_line, metadata)"
+			],
+			"important_symbol_names": [
+				"TestHelper",
+				"FixtureLoader"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\tests\\common",
+			"module_description": "Testy dla podstawowych, niezależnych od języka funkcjonalności biblioteki.",
+			"module_responsibility": "Testowanie wykrywania języka, parsowania XPath, filtrowania i podstawowych operacji klasy CodeHem.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"LanguageDetectionTests",
+				"CodeHem2XPathTests",
+				"XPathParserTests",
+				"CodeHem2Tests"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\tests\\python",
+			"module_description": "Testy jednostkowe i integracyjne dla obsługi języka Python.",
+			"module_responsibility": "Testowanie ekstrakcji różnych elementów Pythona, manipulacji kodem Pythona oraz przypadków brzegowych.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"test_find_function_simple",
+				"test_extract_class",
+				"test_extract_method",
+				"test_add_method_to_class",
+				"test_replace_method_in_class",
+				"test_xpath_results"
+			]
+		},
+		{
+			"module_path": "d:\\code\\codehem\\tests\\typescript",
+			"module_description": "Testy jednostkowe i integracyjne dla obsługi języka TypeScript.",
+			"module_responsibility": "Testowanie ekstrakcji różnych elementów TypeScript/JavaScript.",
+			"data_structures": [],
+			"important_symbol_names": [
+				"test_extract_ts_class",
+				"test_extract_js_function",
+				"test_extract_ts_interface",
+				"test_extract_ts_method",
+				"test_extract_ts_imports"
+			]
+		}
+	],
+	"cdebase_description": "CodeHem to biblioteka w języku Python zaprojektowana do zaawansowanego zapytania i manipulacji kodem źródłowym w wielu językach programowania (obecnie Python i TypeScript/JavaScript). Wykorzystuje parser tree-sitter do analizy składni i budowy abstrakcyjnego drzewa składni (AST). Architektura opiera się na rozdzieleniu odpowiedzialności: główny interfejs `CodeHem` koordynuje pracę z usługami językowymi (`LanguageService`), które z kolei zarządzają specyficznymi dla języka ekstraktorami (`BaseExtractor`), manipulatorami (`ManipulatorBase`), formaterami (`BaseFormatter`) i post-procesorami (`LanguagePostProcessor`). Rejestr (`Registry`) dynamicznie odkrywa i udostępnia te komponenty. Biblioteka umożliwia ekstrakcję elementów kodu (klasy, funkcje, metody, właściwości, importy itp.) do ustrukturyzowanych modeli Pydantic (`CodeElement`, `CodeElementsResult`) oraz ich modyfikację (dodawanie, usuwanie, zastępowanie) z zachowaniem poprawnej składni i formatowania. Obsługuje również zapytania w stylu XPath do lokalizowania i pobierania fragmentów kodu."
+}
+
+
+
+[
+	{
+		"file": "d:\\code\\codehem\\tests\\helpers\\code_examples.py",
+		"classes": [
+			{
+				"class_name": "TestHelper",
+				"description": "Provides helper methods for loading test fixtures.",
+				"methods": [
+					{
+						"method_name": "load_example",
+						"params": "name: str, category: str='general', language: str='python', metadata: Optional[Dict[str, Any]]=None",
+						"description": "Loads a specific code fixture based on language, category, and name."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"FixtureLoader",
+			"CodeFixture"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\main.py",
+		"classes": [
+			{
+				"class_name": "CodeHem",
+				"description": "The main entry point for the CodeHem library, providing methods for code analysis, extraction, and manipulation.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str",
+						"description": "Initializes CodeHem for a specific language, setting up necessary services."
+					},
+					{
+						"method_name": "from_file_path",
+						"params": "cls, file_path: str",
+						"description": "Class method to create a CodeHem instance by detecting the language from a file path."
+					},
+					{
+						"method_name": "from_raw_code",
+						"params": "cls, code: str",
+						"description": "Class method to create a CodeHem instance by detecting the language from raw code."
+					},
+					{
+						"method_name": "supported_languages",
+						"params": "",
+						"description": "Static method to get a list of supported language codes."
+					},
+					{
+						"method_name": "supported_post_processors",
+						"params": "",
+						"description": "Static method to get a list of languages with registered post-processors."
+					},
+					{
+						"method_name": "load_file",
+						"params": "file_path: str",
+						"description": "Static method to read the content of a file."
+					},
+					{
+						"method_name": "detect_element_type",
+						"params": "code: str",
+						"description": "Detects the type of the top-level code element (e.g., class, function) in the provided code string."
+					},
+					{
+						"method_name": "upsert_element",
+						"params": "original_code: str, element_type: str, name: str, new_code: str, parent_name: Optional[str]=None",
+						"description": "Updates an existing code element or inserts it if it doesn't exist, based on type, name, and optional parent name."
+					},
+					{
+						"method_name": "_ensure_file_prefix",
+						"params": "xpath: str",
+						"description": "Internal helper method to ensure an XPath expression starts with the root 'FILE.' prefix if necessary."
+					},
+					{
+						"method_name": "upsert_element_by_xpath",
+						"params": "original_code: str, xpath: str, new_code: str",
+						"description": "Updates or inserts a code element identified by an XPath expression."
+					},
+					{
+						"method_name": "find_by_xpath",
+						"params": "code: str, xpath: str",
+						"description": "Finds the start and end line numbers of the code element identified by the XPath expression."
+					},
+					{
+						"method_name": "get_text_by_xpath",
+						"params": "code: str, xpath: str",
+						"description": "Retrieves the text content of the code element identified by the XPath expression."
+					},
+					{
+						"method_name": "extract",
+						"params": "code: str",
+						"description": "Extracts all code elements from the given code string into a structured result."
+					},
+					{
+						"method_name": "_ensure_file_prefix_static",
+						"params": "xpath: str",
+						"description": "Static internal helper method to ensure an XPath expression starts with the root 'FILE.' prefix."
+					},
+					{
+						"method_name": "filter",
+						"params": "elements: CodeElementsResult, xpath: str=''",
+						"description": "Static method to filter a list of extracted code elements based on an XPath-like expression."
+					},
+					{
+						"method_name": "parse_xpath",
+						"params": "xpath: str",
+						"description": "Static method to parse an XPath string into a list of node objects."
+					},
+					{
+						"method_name": "format_xpath",
+						"params": "nodes: List[CodeElementXPathNode]",
+						"description": "Static method to convert a list of XPath node objects back into an XPath string."
+					},
+					{
+						"method_name": "_get_text_for_top_level_element",
+						"params": "code: str, xpath: str",
+						"description": "Internal helper to get text content specifically for top-level elements using find_by_xpath."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"get_language_service",
+			"get_language_service_for_file",
+			"get_language_service_for_code",
+			"get_supported_languages",
+			"PostProcessorFactory",
+			"ExtractionService",
+			"RefactoredExtractionService",
+			"ManipulationService",
+			"XPathParser",
+			"CodeElementsResult",
+			"CodeElement",
+			"CodeElementType",
+			"CodeElementXPathNode"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\formatting\\formatter.py",
+		"classes": [
+			{
+				"class_name": "BaseFormatter",
+				"description": "Base class for code formatters, providing common indentation and formatting utilities.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "indent_size: int=4",
+						"description": "Initializes the formatter with a specific indentation size."
+					},
+					{
+						"method_name": "format_element",
+						"params": "element_type: str, code: str",
+						"description": "Formats a specific code element based on its type, delegating to specialized formatters if available."
+					},
+					{
+						"method_name": "_get_element_formatter",
+						"params": "element_type: str",
+						"description": "Internal method to retrieve a type-specific formatting function (intended to be overridden)."
+					},
+					{
+						"method_name": "format_code",
+						"params": "code: str",
+						"description": "Generic code formatting method (can be overridden)."
+					},
+					{
+						"method_name": "apply_indentation",
+						"params": "code: str, base_indent: str",
+						"description": "Applies a base indentation level to all non-empty lines of the code."
+					},
+					{
+						"method_name": "get_indentation",
+						"params": "line: str",
+						"description": "Extracts the leading whitespace indentation from a line."
+					},
+					{
+						"method_name": "dedent",
+						"params": "code: str",
+						"description": "Removes common leading whitespace from the code block using textwrap.dedent."
+					},
+					{
+						"method_name": "normalize_indentation",
+						"params": "code: str, target_indent: str=''",
+						"description": "Adjusts the indentation of the code block relative to its least indented line, applying a target base indent."
+					}
+				]
+			}
+		],
+		"related_symbols": []
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\models\\code_element.py",
+		"classes": [
+			{
+				"class_name": "CodeElement",
+				"description": "Pydantic model representing a single extracted code element (like class, method, function, property).",
+				"methods": [
+					{
+						"method_name": "from_dict",
+						"params": "raw_element: dict",
+						"description": "Static method to create a CodeElement instance from a dictionary, handling type conversion and range creation."
+					}
+				]
+			},
+			{
+				"class_name": "CodeElementsResult",
+				"description": "Pydantic model representing a collection of extracted CodeElement objects.",
+				"methods": [
+					{
+						"method_name": "filter",
+						"params": "xpath: str=''",
+						"description": "Filters the elements within the result based on an XPath-like expression."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"CodeElementType",
+			"CodeRange",
+			"XPathParser",
+			"BaseModel",
+			"Field",
+			"Optional",
+			"List",
+			"Dict",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\models\\range.py",
+		"classes": [
+			{
+				"class_name": "CodeRange",
+				"description": "Pydantic model representing a range (start/end line and column) in source code.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"BaseModel",
+			"Optional",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\engine\\ast_handler.py",
+		"classes": [
+			{
+				"class_name": "ASTHandler",
+				"description": "Handles Abstract Syntax Tree (AST) operations using tree-sitter for a specific language.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str, parser, language",
+						"description": "Initializes the AST handler with the language code, tree-sitter parser, and language object."
+					},
+					{
+						"method_name": "parse",
+						"params": "code: str",
+						"description": "Parses the given code string into a tree-sitter AST root node and returns it along with the code bytes."
+					},
+					{
+						"method_name": "get_node_text",
+						"params": "node: Node, code_bytes: bytes",
+						"description": "Retrieves the original text corresponding to a given AST node."
+					},
+					{
+						"method_name": "get_node_range",
+						"params": "node: Node",
+						"description": "Gets the start and end line numbers (1-based) for a given AST node."
+					},
+					{
+						"method_name": "execute_query",
+						"params": "query_string: str, root: Node, code_bytes: bytes",
+						"description": "Executes a tree-sitter query against the AST and returns a list of captured nodes and their capture names."
+					},
+					{
+						"method_name": "process_captures",
+						"params": "captures: Any",
+						"description": "Static method to process the raw captures returned by tree-sitter into a consistent list format."
+					},
+					{
+						"method_name": "find_parent_of_type",
+						"params": "node: Node, parent_type: str",
+						"description": "Finds the nearest ancestor node of a specified type."
+					},
+					{
+						"method_name": "find_child_by_field_name",
+						"params": "node: Node, field_name: str",
+						"description": "Finds a direct child node by its field name in the AST grammar."
+					},
+					{
+						"method_name": "get_indentation",
+						"params": "line: str",
+						"description": "Extracts the leading whitespace indentation from a line."
+					},
+					{
+						"method_name": "apply_indentation",
+						"params": "content: str, base_indent: str",
+						"description": "Applies a base indentation to all non-empty lines of a code block."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"Node",
+			"Query",
+			"Tuple",
+			"List",
+			"Optional",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\engine\\xpath_parser.py",
+		"classes": [
+			{
+				"class_name": "XPathParser",
+				"description": "Provides static methods for parsing and manipulating CodeHem's XPath-like expressions.",
+				"methods": [
+					{
+						"method_name": "_ensure_file_prefix",
+						"params": "xpath: str",
+						"description": "Static internal method to ensure an XPath starts with the 'FILE.' prefix."
+					},
+					{
+						"method_name": "_infer_types",
+						"params": "nodes: List[CodeElementXPathNode]",
+						"description": "Static internal method to infer missing element types (class, function, method) in a parsed XPath node list based on context and naming conventions."
+					},
+					{
+						"method_name": "to_string",
+						"params": "nodes: List[CodeElementXPathNode]",
+						"description": "Static method to convert a list of parsed XPath nodes back into a string representation."
+					},
+					{
+						"method_name": "get_element_info",
+						"params": "xpath: str",
+						"description": "Static method to extract the target element's name, its parent's name, and the element's type from an XPath string."
+					},
+					{
+						"method_name": "parse",
+						"params": "xpath: str",
+						"description": "Static method to parse an XPath string into a list of CodeElementXPathNode objects, handling name and qualifiers like [type] and [part]."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"CodeElementType",
+			"CodeElementXPathNode",
+			"List",
+			"Optional",
+			"Tuple"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\models\\xpath.py",
+		"classes": [
+			{
+				"class_name": "CodeElementXPathNode",
+				"description": "Pydantic model representing a single segment of a CodeHem XPath expression, containing name, type, and part qualifiers.",
+				"methods": [
+					{
+						"method_name": "__str__",
+						"params": "self",
+						"description": "Returns a string representation of the XPath node segment."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseModel",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\type_class.py",
+		"classes": [
+			{
+				"class_name": "PythonClassHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for Python class elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\config.py",
+		"classes": [
+			{
+				"class_name": "Configuration",
+				"description": "Singleton class to manage library configuration settings.",
+				"methods": [
+					{
+						"method_name": "__new__",
+						"params": "cls",
+						"description": "Ensures only one instance of the Configuration class is created."
+					},
+					{
+						"method_name": "_initialize",
+						"params": "self",
+						"description": "Initializes the default configuration dictionary."
+					},
+					{
+						"method_name": "get",
+						"params": "section: str, key: str, default: Any=None",
+						"description": "Retrieves a configuration value for a given section and key."
+					},
+					{
+						"method_name": "set",
+						"params": "section: str, key: str, value: Any",
+						"description": "Sets a configuration value for a given section and key."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\type_static_property.py",
+		"classes": [
+			{
+				"class_name": "PythonStaticPropertyHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for Python static property (class variable) elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\type_import.py",
+		"classes": [
+			{
+				"class_name": "PythonImportHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for Python import elements, marked for custom extraction.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\type_property_getter.py",
+		"classes": [
+			{
+				"class_name": "PythonPropertyGetterHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for Python property getter methods (decorated with @property).",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\type_method.py",
+		"classes": [
+			{
+				"class_name": "PythonMethodHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for Python method elements within classes.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\type_property_setter.py",
+		"classes": [
+			{
+				"class_name": "PythonPropertySetterHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for Python property setter methods (decorated with @<property_name>.setter).",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\type_function.py",
+		"classes": [
+			{
+				"class_name": "PythonFunctionHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for Python standalone function elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\type_decorator.py",
+		"classes": [
+			{
+				"class_name": "PythonDecoratorHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for Python decorator elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\manipulator\\method_handler.py",
+		"classes": [
+			{
+				"class_name": "PythonMethodManipulator",
+				"description": "Provides Python-specific logic for manipulating method elements, inheriting from TemplateMethodManipulator.",
+				"methods": [
+					{
+						"method_name": "_determine_indent_level_for_addition",
+						"params": "code: str, parent_name: Optional[str]=None",
+						"description": "Calculates the appropriate indentation level for adding a new method within a Python class."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateMethodManipulator",
+			"CodeElementType",
+			"manipulator"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\manipulator\\import_handler.py",
+		"classes": [
+			{
+				"class_name": "PythonImportManipulator",
+				"description": "Provides Python-specific logic for manipulating import elements, inheriting from TemplateImportManipulator.",
+				"methods": [
+					{
+						"method_name": "_perform_insertion",
+						"params": "code: str, formatted_element: str, insertion_point: int, parent_name: Optional[str]=None",
+						"description": "Handles the actual insertion of import statements into Python code, accounting for module docstrings."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateImportManipulator",
+			"CodeElementType",
+			"manipulator"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\manipulator\\property_handler.py",
+		"classes": [
+			{
+				"class_name": "PythonPropertyManipulator",
+				"description": "Provides Python-specific logic for manipulating property elements (getters, setters, simple assignments), inheriting from PythonManipulatorBase.",
+				"methods": [
+					{
+						"method_name": "format_element",
+						"params": "element_code: str, indent_level: int=0",
+						"description": "Formats property code, handling both decorator-based properties and simple class variables."
+					},
+					{
+						"method_name": "find_element",
+						"params": "code: str, property_name: str, parent_name: Optional[str]=None",
+						"description": "Finds a property element (getter, setter, or static) within a class, including searching within `__init__` for assignments."
+					},
+					{
+						"method_name": "add_element",
+						"params": "original_code: str, new_element: str, parent_name: Optional[str]=None",
+						"description": "Adds a property (decorator-based or simple assignment) to a Python class at an appropriate location."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"PythonManipulatorBase",
+			"CodeElementType",
+			"manipulator",
+			"ExtractionService",
+			"Tuple",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\manipulator\\class_handler.py",
+		"classes": [
+			{
+				"class_name": "PythonClassManipulator",
+				"description": "Provides Python-specific logic for manipulating class elements, inheriting from TemplateClassManipulator.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"TemplateClassManipulator",
+			"CodeElementType",
+			"manipulator"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\manipulator\\base.py",
+		"classes": [
+			{
+				"class_name": "PythonManipulatorBase",
+				"description": "Base class for Python-specific manipulators, providing common formatting and indentation logic.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "element_type: CodeElementType=None, formatter: BaseFormatter=None, extraction_service=None",
+						"description": "Initializes the base Python manipulator, setting up the formatter and extraction service."
+					},
+					{
+						"method_name": "format_element",
+						"params": "element_code: str, indent_level: int=0",
+						"description": "Formats a Python code element using the associated formatter and applies the specified indentation level."
+					},
+					{
+						"method_name": "get_element_indent_level",
+						"params": "code: str, element_start_line: int, parent_name: Optional[str]=None",
+						"description": "Determines the indentation level for an element, considering the parent class's indentation if applicable."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ManipulatorBase",
+			"CodeElementType",
+			"BaseFormatter",
+			"PythonFormatter",
+			"registry",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\manipulator\\function_handler.py",
+		"classes": [
+			{
+				"class_name": "PythonFunctionManipulator",
+				"description": "Provides Python-specific logic for manipulating standalone function elements, inheriting from TemplateFunctionManipulator.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"TemplateFunctionManipulator",
+			"CodeElementType",
+			"manipulator"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\detector.py",
+		"classes": [
+			{
+				"class_name": "BaseLanguageDetector",
+				"description": "Abstract base class defining the interface for language detectors.",
+				"methods": [
+					{
+						"method_name": "detect_confidence",
+						"params": "code: str",
+						"description": "Abstract method to calculate a confidence score (0.0 to 1.0) indicating how likely the code belongs to the detector's language."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ABC",
+			"abstractmethod",
+			"List",
+			"str"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\service.py",
+		"classes": [
+			{
+				"class_name": "PythonLanguageService",
+				"description": "Provides Python-specific language services, including element type detection and XPath-based text extraction.",
+				"methods": [
+					{
+						"method_name": "detect_element_type",
+						"params": "code: str",
+						"description": "Detects the type of the primary code element within the provided Python code string using regex patterns."
+					},
+					{
+						"method_name": "get_indentation",
+						"params": "line: str",
+						"description": "Extracts leading whitespace indentation from a line."
+					},
+					{
+						"method_name": "_find_target_element",
+						"params": "elements_result: 'CodeElementsResult', xpath_nodes: List['CodeElementXPathNode']",
+						"description": "Internal helper to locate a specific CodeElement within a result set based on parsed XPath nodes."
+					},
+					{
+						"method_name": "_extract_part",
+						"params": "code: str, element: 'CodeElement', part_name: Optional[str]",
+						"description": "Internal helper to extract a specific part (e.g., 'body', 'def') or the full content of a CodeElement."
+					},
+					{
+						"method_name": "get_text_by_xpath_internal",
+						"params": "code: str, xpath_nodes: List['CodeElementXPathNode']",
+						"description": "Internal implementation for retrieving text content based on parsed XPath nodes, using the extraction orchestrator."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ExtendedLanguageService",
+			"CodeElementType",
+			"language_service",
+			"CodeElementsResult",
+			"CodeElementXPathNode",
+			"CodeElement",
+			"XPathParser",
+			"Optional",
+			"List"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\registry.py",
+		"classes": [
+			{
+				"class_name": "Registry",
+				"description": "Singleton class responsible for discovering and managing language-specific components like detectors, services, extractors, manipulators, and configurations.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "self",
+						"description": "Initializes the registry dictionaries and flags (ensures singleton initialization)."
+					},
+					{
+						"method_name": "__new__",
+						"params": "cls",
+						"description": "Implements the singleton pattern for the Registry."
+					},
+					{
+						"method_name": "_initialize",
+						"params": "self",
+						"description": "Sets up the internal dictionaries to store registered components."
+					},
+					{
+						"method_name": "register_language_detector",
+						"params": "cls",
+						"description": "Registers a language detector class."
+					},
+					{
+						"method_name": "register_language_service",
+						"params": "cls: Type['LanguageService']",
+						"description": "Registers a language service class."
+					},
+					{
+						"method_name": "register_extractor",
+						"params": "cls: Type[BaseExtractor]",
+						"description": "Registers an extractor class based on its language and element type."
+					},
+					{
+						"method_name": "register_manipulator",
+						"params": "cls: Type[ManipulatorBase]",
+						"description": "Registers a manipulator class based on its language and element type."
+					},
+					{
+						"method_name": "register_element_type_descriptor",
+						"params": "cls: Type[ElementTypeLanguageDescriptor]",
+						"description": "Registers an element type descriptor class."
+					},
+					{
+						"method_name": "register_language_config",
+						"params": "language_code: str, config: Dict",
+						"description": "Registers a language-specific configuration dictionary."
+					},
+					{
+						"method_name": "get_language_config",
+						"params": "language_code: str",
+						"description": "Retrieves the configuration dictionary for a given language."
+					},
+					{
+						"method_name": "get_language_detector",
+						"params": "language_code: str",
+						"description": "Retrieves the registered language detector instance for a given language."
+					},
+					{
+						"method_name": "get_language_service",
+						"params": "language_code: str",
+						"description": "Retrieves or creates and caches the language service instance for a given language."
+					},
+					{
+						"method_name": "get_supported_languages",
+						"params": "self",
+						"description": "Returns a list of language codes for which services are registered."
+					},
+					{
+						"method_name": "discover_modules",
+						"params": "package_name='codehem', recursive=True",
+						"description": "Recursively scans a package directory to import modules and trigger component registration via decorators."
+					},
+					{
+						"method_name": "initialize_components",
+						"params": "self",
+						"description": "Performs module discovery to initialize all registered components. Should be called once at startup."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"LanguageService",
+			"BaseExtractor",
+			"ManipulatorBase",
+			"ElementTypeLanguageDescriptor",
+			"Dict",
+			"List",
+			"Type",
+			"Optional",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\formatting\\python_formatter.py",
+		"classes": [
+			{
+				"class_name": "PythonFormatter",
+				"description": "Provides Python-specific code formatting logic, inheriting from BaseFormatter.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "indent_size: int=4",
+						"description": "Initializes the Python formatter."
+					},
+					{
+						"method_name": "_get_element_formatter",
+						"params": "element_type: str",
+						"description": "Returns the appropriate formatting method based on the Python element type."
+					},
+					{
+						"method_name": "format_code",
+						"params": "code: str",
+						"description": "Basic formatting for general Python code (stripping, spacing fixes)."
+					},
+					{
+						"method_name": "format_class",
+						"params": "code: str",
+						"description": "Formats Python class definitions, handling indentation of members."
+					},
+					{
+						"method_name": "format_method",
+						"params": "code: str",
+						"description": "Formats Python method definitions, handling indentation of the body."
+					},
+					{
+						"method_name": "format_function",
+						"params": "code: str",
+						"description": "Formats Python standalone function definitions (delegates to format_method)."
+					},
+					{
+						"method_name": "format_property",
+						"params": "code: str",
+						"description": "Formats Python properties (delegates to getter formatting if @property is present, otherwise formats as simple assignment)."
+					},
+					{
+						"method_name": "format_property_getter",
+						"params": "code: str",
+						"description": "Formats Python property getters, ensuring the @property decorator is present and formatting like a method."
+					},
+					{
+						"method_name": "format_property_setter",
+						"params": "code: str",
+						"description": "Formats Python property setters, ensuring the @<name>.setter decorator is present and formatting like a method."
+					},
+					{
+						"method_name": "format_static_property",
+						"params": "code: str",
+						"description": "Formats Python static properties (class variables) by dedenting and stripping."
+					},
+					{
+						"method_name": "format_import",
+						"params": "code: str",
+						"description": "Formats Python import statements by dedenting, stripping, and removing blank lines."
+					},
+					{
+						"method_name": "_fix_spacing",
+						"params": "code: str",
+						"description": "Applies basic spacing rules around operators, commas, and colons using regex."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseFormatter",
+			"CodeElementType",
+			"Optional",
+			"Callable"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\detector.py",
+		"classes": [
+			{
+				"class_name": "PythonLanguageDetector",
+				"description": "Detects if a given code snippet is likely Python code and provides a confidence score.",
+				"methods": [
+					{
+						"method_name": "detect_confidence",
+						"params": "code: str",
+						"description": "Calculates a confidence score based on the presence of Python-specific keywords, syntax patterns, and anti-patterns."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseLanguageDetector",
+			"language_detector",
+			"List"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\models\\element_type_descriptor.py",
+		"classes": [
+			{
+				"class_name": "ElementTypeLanguageDescriptor",
+				"description": "Dataclass holding language-specific patterns (Tree-sitter query, regex) and metadata for a particular code element type.",
+				"methods": [
+					{
+						"method_name": "__post_init__",
+						"params": "self",
+						"description": "Initializes language code and element type from class attributes if not provided directly."
+					},
+					{
+						"method_name": "initialize_patterns",
+						"params": "self",
+						"description": "Retrieves language configuration and formats the base pattern templates with language-specific placeholders."
+					},
+					{
+						"method_name": "extract",
+						"params": "code: str, context: Optional[Dict[str, Any]]=None",
+						"description": "Placeholder for custom extraction logic (intended to be overridden by subclasses if `custom_extract` is True)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"CodeElementType",
+			"registry",
+			"create_element_type_descriptor",
+			"dataclass",
+			"field",
+			"Optional",
+			"Dict",
+			"List",
+			"Any",
+			"Mapping"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\helpers\\fixture_loader.py",
+		"classes": [
+			{
+				"class_name": "CodeFixture",
+				"description": "Dataclass representing a test fixture containing code content and associated metadata (like expected line numbers).",
+				"methods": [
+					{
+						"method_name": "__post_init__",
+						"params": "self",
+						"description": "Ensures the metadata dictionary is initialized if not provided."
+					}
+				]
+			},
+			{
+				"class_name": "FixtureLoader",
+				"description": "Provides static methods for locating and loading test fixture files.",
+				"methods": [
+					{
+						"method_name": "get_fixtures_dir",
+						"params": "",
+						"description": "Static method to get the absolute path to the test fixtures directory."
+					},
+					{
+						"method_name": "load_fixture",
+						"params": "language: str, category: str, name: str, metadata: Optional[Dict[str, Any]]=None",
+						"description": "Static method to load a fixture file, parse metadata comments (## key: value), and return a CodeFixture object."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"dataclass",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\models\\element_type_template.py",
+		"classes": [
+			{
+				"class_name": "ElementTypeTemplate",
+				"description": "Dataclass representing a base template for extracting a specific code element type, containing pattern templates.",
+				"methods": [
+					{
+						"method_name": "format_patterns",
+						"params": "language_placeholders: Mapping[str, Any]",
+						"description": "Formats the tree-sitter and regex pattern templates using provided language-specific placeholders."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"CodeElementType",
+			"dataclass",
+			"Optional",
+			"Mapping",
+			"Dict",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\manipulators\\template_method_manipulator.py",
+		"classes": [
+			{
+				"class_name": "TemplateMethodManipulator",
+				"description": "Template manipulator specifically for method elements, providing default logic for finding insertion points within classes.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "*args, **kwargs",
+						"description": "Initializes the template method manipulator."
+					},
+					{
+						"method_name": "_find_insertion_point",
+						"params": "code: str, parent_name: Optional[str]=None",
+						"description": "Determines the line number where a new method should be inserted within a class (typically at the end)."
+					},
+					{
+						"method_name": "_determine_indent_level_for_addition",
+						"params": "code: str, parent_name: Optional[str]=None",
+						"description": "Calculates the appropriate indentation level for adding a new method based on the parent class's indentation."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateManipulator",
+			"CodeElementType",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\formatting\\typescript_formatter.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptFormatter",
+				"description": "Provides TypeScript/JavaScript specific code formatting logic.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "indent_size: int=4",
+						"description": "Initializes the TypeScript formatter."
+					},
+					{
+						"method_name": "_get_element_formatter",
+						"params": "element_type: str",
+						"description": "Returns the appropriate formatting function based on the TypeScript element type."
+					},
+					{
+						"method_name": "format_code",
+						"params": "code: str",
+						"description": "Basic formatting for general TypeScript code (stripping, handling blank lines)."
+					},
+					{
+						"method_name": "format_simple_element",
+						"params": "code: str",
+						"description": "Formats simple elements (like imports, properties) by dedenting and stripping."
+					},
+					{
+						"method_name": "format_block_element",
+						"params": "code: str",
+						"description": "Formats block elements (like classes, functions, interfaces) by handling brace indentation."
+					},
+					{
+						"method_name": "apply_indentation",
+						"params": "code: str, base_indent: str",
+						"description": "Applies a base indentation to dedented code."
+					},
+					{
+						"method_name": "dedent",
+						"params": "code: str",
+						"description": "Removes common leading whitespace, with a fallback if textwrap.dedent fails."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseFormatter",
+			"CodeElementType",
+			"Optional",
+			"Callable"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\extractors\\python_property_extractor.py",
+		"classes": [
+			{
+				"class_name": "PythonPropertyExtractor",
+				"description": "Extracts Python property elements (class variables assigned outside methods).",
+				"methods": [
+					{
+						"method_name": "_extract_property_type",
+						"params": "node, code_bytes, ast_handler",
+						"description": "Infers the type of a property based on its assigned value (int, float, bool, str, list, dict, set)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplatePropertyExtractor",
+			"extractor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_interface_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptInterfaceExtractor",
+				"description": "Extracts TypeScript interface definitions.",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes raw Tree-sitter query results to identify and extract interface definition details."
+					},
+					{
+						"method_name": "_extract_with_patterns",
+						"params": "code: str, handler: Optional[ElementTypeLanguageDescriptor], context: Dict[str, Any]",
+						"description": "Orchestrates the extraction using Tree-sitter based on the provided handler's query."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches, code, context",
+						"description": "Placeholder for regex-based extraction (not implemented)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ElementTypeLanguageDescriptor",
+			"ASTHandler",
+			"Node",
+			"QueryError",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\manipulators\\template_function_manipulator.py",
+		"classes": [
+			{
+				"class_name": "TemplateFunctionManipulator",
+				"description": "Template manipulator for standalone function elements.",
+				"methods": [
+					{
+						"method_name": "_find_insertion_point",
+						"params": "code: str, parent_name: Optional[str]=None",
+						"description": "Determines the line number where a new standalone function should be inserted (typically after imports and classes)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateManipulator",
+			"CodeElementType",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\detector.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptLanguageDetector",
+				"description": "Detects if a given code snippet is likely TypeScript/JavaScript code and provides a confidence score.",
+				"methods": [
+					{
+						"method_name": "detect_confidence",
+						"params": "code: str",
+						"description": "Calculates a confidence score based on TypeScript/JavaScript keywords, syntax patterns, and anti-patterns."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseLanguageDetector",
+			"language_detector",
+			"List"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_class_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptClassExtractor",
+				"description": "Extracts TypeScript class definitions.",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes raw Tree-sitter query results to identify and extract class definition details, handling exports and abstract classes."
+					},
+					{
+						"method_name": "_extract_with_patterns",
+						"params": "code: str, handler: Optional[ElementTypeLanguageDescriptor], context: Dict[str, Any]",
+						"description": "Orchestrates the extraction using Tree-sitter based on the provided handler's query."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches, code, context",
+						"description": "Placeholder for regex-based extraction (not implemented)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ElementTypeLanguageDescriptor",
+			"ASTHandler",
+			"Node",
+			"QueryError",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\typescript\\test_element_extraction.py",
+		"classes": [],
+		"related_symbols": [
+			"CodeHem",
+			"CodeElementType",
+			"TestHelper",
+			"registry"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\extractors\\python_property_setter_extractor.py",
+		"classes": [
+			{
+				"class_name": "PythonPropertySetterExtractor",
+				"description": "Extracts Python property setter methods (decorated with @<name>.setter).",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes Tree-sitter query results specifically for decorated setter functions."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Provides a regex-based fallback for extracting setter methods."
+					},
+					{
+						"method_name": "_get_class_name",
+						"params": "node: Node, ast_handler: ASTHandler, code_bytes: bytes",
+						"description": "Finds the name of the containing class for a given node."
+					},
+					{
+						"method_name": "_extract_common_info",
+						"params": "definition_node: Node, node_for_range_and_content: Node, ast_handler: ASTHandler, code_bytes: bytes",
+						"description": "Extracts common information (name, content, range, parameters, return info) for a function definition node."
+					},
+					{
+						"method_name": "_extract_decorators_simple",
+						"params": "ast_handler: ASTHandler, node: Node, code_bytes: bytes",
+						"description": "Extracts decorator information from a decorated_definition node."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ExtractorHelpers",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\extractors\\python_property_getter_extractor.py",
+		"classes": [
+			{
+				"class_name": "PythonPropertyGetterExtractor",
+				"description": "Extracts Python property getter methods (decorated with @property).",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes Tree-sitter query results specifically for functions decorated with @property."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Provides a regex-based fallback for extracting getter methods."
+					},
+					{
+						"method_name": "_get_class_name",
+						"params": "node: Node, ast_handler: ASTHandler, code_bytes: bytes",
+						"description": "Finds the name of the containing class for a given node."
+					},
+					{
+						"method_name": "_extract_common_info",
+						"params": "definition_node: Node, node_for_range_and_content: Node, ast_handler: ASTHandler, code_bytes: bytes",
+						"description": "Extracts common information (name, content, range, parameters, return info) for a function definition node."
+					},
+					{
+						"method_name": "_extract_decorators_simple",
+						"params": "ast_handler: ASTHandler, node: Node, code_bytes: bytes",
+						"description": "Extracts decorator information from a decorated_definition node."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ExtractorHelpers",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_function_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptFunctionExtractor",
+				"description": "Extracts TypeScript/JavaScript standalone functions (including arrow functions assigned to variables).",
+				"methods": [
+					{
+						"method_name": "_extract_parameters_ts",
+						"params": "params_node: Optional[Node], ast_handler: ASTHandler, code_bytes: bytes",
+						"description": "Extracts parameter information (name, type, default, optional) from TypeScript parameter nodes."
+					},
+					{
+						"method_name": "_extract_return_type_ts",
+						"params": "func_def_node: Node, ast_handler: ASTHandler, code_bytes: bytes",
+						"description": "Extracts the return type annotation from a TypeScript function definition node."
+					},
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes raw Tree-sitter query results to identify and extract function definition details, handling regular and arrow functions, exports, and ensuring they are not class methods."
+					},
+					{
+						"method_name": "_extract_with_patterns",
+						"params": "code: str, handler: Optional[ElementTypeLanguageDescriptor], context: Dict[str, Any]",
+						"description": "Orchestrates the extraction using Tree-sitter based on the provided handler's query."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches, code, context",
+						"description": "Placeholder for regex-based extraction (not implemented)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"FunctionExtractor",
+			"CodeElementType",
+			"extractor",
+			"ElementTypeLanguageDescriptor",
+			"ASTHandler",
+			"Node",
+			"QueryError",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\service.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptLanguageService",
+				"description": "Provides TypeScript/JavaScript specific language services.",
+				"methods": [
+					{
+						"method_name": "detect_element_type",
+						"params": "code: str",
+						"description": "Detects the type of the primary code element within the provided TypeScript/JavaScript code string using regex patterns."
+					},
+					{
+						"method_name": "get_indentation",
+						"params": "line: str",
+						"description": "Extracts leading whitespace indentation from a line."
+					},
+					{
+						"method_name": "_find_target_element",
+						"params": "elements_result: 'CodeElementsResult', xpath_nodes: List['CodeElementXPathNode']",
+						"description": "Internal helper to locate a specific CodeElement within a result set based on parsed XPath nodes, with TypeScript-specific type handling."
+					},
+					{
+						"method_name": "_extract_part",
+						"params": "code: str, element: 'CodeElement', part_name: Optional[str]",
+						"description": "Internal helper to extract a specific part (e.g., 'body', 'def') or the full content of a TypeScript CodeElement."
+					},
+					{
+						"method_name": "get_text_by_xpath_internal",
+						"params": "code: str, xpath_nodes: List['CodeElementXPathNode']",
+						"description": "Internal implementation for retrieving text content based on parsed XPath nodes, using the extraction service."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"LanguageService",
+			"CodeElementType",
+			"language_service",
+			"CodeElementsResult",
+			"CodeElementXPathNode",
+			"CodeElement",
+			"XPathParser",
+			"Optional",
+			"List"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_method_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptMethodExtractor",
+				"description": "Extracts TypeScript method definitions, including getters and setters, within classes or interfaces.",
+				"methods": [
+					{
+						"method_name": "_get_parent_class_name",
+						"params": "node: Node, ast_handler: ASTHandler, code_bytes: bytes",
+						"description": "Finds the name of the containing class, interface, or object type for a given node."
+					},
+					{
+						"method_name": "_determine_element_type",
+						"params": "definition_node: Node, ast_handler: ASTHandler",
+						"description": "Determines if a method definition node represents a regular method, a getter, or a setter."
+					},
+					{
+						"method_name": "_extract_common_info",
+						"params": "definition_node: Node, ast_handler: ASTHandler, code_bytes: bytes",
+						"description": "Extracts common information (name, content, range, parameters, return info) for a method definition node, handling decorators for range calculation."
+					},
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes raw Tree-sitter query results to identify and extract method, getter, and setter details."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Placeholder for regex-based extraction (not implemented)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ExtractorHelpers",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\manipulators\\template_class_manipulator.py",
+		"classes": [
+			{
+				"class_name": "TemplateClassManipulator",
+				"description": "Template manipulator specifically for class elements.",
+				"methods": [
+					{
+						"method_name": "_perform_insertion",
+						"params": "code: str, formatted_element: str, insertion_point: int, parent_name: Optional[str]=None",
+						"description": "Handles the insertion of a new class, attempting to place it after existing import statements."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateManipulator",
+			"CodeElementType",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\manipulators\\template_import_manipulator.py",
+		"classes": [
+			{
+				"class_name": "TemplateImportManipulator",
+				"description": "Template manipulator specifically for import elements.",
+				"methods": [
+					{
+						"method_name": "find_element",
+						"params": "code: str, import_name: str, parent_name: Optional[str]=None",
+						"description": "Finds import elements. Handles a special 'all' name to find the entire import block range."
+					},
+					{
+						"method_name": "_find_insertion_point",
+						"params": "code: str, parent_name: Optional[str]=None",
+						"description": "Determines the line number where new imports should be inserted (typically at the beginning or after an existing import block)."
+					},
+					{
+						"method_name": "_perform_insertion",
+						"params": "code: str, formatted_element: str, insertion_point: int, parent_name: Optional[str]=None",
+						"description": "Performs the insertion of new import statements, adding blank lines for separation."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateManipulator",
+			"CodeElementType",
+			"ExtractionService",
+			"Tuple",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\manipulators\\manipulator_base.py",
+		"classes": [
+			{
+				"class_name": "ManipulatorBase",
+				"description": "Abstract base class defining the common interface and providing helper methods for code manipulators.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str=None, element_type: CodeElementType=None, formatter: BaseFormatter=None, extraction_service=None",
+						"description": "Initializes the manipulator with language, element type, formatter, and extraction service."
+					},
+					{
+						"method_name": "add_element",
+						"params": "original_code: str, new_element: str, parent_name: Optional[str]=None",
+						"description": "Abstract method for adding a new element."
+					},
+					{
+						"method_name": "find_element",
+						"params": "code: str, element_name: str, parent_name: Optional[str]=None",
+						"description": "Finds the start and end lines of an element using the extraction service."
+					},
+					{
+						"method_name": "format_element",
+						"params": "element_code: str, indent_level: int=0",
+						"description": "Formats the provided code snippet using the associated formatter and applies indentation."
+					},
+					{
+						"method_name": "replace_element",
+						"params": "original_code: str, element_name: str, new_element: str, parent_name: Optional[str]=None",
+						"description": "Replaces an existing element or adds it if not found, handling formatting and indentation."
+					},
+					{
+						"method_name": "remove_element",
+						"params": "original_code: str, element_name: str, parent_name: Optional[str]=None",
+						"description": "Removes an element identified by name and optional parent."
+					},
+					{
+						"method_name": "get_element_indent_level",
+						"params": "code: str, element_start_line: int, parent_name: Optional[str]=None",
+						"description": "Determines the indentation level of an element based on its starting line."
+					},
+					{
+						"method_name": "_adjust_start_line",
+						"params": "lines: List[str], start_line: int",
+						"description": "Adjusts the start line upwards to include preceding decorators or comments."
+					},
+					{
+						"method_name": "get_indentation",
+						"params": "line: str",
+						"description": "Static method to extract leading whitespace."
+					},
+					{
+						"method_name": "apply_indentation",
+						"params": "content: str, indent: str",
+						"description": "Static method to apply indentation to a block of code, normalizing existing indentation first."
+					},
+					{
+						"method_name": "replace_lines",
+						"params": "original_code: str, start_line: int, end_line: int, new_content: str",
+						"description": "Static method to replace a range of lines in the original code with new content."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ABC",
+			"abstractmethod",
+			"CodeElementType",
+			"BaseFormatter",
+			"ExtractionService",
+			"Optional",
+			"Tuple",
+			"List"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\manipulators\\template_manipulator.py",
+		"classes": [
+			{
+				"class_name": "TemplateManipulator",
+				"description": "A base class for manipulators providing template methods for common operations like add and replace, handling indentation and blank lines.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str=None, element_type: CodeElementType=None, formatter: BaseFormatter=None, extraction_service=None, insert_blank_line_before_element: bool=True, insert_blank_line_after_element: bool=True, handle_docstrings_special: bool=False",
+						"description": "Initializes the template manipulator with configuration for blank line insertion."
+					},
+					{
+						"method_name": "replace_element",
+						"params": "original_code: str, name: str, new_code: str, parent_name: Optional[str]=None",
+						"description": "Implements element replacement, falling back to adding the element if it's not found."
+					},
+					{
+						"method_name": "add_element",
+						"params": "original_code: str, new_element: str, parent_name: Optional[str]=None",
+						"description": "Adds a new element by finding the insertion point, determining indentation, formatting, and performing the insertion."
+					},
+					{
+						"method_name": "_prepare_code_for_addition",
+						"params": "code: str, parent_name: Optional[str]=None",
+						"description": "Hook for subclasses to prepare code before finding the insertion point (e.g., ensuring trailing newline)."
+					},
+					{
+						"method_name": "_determine_indent_level_for_addition",
+						"params": "code: str, parent_name: Optional[str]=None",
+						"description": "Determines the indentation level for adding an element, potentially based on the parent element."
+					},
+					{
+						"method_name": "_find_insertion_point",
+						"params": "code: str, parent_name: Optional[str]=None",
+						"description": "Finds the line number where the new element should be inserted (default: end of parent or end of file)."
+					},
+					{
+						"method_name": "_perform_insertion",
+						"params": "code: str, formatted_element: str, insertion_idx: int, parent_name: Optional[str]=None",
+						"description": "Performs the actual insertion of the formatted element into the code lines, handling blank line insertion before/after based on configuration."
+					},
+					{
+						"method_name": "_insert_at_end",
+						"params": "code: str, formatted_element: str",
+						"description": "Helper for inserting an element at the very end of the code."
+					},
+					{
+						"method_name": "_insert_in_middle",
+						"params": "lines: list, formatted_element: str, insertion_point: int",
+						"description": "Helper for inserting an element within existing code lines."
+					},
+					{
+						"method_name": "should_insert_blank_line_before_at_end",
+						"params": "code: str",
+						"description": "Determines if a blank line should be added before inserting at the end of the code."
+					},
+					{
+						"method_name": "should_insert_blank_line_before_in_middle",
+						"params": "result_lines: list",
+						"description": "Determines if a blank line should be added before inserting in the middle of the code."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ManipulatorBase",
+			"CodeElementType",
+			"BaseFormatter",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\extraction_service.py",
+		"classes": [
+			{
+				"class_name": "ExtractionService",
+				"description": "Orchestrates the extraction of code elements using language-specific extractors and post-processors.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str",
+						"description": "Initializes the service for a specific language, loading the language service and post-processor."
+					},
+					{
+						"method_name": "_get_raw_extractor_results",
+						"params": "code: str, element_type: str, context: Optional[Dict[str, Any]]=None",
+						"description": "Retrieves raw extraction results (dictionaries) from the appropriate language-specific extractor."
+					},
+					{
+						"method_name": "find_element",
+						"params": "code: str, element_type: str, element_name: Optional[str]=None, parent_name: Optional[str]=None",
+						"description": "Finds the start and end line numbers for a specific element by extracting relevant types and filtering."
+					},
+					{
+						"method_name": "extract_functions",
+						"params": "code: str",
+						"description": "Extracts raw data for all functions in the code."
+					},
+					{
+						"method_name": "extract_classes",
+						"params": "code: str",
+						"description": "Extracts raw data for all classes in the code."
+					},
+					{
+						"method_name": "extract_methods",
+						"params": "code: str, class_name: Optional[str]=None",
+						"description": "Extracts raw data for methods (including getters/setters) optionally filtered by class name."
+					},
+					{
+						"method_name": "extract_imports",
+						"params": "code: str",
+						"description": "Extracts raw data for import statements."
+					},
+					{
+						"method_name": "extract_any",
+						"params": "code: str, element_type: str",
+						"description": "Extracts raw data for any specified element type."
+					},
+					{
+						"method_name": "_extract_file_raw",
+						"params": "code: str",
+						"description": "Extracts raw data for all supported element types in the file."
+					},
+					{
+						"method_name": "extract_all",
+						"params": "code: str",
+						"description": "Performs full extraction: gets raw data for all elements and then uses the language-specific post-processor to structure them into a CodeElementsResult."
+					},
+					{
+						"method_name": "find_by_xpath",
+						"params": "code: str, xpath: str",
+						"description": "Finds the line range of an element specified by an XPath expression by performing a full extraction and then filtering."
+					},
+					{
+						"method_name": "from_file_path",
+						"params": "cls, file_path: str",
+						"description": "Class method to create an ExtractionService instance based on file extension."
+					},
+					{
+						"method_name": "from_raw_code",
+						"params": "cls, code: str, language_hints: List[str]=None",
+						"description": "Class method to create an ExtractionService instance by auto-detecting the language."
+					},
+					{
+						"method_name": "get_descriptor",
+						"params": "element_type_descriptor: Union[str, CodeElementType]",
+						"description": "Retrieves the language-specific ElementTypeLanguageDescriptor for a given element type."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"registry",
+			"handle_extraction_errors",
+			"CodeElementType",
+			"CodeElementsResult",
+			"CodeElement",
+			"LanguagePostProcessor",
+			"BaseExtractor",
+			"LanguageService",
+			"get_language_service_for_file",
+			"get_language_service_for_code",
+			"ElementTypeLanguageDescriptor",
+			"List",
+			"Dict",
+			"Optional",
+			"Tuple",
+			"Any",
+			"Union"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\language_service.py",
+		"classes": [
+			{
+				"class_name": "LanguageService",
+				"description": "Abstract base class and factory for language-specific services. Manages registration and retrieval of extractors, manipulators, formatters, and descriptors for a language.",
+				"methods": [
+					{
+						"method_name": "__new__",
+						"params": "cls, *args, **kwargs",
+						"description": "Ensures singleton instances per language code."
+					},
+					{
+						"method_name": "__init__",
+						"params": "formatter_class: Optional[Type[BaseFormatter]]=None, **kwargs",
+						"description": "Initializes the service, loading descriptors, creating extractor and manipulator instances based on registry entries."
+					},
+					{
+						"method_name": "_get_supported_element_types_enum",
+						"params": "self",
+						"description": "Internal helper to get the list of supported CodeElementType enums based on the 'supported_element_types' property."
+					},
+					{
+						"method_name": "get_element_descriptor",
+						"params": "element_type: Union[str, CodeElementType]",
+						"description": "Retrieves the registered ElementTypeLanguageDescriptor for a specific element type."
+					},
+					{
+						"method_name": "get_manipulator",
+						"params": "element_type: Union[str, CodeElementType]",
+						"description": "Retrieves the registered ManipulatorBase instance for a specific element type."
+					},
+					{
+						"method_name": "get_extractor",
+						"params": "element_type: Union[str, CodeElementType]",
+						"description": "Retrieves the registered BaseExtractor instance for a specific element type, handling fallbacks."
+					},
+					{
+						"method_name": "file_extensions",
+						"params": "",
+						"description": "Abstract property returning a list of file extensions for the language."
+					},
+					{
+						"method_name": "supported_element_types",
+						"params": "",
+						"description": "Abstract property returning a list of supported element type strings."
+					},
+					{
+						"method_name": "detect_element_type",
+						"params": "code: str",
+						"description": "Abstract method to detect the primary element type in a code snippet."
+					},
+					{
+						"method_name": "extract",
+						"params": "code: str",
+						"description": "Extracts code elements using the associated ExtractionService and allows for language-specific post-processing."
+					},
+					{
+						"method_name": "extract_language_specific",
+						"params": "code: str, current_result: 'CodeElementsResult'",
+						"description": "Hook for language-specific extraction steps after the main extraction (default implementation does nothing)."
+					},
+					{
+						"method_name": "get_text_by_xpath_internal",
+						"params": "code: str, xpath_nodes: List['CodeElementXPathNode']",
+						"description": "Abstract method for the internal implementation of retrieving text by XPath nodes."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ABC",
+			"abstractmethod",
+			"BaseFormatter",
+			"ElementTypeLanguageDescriptor",
+			"BaseExtractor",
+			"ManipulatorBase",
+			"ExtractionService",
+			"CodeElementsResult",
+			"CodeElementXPathNode",
+			"CodeElementType",
+			"registry",
+			"Dict",
+			"List",
+			"Type",
+			"Optional",
+			"Union"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\extractors\\template_property_extractor.py",
+		"classes": [
+			{
+				"class_name": "TemplatePropertyExtractor",
+				"description": "Template extractor for regular property elements (e.g., class instance variables assigned directly).",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results, code_bytes, ast_handler, context",
+						"description": "Processes Tree-sitter results to extract property definitions."
+					},
+					{
+						"method_name": "_get_class_name",
+						"params": "node, context, ast_handler, code_bytes",
+						"description": "Determines the parent class name for a property node."
+					},
+					{
+						"method_name": "_extract_property_type",
+						"params": "node, code_bytes, ast_handler",
+						"description": "Placeholder for extracting property type information (to be overridden)."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches, code, context",
+						"description": "Processes regex matches to extract property definitions."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\manipulation_service.py",
+		"classes": [
+			{
+				"class_name": "ManipulationService",
+				"description": "Provides high-level methods for code manipulation (add, upsert, remove) by delegating to language-specific manipulators.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str",
+						"description": "Initializes the service for a specific language, retrieving the corresponding LanguageService."
+					},
+					{
+						"method_name": "upsert_element",
+						"params": "original_code: str, element_type: str, name: str, new_code: str, parent_name: Optional[str]=None",
+						"description": "Updates or inserts an element by delegating to the appropriate language manipulator's `replace_element` method."
+					},
+					{
+						"method_name": "upsert_element_by_xpath",
+						"params": "original_code: str, xpath: str, new_code: str",
+						"description": "Parses an XPath to determine element details and then calls `upsert_element`."
+					},
+					{
+						"method_name": "add_element",
+						"params": "original_code: str, element_type: str, new_code: str, parent_name: Optional[str]=None",
+						"description": "Adds a new element by delegating to the appropriate language manipulator's `add_element` method."
+					},
+					{
+						"method_name": "remove_element",
+						"params": "original_code: str, element_type: str, element_name: str, parent_name: Optional[str]=None",
+						"description": "Removes an element by delegating to the appropriate language manipulator's `remove_element` method."
+					},
+					{
+						"method_name": "remove_element_by_xpath",
+						"params": "original_code: str, xpath: str",
+						"description": "Parses an XPath, potentially uses extraction to find the element type if not specified, and then calls `remove_element`."
+					},
+					{
+						"method_name": "from_file_path",
+						"params": "cls, file_path: str",
+						"description": "Class method to create a ManipulationService instance based on file extension."
+					},
+					{
+						"method_name": "from_raw_code",
+						"params": "cls, code: str",
+						"description": "Class method to create a ManipulationService instance by auto-detecting the language."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"registry",
+			"LanguageService",
+			"XPathParser",
+			"ManipulatorBase",
+			"get_language_service",
+			"get_language_service_for_file",
+			"get_language_service_for_code",
+			"ExtractionService",
+			"CodeElementType",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\extractors\\extraction_base.py",
+		"classes": [
+			{
+				"class_name": "ExtractorHelpers",
+				"description": "Provides static helper methods for common extraction tasks like processing parameters, return info, and decorators from AST nodes.",
+				"methods": [
+					{
+						"method_name": "extract_parameters",
+						"params": "ast_handler, node, code_bytes, is_self_or_this=True",
+						"description": "Extracts parameter information (name, type, default, optional) from a parameter list node."
+					},
+					{
+						"method_name": "extract_parameter",
+						"params": "ast_handler: ASTHandler, param_node, code_bytes",
+						"description": "Extracts information for a single parameter node, handling various node types (identifier, typed, default, splat)."
+					},
+					{
+						"method_name": "extract_return_info",
+						"params": "ast_handler, function_node, code_bytes",
+						"description": "Extracts the return type annotation and attempts to find literal return values within the function body."
+					},
+					{
+						"method_name": "extract_decorators",
+						"params": "ast_handler, node, code_bytes",
+						"description": "Extracts decorator information associated with a given definition node by checking its parent."
+					},
+					{
+						"method_name": "_extract_single_decorator_info",
+						"params": "ast_handler, decorator_node, code_bytes",
+						"description": "Extracts details (name, content, range) for a single decorator node."
+					}
+				]
+			},
+			{
+				"class_name": "BaseExtractor",
+				"description": "Abstract base class for all element extractors.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str, language_type_descriptor: Optional[ElementTypeLanguageDescriptor]",
+						"description": "Initializes the extractor with language code and the corresponding descriptor."
+					},
+					{
+						"method_name": "_get_ast_handler",
+						"params": "self",
+						"description": "Retrieves or initializes the ASTHandler for the extractor's language."
+					},
+					{
+						"method_name": "get_indentation",
+						"params": "line: str",
+						"description": "Extracts leading whitespace indentation."
+					},
+					{
+						"method_name": "extract",
+						"params": "code: str, context: Optional[Dict[str, Any]]=None",
+						"description": "Main extraction method. Delegates to custom descriptor logic or pattern-based extraction, and applies context filtering."
+					},
+					{
+						"method_name": "_extract_with_patterns",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Abstract method for pattern-based extraction (to be implemented by subclasses like TemplateExtractor)."
+					}
+				]
+			},
+			{
+				"class_name": "TemplateExtractor",
+				"description": "Base implementation for extractors that use Tree-sitter and/or regex patterns defined in ElementTypeLanguageDescriptors.",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results, code_bytes, ast_handler, context",
+						"description": "Abstract method to process raw Tree-sitter query results into structured element data."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches, code, context",
+						"description": "Abstract method to process regex match objects into structured element data."
+					},
+					{
+						"method_name": "_extract_with_patterns",
+						"params": "code: str, handler: Optional[ElementTypeLanguageDescriptor], context: Dict[str, Any]",
+						"description": "Orchestrates extraction using Tree-sitter first, with an optional fallback to regex if Tree-sitter fails or finds nothing."
+					},
+					{
+						"method_name": "_should_attempt_tree_sitter",
+						"params": "handler: ElementTypeLanguageDescriptor",
+						"description": "Determines if Tree-sitter extraction should be attempted based on query presence and AST handler availability."
+					},
+					{
+						"method_name": "_before_tree_sitter",
+						"params": "handler: ElementTypeLanguageDescriptor",
+						"description": "Hook executed before attempting Tree-sitter extraction."
+					},
+					{
+						"method_name": "_parse_code_with_tree_sitter",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Performs Tree-sitter parsing and query execution."
+					},
+					{
+						"method_name": "_handle_tree_sitter_exception",
+						"params": "e: Exception, handler: ElementTypeLanguageDescriptor",
+						"description": "Handles exceptions occurring during Tree-sitter extraction."
+					},
+					{
+						"method_name": "_should_fallback_to_regex",
+						"params": "ts_attempted: bool, ts_error: bool, elements: List[Dict], handler: ElementTypeLanguageDescriptor",
+						"description": "Determines if regex fallback should be used."
+					},
+					{
+						"method_name": "_before_regex",
+						"params": "handler: ElementTypeLanguageDescriptor",
+						"description": "Hook executed before attempting regex extraction."
+					},
+					{
+						"method_name": "_parse_code_with_regex",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Performs regex matching."
+					},
+					{
+						"method_name": "_handle_regex_exception",
+						"params": "e: Exception, handler: ElementTypeLanguageDescriptor",
+						"description": "Handles exceptions occurring during regex extraction."
+					},
+					{
+						"method_name": "_after_extraction",
+						"params": "elements: List[Dict], ts_attempted: bool, ts_error: bool, rx_attempted: bool, rx_error: bool, handler: ElementTypeLanguageDescriptor",
+						"description": "Hook executed after all extraction attempts for logging or final processing."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ABC",
+			"abstractmethod",
+			"CodeElementType",
+			"ElementTypeLanguageDescriptor",
+			"ASTHandler",
+			"get_parser",
+			"LANGUAGES",
+			"QueryError",
+			"Node",
+			"List",
+			"Dict",
+			"Optional",
+			"Any",
+			"Union"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\extractors\\template_class_extractor.py",
+		"classes": [
+			{
+				"class_name": "TemplateClassExtractor",
+				"description": "Template extractor specifically for class elements.",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results, code_bytes, ast_handler, context",
+						"description": "Processes Tree-sitter results to extract class definitions, including name and associated decorators."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches, code, context",
+						"description": "Processes regex matches to extract class definitions, including name and attempting to find preceding decorators."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ExtractorHelpers"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\extractors\\type_import.py",
+		"classes": [
+			{
+				"class_name": "ImportExtractor",
+				"description": "Extractor specifically for import statements, handling the consolidation of individual imports into a single block.",
+				"methods": [
+					{
+						"method_name": "_extract_with_patterns",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Extracts individual imports using Tree-sitter or regex and then combines them into a single 'imports' element."
+					},
+					{
+						"method_name": "_extract_with_tree_sitter",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Extracts individual import statements using Tree-sitter."
+					},
+					{
+						"method_name": "_extract_with_regex",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Extracts individual import statements using regex."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseExtractor",
+			"CodeElementType",
+			"extractor",
+			"ElementTypeLanguageDescriptor",
+			"ASTHandler",
+			"QueryError",
+			"Node",
+			"List",
+			"Dict",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\extractors\\template_method_extractor.py",
+		"classes": [
+			{
+				"class_name": "TemplateMethodExtractor",
+				"description": "Template extractor specifically for method elements within classes.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str, language_type_descriptor: ElementTypeLanguageDescriptor",
+						"description": "Initializes the method extractor."
+					},
+					{
+						"method_name": "_get_actual_parent_class_name",
+						"params": "node: Node, ast_handler: Any, code_bytes: bytes",
+						"description": "Finds the name of the containing class for a given method node."
+					},
+					{
+						"method_name": "_extract_all_decorators",
+						"params": "definition_node: Node, ast_handler: Any, code_bytes: bytes",
+						"description": "Extracts all decorators applied to a method definition."
+					},
+					{
+						"method_name": "_extract_common_info",
+						"params": "definition_node: Node, ast_handler: Any, code_bytes: bytes",
+						"description": "Extracts common information (name, parameters, return info, content, range) using CodeNodeWrapper."
+					},
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: Any, context: Dict[str, Any]",
+						"description": "Processes Tree-sitter results to extract method definitions, ensuring they are within a class context."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Processes regex matches as a fallback for method extraction."
+					},
+					{
+						"method_name": "_extract_with_patterns",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Orchestrates method extraction using Tree-sitter first, with a potential regex fallback."
+					},
+					{
+						"method_name": "_should_attempt_tree_sitter",
+						"params": "handler: ElementTypeLanguageDescriptor",
+						"description": "Checks if Tree-sitter extraction should be attempted."
+					},
+					{
+						"method_name": "_before_tree_sitter",
+						"params": "handler: ElementTypeLanguageDescriptor",
+						"description": "Logging hook before Tree-sitter attempt."
+					},
+					{
+						"method_name": "_parse_code_with_tree_sitter",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Performs Tree-sitter parsing and query execution for methods."
+					},
+					{
+						"method_name": "_handle_tree_sitter_exception",
+						"params": "e: Exception, handler: ElementTypeLanguageDescriptor",
+						"description": "Handles Tree-sitter exceptions during method extraction."
+					},
+					{
+						"method_name": "_should_fallback_to_regex",
+						"params": "tree_sitter_attempted: bool, tree_sitter_error: bool, elements: List[Dict], handler: ElementTypeLanguageDescriptor",
+						"description": "Determines if regex fallback is needed."
+					},
+					{
+						"method_name": "_before_regex",
+						"params": "handler: ElementTypeLanguageDescriptor",
+						"description": "Logging hook before regex attempt."
+					},
+					{
+						"method_name": "_parse_code_with_regex",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Performs regex matching for methods."
+					},
+					{
+						"method_name": "_handle_regex_exception",
+						"params": "e: Exception, handler: ElementTypeLanguageDescriptor",
+						"description": "Handles regex exceptions during method extraction."
+					},
+					{
+						"method_name": "_after_extraction",
+						"params": "elements: List[Dict], tree_sitter_attempted: bool, tree_sitter_error: bool, should_fallback: bool, handler: ElementTypeLanguageDescriptor",
+						"description": "Logging hook after extraction attempts."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ElementTypeLanguageDescriptor",
+			"CodeNodeWrapper",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\extractors\\type_function.py",
+		"classes": [
+			{
+				"class_name": "FunctionExtractor",
+				"description": "Extractor specifically for standalone function elements.",
+				"methods": [
+					{
+						"method_name": "_extract_with_patterns",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Orchestrates function extraction using Tree-sitter first, with a regex fallback."
+					},
+					{
+						"method_name": "_extract_with_tree_sitter",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Extracts function definitions using Tree-sitter, ensuring they are not class methods."
+					},
+					{
+						"method_name": "_extract_parameters",
+						"params": "function_node, code_bytes, ast_handler",
+						"description": "Extracts parameter information for a function."
+					},
+					{
+						"method_name": "_extract_return_info",
+						"params": "function_node, code_bytes, ast_handler",
+						"description": "Extracts return type annotation and attempts to find return values."
+					},
+					{
+						"method_name": "_extract_with_regex",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Extracts function definitions using regex as a fallback."
+					},
+					{
+						"method_name": "_get_class_name_from_node",
+						"params": "class_node, ast_handler, code_bytes",
+						"description": "Helper to get the name of a class node."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseExtractor",
+			"CodeElementType",
+			"extractor",
+			"ElementTypeLanguageDescriptor",
+			"CodeNodeWrapper",
+			"ExtractorHelpers",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Dict",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\extractors\\base.py",
+		"classes": [
+			{
+				"class_name": "BaseExtractor",
+				"description": "Abstract base class for all element extractors (appears to be a duplicate or earlier version of core/extractors/extraction_base.py/BaseExtractor).",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str, language_type_descriptor: ElementTypeLanguageDescriptor",
+						"description": "Initializes the extractor."
+					},
+					{
+						"method_name": "_get_ast_handler",
+						"params": "self",
+						"description": "Gets the AST handler for the language."
+					},
+					{
+						"method_name": "get_indentation",
+						"params": "line: str",
+						"description": "Gets indentation from a line."
+					},
+					{
+						"method_name": "extract",
+						"params": "code: str, context: Optional[Dict[str, Any]]=None",
+						"description": "Main extraction method, delegates based on descriptor."
+					},
+					{
+						"method_name": "_extract_with_patterns",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Abstract method for pattern-based extraction."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ABC",
+			"abstractmethod",
+			"CodeElementType",
+			"ElementTypeLanguageDescriptor",
+			"ASTHandler",
+			"get_parser",
+			"LANGUAGES",
+			"List",
+			"Dict",
+			"Optional",
+			"Any",
+			"Union"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\extractors\\template_static_property_extractor.py",
+		"classes": [
+			{
+				"class_name": "TemplateStaticPropertyExtractor",
+				"description": "Template extractor specifically for static property elements (class variables).",
+				"methods": [
+					{
+						"method_name": "_get_parent_class_name",
+						"params": "node: Node, ast_handler: Any, code_bytes: bytes",
+						"description": "Finds the name of the containing class for a given node."
+					},
+					{
+						"method_name": "_get_class_name",
+						"params": "node, ast_handler, code_bytes",
+						"description": "Helper to get the parent class name."
+					},
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: Any, context: Dict[str, Any]",
+						"description": "Processes Tree-sitter results, specifically looking for assignments within class blocks to identify static properties."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Processes regex matches as a fallback for extracting static properties."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"Node",
+			"ASTHandler",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\post_processors\\base.py",
+		"classes": [
+			{
+				"class_name": "LanguagePostProcessor",
+				"description": "Abstract base class defining the interface for language-specific post-processors that structure raw extraction results.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str",
+						"description": "Initializes the post-processor with the language code."
+					},
+					{
+						"method_name": "process_imports",
+						"params": "raw_imports: List[Dict]",
+						"description": "Abstract method to process raw import data into CodeElement objects."
+					},
+					{
+						"method_name": "process_functions",
+						"params": "raw_functions: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Abstract method to process raw function data into CodeElement objects, potentially using decorator info."
+					},
+					{
+						"method_name": "process_classes",
+						"params": "raw_classes: List[Dict], members: List[Dict], static_props: List[Dict], properties: Optional[List[Dict]]=None, all_decorators: Optional[List[Dict]]=None",
+						"description": "Abstract method to process raw class data and associated members/properties into CodeElement objects."
+					},
+					{
+						"method_name": "process_all",
+						"params": "raw_elements: Dict[str, List[Dict]]",
+						"description": "Orchestrates the post-processing of all extracted raw element types."
+					},
+					{
+						"method_name": "_build_lookup",
+						"params": "items: List[Dict], key_field: str",
+						"description": "Helper method to build a lookup dictionary from a list of dictionaries based on a specified key field."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ABC",
+			"abstractmethod",
+			"IPostProcessor",
+			"CodeElement",
+			"CodeElementsResult",
+			"List",
+			"Dict",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\engine\\code_node_wrapper.py",
+		"classes": [
+			{
+				"class_name": "CodeNodeWrapper",
+				"description": "Wraps a tree-sitter Node to provide convenient methods for extracting common code element details like name, parameters, body, etc., potentially using language-specific configuration.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "ast_handler: ASTHandler, node, code_bytes: bytes, language_code: str, element_type: str='function'",
+						"description": "Initializes the wrapper with the node, AST handler, and optionally loads language-specific configuration."
+					},
+					{
+						"method_name": "get_name",
+						"params": "self",
+						"description": "Extracts the name of the element from the wrapped node."
+					},
+					{
+						"method_name": "get_parameters",
+						"params": "skip_self_or_cls=True",
+						"description": "Extracts parameter information for the element."
+					},
+					{
+						"method_name": "_extract_parameter",
+						"params": "param_node",
+						"description": "Internal helper to extract details for a single parameter node."
+					},
+					{
+						"method_name": "get_body",
+						"params": "self",
+						"description": "Finds the body node of the element."
+					},
+					{
+						"method_name": "get_decorators",
+						"params": "self",
+						"description": "Finds decorator nodes associated with the element."
+					},
+					{
+						"method_name": "get_parent_class_name",
+						"params": "self",
+						"description": "Finds the name of the containing class, if any."
+					},
+					{
+						"method_name": "get_return_info",
+						"params": "self",
+						"description": "Extracts return type annotation and attempts to find return values."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ASTHandler",
+			"Node",
+			"Optional",
+			"List",
+			"Dict",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\python_post_processor.py",
+		"classes": [
+			{
+				"class_name": "PythonExtractionPostProcessor",
+				"description": "Implements the post-processing logic for structuring raw Python extraction results into CodeElement objects.",
+				"methods": [
+					{
+						"method_name": "process_imports",
+						"params": "raw_imports: List[Dict]",
+						"description": "Combines individual raw import dictionaries into a single 'imports' CodeElement."
+					},
+					{
+						"method_name": "process_functions",
+						"params": "raw_functions: List[Dict], all_decorators: List[Dict]=None",
+						"description": "Processes raw function dictionaries into Function CodeElements, attaching parameters, return values, and decorators as children."
+					},
+					{
+						"method_name": "process_classes",
+						"params": "raw_classes: List[Dict], members: List[Dict], static_props: List[Dict], properties: List[Dict]=None, all_decorators: List[Dict]=None",
+						"description": "Processes raw class dictionaries, associating extracted members (methods, properties, static props) and decorators as children."
+					},
+					{
+						"method_name": "_process_parameters",
+						"params": "element: 'CodeElement', params_data: List[Dict]",
+						"description": "Converts raw parameter dictionaries into Parameter CodeElement children."
+					},
+					{
+						"method_name": "_process_return_value",
+						"params": "element: 'CodeElement', return_info: Dict",
+						"description": "Converts raw return info dictionary into a ReturnValue CodeElement child."
+					},
+					{
+						"method_name": "_process_method_element",
+						"params": "method_data: Dict, parent_class_element: 'CodeElement'",
+						"description": "Processes a raw member dictionary (method, getter, setter) into the appropriate CodeElement type, attaching children."
+					},
+					{
+						"method_name": "_process_static_property",
+						"params": "prop_data: Dict, parent_class_element: 'CodeElement'",
+						"description": "Processes a raw static property dictionary into a StaticProperty CodeElement."
+					},
+					{
+						"method_name": "_process_decorators",
+						"params": "element_data: Dict",
+						"description": "Processes raw decorator dictionaries found within an element's data into Decorator CodeElement children."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseExtractionPostProcessor",
+			"CodeElement",
+			"CodeElementType",
+			"CodeRange",
+			"ValidationError",
+			"List",
+			"Dict",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\post_processor_base.py",
+		"classes": [
+			{
+				"class_name": "BaseExtractionPostProcessor",
+				"description": "Abstract base class defining the interface for language-specific post-processors (appears to be a duplicate or refactoring artifact).",
+				"methods": [
+					{
+						"method_name": "process_imports",
+						"params": "raw_imports: List[Dict]",
+						"description": "Abstract method to process raw import data."
+					},
+					{
+						"method_name": "process_functions",
+						"params": "raw_functions: List[Dict], all_decorators: List[Dict]=None",
+						"description": "Abstract method to process raw function data."
+					},
+					{
+						"method_name": "process_classes",
+						"params": "raw_classes: List[Dict], members: List[Dict], static_props: List[Dict], properties: List[Dict]=None, all_decorators: List[Dict]=None",
+						"description": "Abstract method to process raw class data."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ABC",
+			"abstractmethod",
+			"CodeElement",
+			"List",
+			"Dict"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\extractors\\python_decorator_extractor.py",
+		"classes": [
+			{
+				"class_name": "PythonDecoratorExtractor",
+				"description": "Extracts Python decorator elements.",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes Tree-sitter results to extract decorator name and content."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Processes regex matches as a fallback for extracting decorators."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_import_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptImportExtractor",
+				"description": "Extracts TypeScript/JavaScript import statements.",
+				"methods": [
+					{
+						"method_name": "_extract_with_tree_sitter",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Extracts individual import statements using Tree-sitter."
+					},
+					{
+						"method_name": "_extract_with_patterns",
+						"params": "code: str, handler: ElementTypeLanguageDescriptor, context: Dict[str, Any]",
+						"description": "Orchestrates import extraction, primarily using Tree-sitter."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches, code, context",
+						"description": "Placeholder for regex-based extraction (not implemented)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ImportExtractor",
+			"CodeElementType",
+			"extractor",
+			"ElementTypeLanguageDescriptor",
+			"ASTHandler",
+			"Node",
+			"QueryError",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_class.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptClassHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript class elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_property_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptPropertyExtractor",
+				"description": "Extracts TypeScript property definitions within classes or interfaces.",
+				"methods": [
+					{
+						"method_name": "_get_parent_class_name",
+						"params": "node: Node, ast_handler: ASTHandler, code_bytes: bytes",
+						"description": "Finds the name of the containing class, interface, or object type for a property node."
+					},
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes Tree-sitter query results to identify and extract property definition details (name, type, value, decorators)."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Placeholder for regex-based extraction (logs warning)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ExtractorHelpers",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_enum_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptEnumExtractor",
+				"description": "Extracts TypeScript enum definitions.",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes raw Tree-sitter query results to identify and extract enum definition details."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Placeholder for regex-based extraction (not implemented)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ExtractorHelpers",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_type_alias_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptTypeAliasExtractor",
+				"description": "Extracts TypeScript type alias definitions.",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes raw Tree-sitter query results to identify and extract type alias definition details."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Placeholder for regex-based extraction (not implemented)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ExtractorHelpers",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_namespace_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptNamespaceExtractor",
+				"description": "Extracts TypeScript namespace (or module) definitions.",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes raw Tree-sitter query results to identify and extract namespace/module definition details."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Placeholder for regex-based extraction (not implemented)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ExtractorHelpers",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_decorator_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptDecoratorExtractor",
+				"description": "Extracts TypeScript decorator elements and attempts to identify the element they decorate.",
+				"methods": [
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes Tree-sitter query results to extract decorator name, content, and determine the parent element it decorates."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Placeholder for regex-based extraction (not implemented)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ExtractorHelpers",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\extractors\\typescript_static_property_extractor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptStaticPropertyExtractor",
+				"description": "Extracts TypeScript static property definitions within classes.",
+				"methods": [
+					{
+						"method_name": "_get_parent_class_name",
+						"params": "node: Node, ast_handler: ASTHandler, code_bytes: bytes",
+						"description": "Finds the name of the containing class for a static property node."
+					},
+					{
+						"method_name": "_process_tree_sitter_results",
+						"params": "query_results: List[Tuple[Node, str]], code_bytes: bytes, ast_handler: ASTHandler, context: Dict[str, Any]",
+						"description": "Processes Tree-sitter query results to identify and extract static property definition details, checking for the 'static' keyword."
+					},
+					{
+						"method_name": "_process_regex_results",
+						"params": "matches: Any, code: str, context: Dict[str, Any]",
+						"description": "Provides a basic regex fallback for extracting static properties."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"TemplateExtractor",
+			"CodeElementType",
+			"extractor",
+			"ExtractorHelpers",
+			"ASTHandler",
+			"Node",
+			"List",
+			"Tuple",
+			"Dict",
+			"Any",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_function.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptFunctionHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript standalone function elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_import.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptImportHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript import elements, marked for custom extraction.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_interface.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptInterfaceHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript interface elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\typescript_post_processor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptExtractionPostProcessor",
+				"description": "Implements the post-processing logic for structuring raw TypeScript/JavaScript extraction results into CodeElement objects.",
+				"methods": [
+					{
+						"method_name": "process_imports",
+						"params": "raw_imports: List[Dict]",
+						"description": "Combines individual raw import dictionaries into a single 'imports' CodeElement."
+					},
+					{
+						"method_name": "process_functions",
+						"params": "raw_functions: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw function dictionaries into Function CodeElements, attaching children."
+					},
+					{
+						"method_name": "process_classes",
+						"params": "raw_classes: List[Dict], members: List[Dict], static_props: List[Dict], properties: Optional[List[Dict]]=None, all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw class/interface dictionaries, associating members and decorators as children."
+					},
+					{
+						"method_name": "process_interfaces",
+						"params": "raw_interfaces: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw interface dictionaries into Interface CodeElements, attaching children."
+					},
+					{
+						"method_name": "process_type_aliases",
+						"params": "raw_type_aliases: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw type alias dictionaries into TypeAlias CodeElements."
+					},
+					{
+						"method_name": "process_enums",
+						"params": "raw_enums: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw enum dictionaries into Enum CodeElements, attaching members and decorators."
+					},
+					{
+						"method_name": "process_namespaces",
+						"params": "raw_namespaces: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw namespace dictionaries into Namespace CodeElements, recursively processing members."
+					},
+					{
+						"method_name": "_process_property",
+						"params": "prop_data: Dict, parent_container_element: 'CodeElement', decorator_lookup: Dict[str, List[Dict]]",
+						"description": "Processes a raw property dictionary into a Property CodeElement, attaching decorators."
+					},
+					{
+						"method_name": "_build_lookup",
+						"params": "items: List[Dict], key_field: str",
+						"description": "Helper to build a lookup dictionary."
+					},
+					{
+						"method_name": "_process_parameters",
+						"params": "element: 'CodeElement', params_data: List[Dict]",
+						"description": "Converts raw parameter dictionaries into Parameter CodeElement children for TypeScript."
+					},
+					{
+						"method_name": "_process_return_value",
+						"params": "element: 'CodeElement', return_info: Dict",
+						"description": "Converts raw return info dictionary into a ReturnValue CodeElement child for TypeScript."
+					},
+					{
+						"method_name": "_process_decorators",
+						"params": "element_data: Dict, element_name_for_parent: str",
+						"description": "Processes raw decorator dictionaries found within an element's data."
+					},
+					{
+						"method_name": "_process_member_element",
+						"params": "member_data: Dict, parent_container_element: 'CodeElement', decorator_lookup: Dict[str, List[Dict]]",
+						"description": "Processes a raw member dictionary (method, getter, setter, property) into the appropriate CodeElement, attaching children."
+					},
+					{
+						"method_name": "_process_static_property",
+						"params": "prop_data: Dict, parent_container_element: 'CodeElement', decorator_lookup: Dict[str, List[Dict]]",
+						"description": "Processes a raw static property dictionary into a StaticProperty CodeElement, attaching decorators."
+					},
+					{
+						"method_name": "_process_interface_method",
+						"params": "method_data: Dict",
+						"description": "Processes a raw method dictionary specifically for an interface context."
+					},
+					{
+						"method_name": "_process_interface_property",
+						"params": "prop_data: Dict",
+						"description": "Processes a raw property dictionary specifically for an interface context."
+					},
+					{
+						"method_name": "_process_decorator_element",
+						"params": "dec_data: Dict, explicit_parent_name: Optional[str]=None",
+						"description": "Processes a raw decorator dictionary into a Decorator CodeElement."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseExtractionPostProcessor",
+			"CodeElement",
+			"CodeElementType",
+			"CodeRange",
+			"ValidationError",
+			"List",
+			"Dict",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_method.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptMethodHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript method elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_property_setter.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptPropertySetterHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript property setter elements ('set propName(...)').",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_property_getter.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptPropertyGetterHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript property getter elements ('get propName()').",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_namespace.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptNamespaceHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript namespace/module elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_static_property.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptStaticPropertyHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript static property elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_decorator.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptDecoratorHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript decorator elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_property.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptPropertyHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript property (field) elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_enum.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptEnumHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript enum elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\type_alias.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptTypeAliasHandlerElementType",
+				"description": "Descriptor class defining metadata and patterns specifically for TypeScript type alias elements.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"ElementTypeLanguageDescriptor",
+			"CodeElementType",
+			"element_type_descriptor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\components\\python\\navigator.py",
+		"classes": [
+			{
+				"class_name": "PythonSyntaxTreeNavigator",
+				"description": "Provides Python-specific AST navigation and querying capabilities.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "self",
+						"description": "Initializes the navigator for Python."
+					},
+					{
+						"method_name": "find_element",
+						"params": "tree: Node, code_bytes: bytes, element_type: str, element_name: Optional[str]=None, parent_name: Optional[str]=None",
+						"description": "Finds the start and end lines of a Python element using Tree-sitter queries."
+					},
+					{
+						"method_name": "execute_query",
+						"params": "tree: Node, code_bytes: bytes, query_string: str",
+						"description": "Executes a Tree-sitter query on the Python AST."
+					},
+					{
+						"method_name": "get_node_text",
+						"params": "node: Node, code_bytes: bytes",
+						"description": "Gets the text content of an AST node."
+					},
+					{
+						"method_name": "get_node_range",
+						"params": "node: Node",
+						"description": "Gets the line range of an AST node."
+					},
+					{
+						"method_name": "_build_query_for_element_type",
+						"params": "element_type: str, element_name: Optional[str]=None, parent_name: Optional[str]=None",
+						"description": "Constructs a Tree-sitter query string tailored to find a specific Python element type, name, and parent."
+					},
+					{
+						"method_name": "_get_node_name",
+						"params": "node: Node, code_bytes: bytes",
+						"description": "Extracts the name identifier from a definition node."
+					},
+					{
+						"method_name": "_get_node_parent_class",
+						"params": "node: Node, code_bytes: bytes",
+						"description": "Finds the name of the containing class for a given node."
+					},
+					{
+						"method_name": "find_child_by_field_name",
+						"params": "node: Node, field_name: str",
+						"description": "Finds a direct child node by its field name."
+					},
+					{
+						"method_name": "find_parent_of_type",
+						"params": "node: Node, parent_type: Union[str, List[str]]",
+						"description": "Finds the nearest ancestor node of a specified type or types."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseSyntaxTreeNavigator",
+			"CodeElementType",
+			"Node",
+			"Query",
+			"QueryError",
+			"PY_LANGUAGE",
+			"Optional",
+			"Tuple",
+			"List",
+			"Union"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\components\\interfaces.py",
+		"classes": [
+			{
+				"class_name": "ICodeParser",
+				"description": "Interface for code parsers.",
+				"methods": [
+					{
+						"method_name": "parse",
+						"params": "code: str",
+						"description": "Abstract method to parse code."
+					},
+					{
+						"method_name": "language_code",
+						"params": "",
+						"description": "Abstract property for the language code."
+					}
+				]
+			},
+			{
+				"class_name": "ISyntaxTreeNavigator",
+				"description": "Interface for AST navigators.",
+				"methods": [
+					{
+						"method_name": "find_element",
+						"params": "tree: Any, code_bytes: bytes, element_type: str, element_name: Optional[str]=None, parent_name: Optional[str]=None",
+						"description": "Abstract method to find an element in the AST."
+					},
+					{
+						"method_name": "execute_query",
+						"params": "tree: Any, code_bytes: bytes, query_string: str",
+						"description": "Abstract method to execute a query on the AST."
+					},
+					{
+						"method_name": "get_node_text",
+						"params": "node: Any, code_bytes: bytes",
+						"description": "Abstract method to get text from a node."
+					},
+					{
+						"method_name": "get_node_range",
+						"params": "node: Any",
+						"description": "Abstract method to get the line range of a node."
+					}
+				]
+			},
+			{
+				"class_name": "IElementExtractor",
+				"description": "Interface for element extractors.",
+				"methods": [
+					{
+						"method_name": "extract_functions",
+						"params": "tree: Any, code_bytes: bytes",
+						"description": "Abstract method to extract functions."
+					},
+					{
+						"method_name": "extract_classes",
+						"params": "tree: Any, code_bytes: bytes",
+						"description": "Abstract method to extract classes."
+					},
+					{
+						"method_name": "extract_methods",
+						"params": "tree: Any, code_bytes: bytes, class_name: Optional[str]=None",
+						"description": "Abstract method to extract methods."
+					},
+					{
+						"method_name": "extract_all",
+						"params": "tree: Any, code_bytes: bytes",
+						"description": "Abstract method to extract all element types."
+					}
+				]
+			},
+			{
+				"class_name": "IPostProcessor",
+				"description": "Interface for post-processors that structure raw extraction results.",
+				"methods": [
+					{
+						"method_name": "process_imports",
+						"params": "raw_imports: List[Dict]",
+						"description": "Abstract method to process raw import data."
+					},
+					{
+						"method_name": "process_functions",
+						"params": "raw_functions: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Abstract method to process raw function data."
+					},
+					{
+						"method_name": "process_classes",
+						"params": "raw_classes: List[Dict], members: List[Dict], static_props: List[Dict], properties: Optional[List[Dict]]=None, all_decorators: Optional[List[Dict]]=None",
+						"description": "Abstract method to process raw class data."
+					},
+					{
+						"method_name": "process_all",
+						"params": "raw_elements: Dict[str, List[Dict]]",
+						"description": "Abstract method to process all raw extracted data."
+					}
+				]
+			},
+			{
+				"class_name": "IExtractionOrchestrator",
+				"description": "Interface for the extraction orchestrator.",
+				"methods": [
+					{
+						"method_name": "extract_all",
+						"params": "code: str",
+						"description": "Abstract method to perform full extraction."
+					},
+					{
+						"method_name": "find_element",
+						"params": "code: str, element_type: str, element_name: Optional[str]=None, parent_name: Optional[str]=None",
+						"description": "Abstract method to find a specific element's range."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ABC",
+			"abstractmethod",
+			"CodeElement",
+			"CodeElementsResult",
+			"List",
+			"Dict",
+			"Tuple",
+			"Optional",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\components\\python\\orchestrator.py",
+		"classes": [
+			{
+				"class_name": "PythonExtractionOrchestrator",
+				"description": "Orchestrates the code extraction process specifically for Python, using Python-specific components.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "post_processor",
+						"description": "Initializes the orchestrator with Python parser, navigator, extractor, and the provided post-processor."
+					},
+					{
+						"method_name": "find_element",
+						"params": "code: str, element_type: str, element_name: Optional[str]=None, parent_name: Optional[str]=None",
+						"description": "Finds the line range of a Python element by parsing the code and using the Python navigator."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseExtractionOrchestrator",
+			"PythonCodeParser",
+			"PythonSyntaxTreeNavigator",
+			"PythonElementExtractor",
+			"handle_extraction_errors",
+			"Optional",
+			"Tuple"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\components\\base_implementations.py",
+		"classes": [
+			{
+				"class_name": "BaseCodeParser",
+				"description": "Basic implementation of the ICodeParser interface.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str",
+						"description": "Initializes with the language code."
+					}
+				]
+			},
+			{
+				"class_name": "BaseSyntaxTreeNavigator",
+				"description": "Basic implementation of the ISyntaxTreeNavigator interface.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str",
+						"description": "Initializes with the language code."
+					}
+				]
+			},
+			{
+				"class_name": "BaseElementExtractor",
+				"description": "Basic implementation of the IElementExtractor interface, providing a structure for extracting various element types.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str, navigator: ISyntaxTreeNavigator",
+						"description": "Initializes with language code and a navigator instance."
+					},
+					{
+						"method_name": "extract_all",
+						"params": "tree: Any, code_bytes: bytes",
+						"description": "Orchestrates the extraction of all supported element types by calling specific abstract extraction methods."
+					},
+					{
+						"method_name": "extract_imports",
+						"params": "tree: Any, code_bytes: bytes",
+						"description": "Abstract method for extracting imports."
+					},
+					{
+						"method_name": "extract_properties",
+						"params": "tree: Any, code_bytes: bytes",
+						"description": "Abstract method for extracting properties."
+					},
+					{
+						"method_name": "extract_static_properties",
+						"params": "tree: Any, code_bytes: bytes",
+						"description": "Abstract method for extracting static properties."
+					},
+					{
+						"method_name": "extract_decorators",
+						"params": "tree: Any, code_bytes: bytes",
+						"description": "Abstract method for extracting decorators."
+					}
+				]
+			},
+			{
+				"class_name": "BaseExtractionOrchestrator",
+				"description": "Basic implementation of the IExtractionOrchestrator interface.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "language_code: str, parser: ICodeParser, extractor: IElementExtractor, post_processor: IPostProcessor",
+						"description": "Initializes with parser, extractor, and post-processor instances."
+					},
+					{
+						"method_name": "extract_all",
+						"params": "code: str",
+						"description": "Orchestrates the full extraction process: parse -> extract raw -> post-process."
+					},
+					{
+						"method_name": "find_element",
+						"params": "code: str, element_type: str, element_name: Optional[str]=None, parent_name: Optional[str]=None",
+						"description": "Finds an element's range by parsing and using the navigator (assumes navigator is accessible, might need adjustment)."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"ICodeParser",
+			"ISyntaxTreeNavigator",
+			"IElementExtractor",
+			"IPostProcessor",
+			"IExtractionOrchestrator",
+			"CodeElementsResult",
+			"handle_extraction_errors",
+			"ABC",
+			"abstractmethod",
+			"List",
+			"Dict",
+			"Tuple",
+			"Optional",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\components\\python\\extractor.py",
+		"classes": [
+			{
+				"class_name": "PythonElementExtractor",
+				"description": "Extracts various Python code elements (functions, classes, methods, properties, imports, decorators) using Tree-sitter queries via the navigator.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "navigator",
+						"description": "Initializes the extractor with a Python navigator."
+					},
+					{
+						"method_name": "extract_functions",
+						"params": "tree: Node, code_bytes: bytes",
+						"description": "Extracts standalone function definitions."
+					},
+					{
+						"method_name": "extract_classes",
+						"params": "tree: Node, code_bytes: bytes",
+						"description": "Extracts class definitions."
+					},
+					{
+						"method_name": "extract_methods",
+						"params": "tree: Node, code_bytes: bytes, class_name: Optional[str]=None",
+						"description": "Extracts method definitions within classes, optionally filtered by class name. Also identifies potential property getters/setters based on decorators."
+					},
+					{
+						"method_name": "extract_properties",
+						"params": "tree: Node, code_bytes: bytes",
+						"description": "Extracts property getters and setters based on decorators (@property, @<name>.setter)."
+					},
+					{
+						"method_name": "extract_static_properties",
+						"params": "tree: Node, code_bytes: bytes",
+						"description": "Extracts static properties (class variables defined via assignment within the class body)."
+					},
+					{
+						"method_name": "extract_imports",
+						"params": "tree: Node, code_bytes: bytes",
+						"description": "Extracts import and from-import statements."
+					},
+					{
+						"method_name": "extract_decorators",
+						"params": "tree: Node, code_bytes: bytes",
+						"description": "Extracts decorator usages and attempts to link them to the decorated element."
+					},
+					{
+						"method_name": "_extract_parameters",
+						"params": "node: Node, code_bytes: bytes, is_method: bool=False",
+						"description": "Helper method to extract parameter details from a parameter list node."
+					},
+					{
+						"method_name": "_extract_return_info",
+						"params": "node: Node, code_bytes: bytes",
+						"description": "Helper method to extract return type annotation and potential return values."
+					},
+					{
+						"method_name": "_infer_type_from_value",
+						"params": "value: str",
+						"description": "Helper method to infer a basic Python type from a literal value string."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseElementExtractor",
+			"CodeElementType",
+			"Node",
+			"PythonSyntaxTreeNavigator",
+			"List",
+			"Dict",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\components\\python\\parser.py",
+		"classes": [
+			{
+				"class_name": "PythonCodeParser",
+				"description": "Parses Python code using the tree-sitter Python parser.",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "self",
+						"description": "Initializes the parser and language objects."
+					},
+					{
+						"method_name": "parse",
+						"params": "code: str",
+						"description": "Parses the Python code string and returns the tree-sitter root node and code bytes."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"BaseCodeParser",
+			"get_parser",
+			"PY_LANGUAGE",
+			"Tuple",
+			"Any"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\post_processors\\python\\post_processor.py",
+		"classes": [
+			{
+				"class_name": "PythonPostProcessor",
+				"description": "Implements the post-processing logic for structuring raw Python extraction results into CodeElement objects (appears duplicate of languages/lang_python/python_post_processor.py).",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "self",
+						"description": "Initializes the post-processor for Python."
+					},
+					{
+						"method_name": "process_imports",
+						"params": "raw_imports: List[Dict]",
+						"description": "Combines individual raw import dictionaries into a single 'imports' CodeElement."
+					},
+					{
+						"method_name": "process_functions",
+						"params": "raw_functions: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw function dictionaries into Function CodeElements, attaching parameters, return values, and decorators as children."
+					},
+					{
+						"method_name": "process_classes",
+						"params": "raw_classes: List[Dict], members: List[Dict], static_props: List[Dict], properties: Optional[List[Dict]]=None, all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw class dictionaries, associating extracted members (methods, properties, static props) and decorators as children."
+					},
+					{
+						"method_name": "_process_parameters",
+						"params": "element: CodeElement, params_data: List[Dict]",
+						"description": "Converts raw parameter dictionaries into Parameter CodeElement children."
+					},
+					{
+						"method_name": "_process_return_value",
+						"params": "element: CodeElement, return_info: Dict",
+						"description": "Converts raw return info dictionary into a ReturnValue CodeElement child."
+					},
+					{
+						"method_name": "_process_method_element",
+						"params": "method_data: Dict, parent_class_element: CodeElement",
+						"description": "Processes a raw member dictionary (method, getter, setter) into the appropriate CodeElement type, attaching children."
+					},
+					{
+						"method_name": "_process_static_property",
+						"params": "prop_data: Dict, parent_class_element: CodeElement",
+						"description": "Processes a raw static property dictionary into a StaticProperty CodeElement."
+					},
+					{
+						"method_name": "_process_decorators",
+						"params": "element_data: Dict",
+						"description": "Processes raw decorator dictionaries found within an element's data into Decorator CodeElement children."
+					},
+					{
+						"method_name": "_process_decorator_element",
+						"params": "dec_data: Dict, parent_name: Optional[str]=None",
+						"description": "Processes a single raw decorator dictionary into a Decorator CodeElement."
+					},
+					{
+						"method_name": "_build_decorator_lookup",
+						"params": "decorators: Optional[List[Dict]]",
+						"description": "Builds a lookup dictionary for decorators based on their parent element's name."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"LanguagePostProcessor",
+			"CodeElement",
+			"CodeElementType",
+			"CodeRange",
+			"ValidationError",
+			"List",
+			"Dict",
+			"Optional"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\post_processors\\typescript\\post_processor.py",
+		"classes": [
+			{
+				"class_name": "TypeScriptPostProcessor",
+				"description": "Implements the post-processing logic for structuring raw TypeScript/JavaScript extraction results into CodeElement objects (appears duplicate of languages/lang_typescript/typescript_post_processor.py).",
+				"methods": [
+					{
+						"method_name": "__init__",
+						"params": "self",
+						"description": "Initializes the post-processor for TypeScript."
+					},
+					{
+						"method_name": "process_imports",
+						"params": "raw_imports: List[Dict]",
+						"description": "Combines individual raw import dictionaries into a single 'imports' CodeElement."
+					},
+					{
+						"method_name": "process_functions",
+						"params": "raw_functions: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw function dictionaries into Function CodeElements, attaching children."
+					},
+					{
+						"method_name": "process_classes",
+						"params": "raw_classes: List[Dict], members: List[Dict], static_props: List[Dict], properties: Optional[List[Dict]]=None, all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw class/interface dictionaries, associating members and decorators as children."
+					},
+					{
+						"method_name": "process_interfaces",
+						"params": "raw_interfaces: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw interface dictionaries into Interface CodeElements, attaching children."
+					},
+					{
+						"method_name": "process_type_aliases",
+						"params": "raw_type_aliases: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw type alias dictionaries into TypeAlias CodeElements."
+					},
+					{
+						"method_name": "process_enums",
+						"params": "raw_enums: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw enum dictionaries into Enum CodeElements, attaching members and decorators."
+					},
+					{
+						"method_name": "process_namespaces",
+						"params": "raw_namespaces: List[Dict], all_decorators: Optional[List[Dict]]=None",
+						"description": "Processes raw namespace dictionaries into Namespace CodeElements, recursively processing members."
+					},
+					{
+						"method_name": "_process_property",
+						"params": "prop_data: Dict, parent_container_element: 'CodeElement', decorator_lookup: Dict[str, List[Dict]]",
+						"description": "Processes a raw property dictionary into a Property CodeElement, attaching decorators."
+					},
+					{
+						"method_name": "_build_lookup",
+						"params": "items: List[Dict], key_field: str",
+						"description": "Helper to build a lookup dictionary."
+					},
+					{
+						"method_name": "_process_parameters",
+						"params": "element: 'CodeElement', params_data: List[Dict]",
+						"description": "Converts raw parameter dictionaries into Parameter CodeElement children for TypeScript."
+					},
+					{
+						"method_name": "_process_return_value",
+						"params": "element: 'CodeElement', return_info: Dict",
+						"description": "Converts raw return info dictionary into a ReturnValue CodeElement child for TypeScript."
+					},
+					{
+						"method_name": "_process_decorators",
+						"params": "element_data: Dict, element_name_for_parent: str",
+						"description": "Processes raw decorator dictionaries found within an element's data."
+					},
+					{
+						"method_name": "_process_member_element",
+						"params": "member_data: Dict, parent_container_element: 'CodeElement', decorator_lookup: Dict[str, List[Dict]]",
+						"description": "Processes a raw member dictionary (method, getter, setter, property) into the appropriate CodeElement, attaching children."
+					},
+					{
+						"method_name": "_process_static_property",
+						"params": "prop_data: Dict, parent_container_element: 'CodeElement', decorator_lookup: Dict[str, List[Dict]]",
+						"description": "Processes a raw static property dictionary into a StaticProperty CodeElement, attaching decorators."
+					},
+					{
+						"method_name": "_process_interface_method",
+						"params": "method_data: Dict",
+						"description": "Processes a raw method dictionary specifically for an interface context."
+					},
+					{
+						"method_name": "_process_interface_property",
+						"params": "prop_data: Dict",
+						"description": "Processes a raw property dictionary specifically for an interface context."
+					},
+					{
+						"method_name": "_process_decorator_element",
+						"params": "dec_data: Dict, explicit_parent_name: Optional[str]=None",
+						"description": "Processes a raw decorator dictionary into a Decorator CodeElement."
+					}
+				]
+			}
+		]
+	}
+]
+
+
+[
+	{
+		"file": "d:\\code\\codehem\\test.py",
+		"classes": [],
+		"related_symbols": [
+			"CodeHem",
+			"test_services",
+			"test_extractors"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\cli.py",
+		"classes": [],
+		"related_symbols": [
+			"CodeHem",
+			"Console",
+			"Progress",
+			"Panel",
+			"main"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\setup.py",
+		"classes": [],
+		"related_symbols": [
+			"find_packages",
+			"setup"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\publish.py",
+		"classes": [],
+		"related_symbols": [
+			"get_venv_info",
+			"clean_build_artifacts",
+			"run_tests",
+			"build_package",
+			"check_setup_py",
+			"check_dependencies",
+			"upload_to_pypi",
+			"main"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\models\\enums.py",
+		"classes": [
+			{
+				"class_name": "CodeElementType",
+				"description": "Enumeration defining the various types of code elements that CodeHem can identify and manipulate.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"Enum"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\__init__.py",
+		"classes": [],
+		"related_symbols": [
+			"registry",
+			"LanguageService",
+			"ExtendedLanguageService",
+			"get_language_service",
+			"get_language_service_for_file",
+			"get_language_service_for_code",
+			"get_supported_languages"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\error_handling.py",
+		"classes": [
+			{
+				"class_name": "CodeHemError",
+				"description": "Base exception class for CodeHem errors.",
+				"methods": []
+			},
+			{
+				"class_name": "ExtractionError",
+				"description": "Exception raised for errors during code element extraction.",
+				"methods": []
+			},
+			{
+				"class_name": "UnsupportedLanguageError",
+				"description": "Exception raised when an unsupported language is encountered.",
+				"methods": []
+			}
+		],
+		"related_symbols": [
+			"handle_extraction_errors"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\core\\engine\\languages.py",
+		"classes": [],
+		"related_symbols": [
+			"Language",
+			"Parser",
+			"get_parser",
+			"get_language_for_file"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\common\\test_language_detection.py",
+		"classes": [
+			{
+				"class_name": "LanguageDetectionTests",
+				"description": "Unit tests for language detection functionality.",
+				"methods": [
+					{
+						"method_name": "test_python_detection",
+						"params": "self",
+						"description": "Tests detection of Python code."
+					},
+					{
+						"method_name": "test_edge_case_detection",
+						"params": "self",
+						"description": "Tests detection with minimal Python code."
+					},
+					{
+						"method_name": "test_comments_only",
+						"params": "self",
+						"description": "Tests detection when the input contains only comments."
+					},
+					{
+						"method_name": "test_empty_code",
+						"params": "self",
+						"description": "Tests detection with empty or whitespace-only code."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"unittest",
+			"TestHelper",
+			"get_language_service_for_code",
+			"CodeHem"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\common\\test_codehem2_xpath.py",
+		"classes": [
+			{
+				"class_name": "CodeHem2XPathTests",
+				"description": "Unit tests focusing on XPath parsing, formatting, finding, filtering, and upserting within the CodeHem class.",
+				"methods": [
+					{
+						"method_name": "setUp",
+						"params": "self",
+						"description": "Sets up the test case by creating a Python CodeHem instance and loading sample code."
+					},
+					{
+						"method_name": "test_parse_xpath",
+						"params": "self",
+						"description": "Tests the `CodeHem.parse_xpath` static method."
+					},
+					{
+						"method_name": "test_format_xpath",
+						"params": "self",
+						"description": "Tests the `CodeHem.format_xpath` static method."
+					},
+					{
+						"method_name": "test_find_by_xpath",
+						"params": "self",
+						"description": "Tests the `codehem.find_by_xpath` method for locating various element types."
+					},
+					{
+						"method_name": "test_filter_with_xpath",
+						"params": "self",
+						"description": "Tests the `CodeHem.filter` static method for selecting elements from an extraction result."
+					},
+					{
+						"method_name": "test_upsert_element_by_xpath",
+						"params": "self",
+						"description": "Tests the `codehem.upsert_element_by_xpath` method for replacing and adding elements."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"unittest",
+			"CodeHem",
+			"CodeElementXPathNode",
+			"CodeElementType"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\common\\test_xpath_parser.py",
+		"classes": [
+			{
+				"class_name": "XPathParserTests",
+				"description": "Unit tests specifically for the XPathParser class.",
+				"methods": [
+					{
+						"method_name": "test_simple_class_xpath",
+						"params": "self",
+						"description": "Tests parsing a simple class name XPath."
+					},
+					{
+						"method_name": "test_class_with_explicit_type",
+						"params": "self",
+						"description": "Tests parsing a class XPath with an explicit type qualifier."
+					},
+					{
+						"method_name": "test_class_method_xpath",
+						"params": "self",
+						"description": "Tests parsing a class method XPath, including type inference."
+					},
+					{
+						"method_name": "test_property_getter_xpath",
+						"params": "self",
+						"description": "Tests parsing a property getter XPath."
+					},
+					{
+						"method_name": "test_property_setter_xpath",
+						"params": "self",
+						"description": "Tests parsing a property setter XPath."
+					},
+					{
+						"method_name": "test_interface_xpath",
+						"params": "self",
+						"description": "Tests parsing an interface method XPath."
+					},
+					{
+						"method_name": "test_standalone_function_xpath",
+						"params": "self",
+						"description": "Tests parsing a standalone function XPath, including type inference."
+					},
+					{
+						"method_name": "test_with_root_element",
+						"params": "self",
+						"description": "Tests parsing an XPath starting with the 'FILE' root element."
+					},
+					{
+						"method_name": "test_type_only_xpath",
+						"params": "self",
+						"description": "Tests parsing an XPath containing only a type qualifier."
+					},
+					{
+						"method_name": "test_nameless_node_in_path",
+						"params": "self",
+						"description": "Tests parsing an XPath with a nameless node (e.g., FILE.[import])."
+					},
+					{
+						"method_name": "test_to_string",
+						"params": "self",
+						"description": "Tests converting parsed XPath nodes back to a string."
+					},
+					{
+						"method_name": "test_get_element_info",
+						"params": "self",
+						"description": "Tests extracting element name, parent name, and type from an XPath string."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"unittest",
+			"XPathParser",
+			"CodeElementType"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\python\\test_find_function.py",
+		"classes": [],
+		"related_symbols": [
+			"CodeHem",
+			"CodeElementType",
+			"TestHelper",
+			"codehem",
+			"test_find_function_simple"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\common\\test_codehem2.py",
+		"classes": [
+			{
+				"class_name": "CodeHem2Tests",
+				"description": "Integration tests for the main CodeHem class functionalities.",
+				"methods": [
+					{
+						"method_name": "setUp",
+						"params": "self",
+						"description": "Sets up the test case with a Python CodeHem instance and sample code."
+					},
+					{
+						"method_name": "test_detect_element_type",
+						"params": "self",
+						"description": "Tests the `detect_element_type` method."
+					},
+					{
+						"method_name": "test_get_text_by_xpath",
+						"params": "self",
+						"description": "Tests retrieving element text content using XPath."
+					},
+					{
+						"method_name": "test_get_property_methods_by_xpath",
+						"params": "self",
+						"description": "Tests retrieving property getter and setter text using specific XPath qualifiers."
+					},
+					{
+						"method_name": "test_get_text_by_xpath_properties",
+						"params": "self",
+						"description": "Further tests retrieving property getter/setter text."
+					},
+					{
+						"method_name": "test_extract",
+						"params": "self",
+						"description": "Tests the `extract` method for retrieving structured code elements."
+					},
+					{
+						"method_name": "test_upsert_element",
+						"params": "self",
+						"description": "Tests adding a new element using `upsert_element`."
+					},
+					{
+						"method_name": "test_upsert_element_by_xpath",
+						"params": "self",
+						"description": "Tests replacing an element using `upsert_element_by_xpath`."
+					},
+					{
+						"method_name": "test_filter",
+						"params": "self",
+						"description": "Tests the `filter` static method for selecting elements."
+					}
+				]
+			}
+		],
+		"related_symbols": [
+			"unittest",
+			"CodeHem",
+			"TestHelper",
+			"CodeElementType"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\python\\test_element_extraction.py",
+		"classes": [],
+		"related_symbols": [
+			"CodeHem",
+			"CodeElementType",
+			"TestHelper",
+			"codehem",
+			"test_extract_class",
+			"test_extract_method",
+			"test_extract_property",
+			"test_extract_static_property",
+			"test_extract_decorated_method",
+			"test_extract_function_with_type_annotations",
+			"test_extract_imports",
+			"test_extract_async_function",
+			"test_extract_decorated_function",
+			"test_extract_multiple_classes"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\python\\test_edge_cases.py",
+		"classes": [],
+		"related_symbols": [
+			"CodeHem",
+			"CodeElementType",
+			"TestHelper",
+			"codehem",
+			"test_empty_code",
+			"test_code_with_syntax_errors",
+			"test_nested_functions",
+			"test_class_inheritance",
+			"test_complex_decorators",
+			"test_method_with_docstring",
+			"test_special_method_names",
+			"test_async_functions",
+			"test_functions_with_default_args"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\python\\test_element_manipulation.py",
+		"classes": [],
+		"related_symbols": [
+			"CodeHem",
+			"CodeElementType",
+			"TestHelper",
+			"codehem",
+			"test_add_method_to_class",
+			"test_replace_method_in_class",
+			"test_add_property_to_class",
+			"test_replace_function",
+			"test_add_class_to_module",
+			"test_replace_imports",
+			"test_xpath_replace_method",
+			"test_xpath_add_new_element"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_python\\config.py",
+		"classes": [],
+		"related_symbols": [
+			"CodeElementType",
+			"PythonExtractionPostProcessor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\codehem\\languages\\lang_typescript\\config.py",
+		"classes": [],
+		"related_symbols": [
+			"CodeElementType",
+			"TypeScriptFormatter",
+			"TypeScriptExtractionPostProcessor"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\tests\\python\\test_xpath_results.py",
+		"classes": [],
+		"related_symbols": [
+			"CodeHem",
+			"TestHelper",
+			"codehem",
+			"get_lines",
+			"verify_content",
+			"test_property_getter",
+			"test_property_setter",
+			"test_property_setter_def",
+			"test_property_setter_body",
+			"test_not_existing",
+			"test_duplicated_method",
+			"test_getter_vs_setter",
+			"test_wrong_class_existing_method"
+		]
+	},
+	{
+		"file": "d:\\code\\codehem\\debug_import.py",
+		"classes": [],
+		"related_symbols": [
+			"get_parser",
+			"LANGUAGES",
+			"ASTHandler",
+			"QueryError"
+		]
+	}
+]
+
+

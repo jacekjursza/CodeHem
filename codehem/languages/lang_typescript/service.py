@@ -7,6 +7,8 @@ from codehem.core.language_service import LanguageService
 from codehem.core.registry import language_service, registry
 from codehem.core.engine.xpath_parser import XPathParser
 from codehem.models.code_element import CodeElement, CodeElementsResult
+from .components.orchestrator import TypeScriptExtractionOrchestrator
+from .components.post_processor import TypeScriptPostProcessor
 
 logger = logging.getLogger(__name__)
 

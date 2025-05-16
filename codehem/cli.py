@@ -10,6 +10,7 @@ from codehem import CodeHem
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress
+import rich
 
 def main():
     console = Console()
@@ -29,7 +30,7 @@ def main():
                 task = progress.add_task('[green]Extracting code elements...', total=3)
                 content = CodeHem.load_file(args.file)
                 progress.update(task, advance=1, description='[green]Creating CodeHem instance...')
-                hem = CodeHem.from_raw_code(content, check_for_file=False)
+                hem = CodeHem.from_raw_code(content)
                 progress.update(task, advance=1, description='[green]Extracting elements...')
                 elements = hem.extract(content)
                 progress.update(task, advance=1, description='[green]Processing complete!')
@@ -43,7 +44,10 @@ def main():
                 else:
                     console.print_json(data=elements_dict)
         else:
-            CodeHem.analyze_file(args.file)
+            instance = CodeHem.from_file_path(args.file)
+            code = instance.load_file(args.file)
+            result = instance.extract(code)
+            rich.print(result)
     except Exception as e:
         console.print(f'[bold red]Error:[/bold red] {str(e)}')
         if args.verbose:

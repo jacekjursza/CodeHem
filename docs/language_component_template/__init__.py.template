@@ -1,0 +1,53 @@
+"""
+Initialization module for the {{LANGUAGE_NAME}} language components.
+
+This module registers all {{LANGUAGE_NAME}} language components with the registry
+and exports the necessary classes and functions.
+"""
+
+import logging
+from typing import Dict, List, Optional, Type, Union
+
+from codehem.core.registry import registry
+from codehem.models.enums import CodeElementType
+from codehem.core.components.interfaces import (
+    ICodeParser, ISyntaxTreeNavigator, IElementExtractor, 
+    IPostProcessor, IExtractionOrchestrator
+)
+from codehem.core.components.extended_interfaces import (
+    IManipulator, IFormatter, ILanguageService, ILanguageDetector
+)
+
+# Import components
+from .parser import {{LANGUAGE_PREFIX}}CodeParser
+from .navigator import {{LANGUAGE_PREFIX}}SyntaxTreeNavigator
+from .extractor import {{LANGUAGE_PREFIX}}ElementExtractor
+from .post_processor import {{LANGUAGE_PREFIX}}PostProcessor
+from .orchestrator import {{LANGUAGE_PREFIX}}ExtractionOrchestrator
+from .formatter import {{LANGUAGE_PREFIX}}Formatter
+
+# Additional imports
+from ..detector import {{LANGUAGE_PREFIX}}LanguageDetector
+from ..service import {{LANGUAGE_PREFIX}}LanguageService
+
+# Register components with the registry
+registry.register_component('parser', '{{LANGUAGE_CODE}}', {{LANGUAGE_PREFIX}}CodeParser)
+registry.register_component('navigator', '{{LANGUAGE_CODE}}', {{LANGUAGE_PREFIX}}SyntaxTreeNavigator)
+registry.register_component('extractor', '{{LANGUAGE_CODE}}', {{LANGUAGE_PREFIX}}ElementExtractor)
+registry.register_component('post_processor', '{{LANGUAGE_CODE}}', {{LANGUAGE_PREFIX}}PostProcessor)
+registry.register_component('orchestrator', '{{LANGUAGE_CODE}}', {{LANGUAGE_PREFIX}}ExtractionOrchestrator)
+registry.register_component('formatter', '{{LANGUAGE_CODE}}', {{LANGUAGE_PREFIX}}Formatter)
+registry.register_component('detector', '{{LANGUAGE_CODE}}', {{LANGUAGE_PREFIX}}LanguageDetector)
+registry.register_component('service', '{{LANGUAGE_CODE}}', {{LANGUAGE_PREFIX}}LanguageService)
+
+# Export components
+__all__ = [
+    '{{LANGUAGE_PREFIX}}CodeParser',
+    '{{LANGUAGE_PREFIX}}SyntaxTreeNavigator',
+    '{{LANGUAGE_PREFIX}}ElementExtractor',
+    '{{LANGUAGE_PREFIX}}PostProcessor',
+    '{{LANGUAGE_PREFIX}}ExtractionOrchestrator',
+    '{{LANGUAGE_PREFIX}}Formatter',
+    '{{LANGUAGE_PREFIX}}LanguageDetector',
+    '{{LANGUAGE_PREFIX}}LanguageService',
+]

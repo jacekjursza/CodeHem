@@ -284,6 +284,22 @@ class Registry:
 # Singleton instance
 registry = Registry()
 
+# Add a component registration method for the new architecture
+def register_component(self, language_code: str, component_type: str, component_class: Any) -> None:
+    """
+    Registers a component class for the new component-based architecture.
+    This is a temporary bridge method to handle component registration.
+    
+    Args:
+        language_code: The language code the component is for
+        component_type: The type of component (e.g., 'code_parser', 'syntax_tree_navigator')
+        component_class: The component class to register
+    """
+    logger.debug(f"Registering component: {component_class.__name__} as {component_type} for {language_code}")
+    # In the future, this would store components in a structured way
+    # For now, we'll just log it and not block initialization
+    print(f"Registered component: {component_class.__name__} as {component_type} for {language_code}")
+
 # Decorators remain the same
 def language_detector(cls):
     return registry.register_language_detector(cls)

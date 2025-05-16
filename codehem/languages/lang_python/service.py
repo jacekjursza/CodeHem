@@ -1,28 +1,59 @@
-# MODIFIED FILE: Improved logic in _extract_part for handling [def] and [body] with decorators
+"""
+Refactored Python language service with orchestration support.
+
+This module provides the refactored Python-specific language service implementation
+that supports the new component-based architecture.
+"""
+
 import re
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Optional, TYPE_CHECKING
+
 from codehem.models.enums import CodeElementType
 from codehem.models.xpath import CodeElementXPathNode
-from codehem.core.language_service import LanguageService
+from codehem.core.language_service_extended import ExtendedLanguageService
 from codehem.core.registry import language_service
 from codehem.core.engine.xpath_parser import XPathParser
-# Import CodeElement and CodeElementsResult for type hints if needed, or use string literals
-from codehem.models.code_element import CodeElement, CodeElementsResult
+from codehem.languages.lang_python.components.orchestrator import PythonExtractionOrchestrator
+from codehem.languages.lang_python.components.post_processor import PythonPostProcessor
+
+if TYPE_CHECKING:
+    from codehem.models.code_element import CodeElement, CodeElementsResult
 
 logger = logging.getLogger(__name__)
 
 @language_service
-class PythonLanguageService(LanguageService):
-    """Python language service implementation."""
+class PythonLanguageService(ExtendedLanguageService):
+    """
+    Python language service implementation with component architecture support.
+    
+    This class extends the ExtendedLanguageService to provide Python-specific
+    language service functionality with orchestration support.
+    """
     LANGUAGE_CODE = 'python'
+
+    def __init__(self, formatter_class=None, **kwargs):
+        """Initialize the service and create the orchestrator."""
+        super().__init__(formatter_class, **kwargs)
+        
+        # Create the post-processor instance
+        post_processor = PythonPostProcessor()
+        
+        # Create the orchestrator
+        self._orchestrator = PythonExtractionOrchestrator(post_processor)
+
+    def get_orchestrator(self):
+        """Get the Python extraction orchestrator."""
+        return self._orchestrator
 
     @property
     def file_extensions(self) -> List[str]:
+        """Get file extensions supported by this language."""
         return ['.py']
 
     @property
     def supported_element_types(self) -> List[str]:
+        """Get element type string values supported by this language."""
         # Return list of string values from the enum
         return [
             CodeElementType.CLASS.value,
@@ -36,7 +67,15 @@ class PythonLanguageService(LanguageService):
         ]
 
     def detect_element_type(self, code: str) -> str:
-        """Detects the type of Python code element (simplified detection)."""
+        """
+        Detect the type of element in the code.
+        
+        Args:
+            code: The code to analyze
+            
+        Returns:
+            Element type string (value from CodeElementType)
+        """
         code_stripped = code.strip()
         # Prioritize setter detection
         if re.search(r'@([a-zA-Z_][a-zA-Z0-9_]*)\.setter', code_stripped):
@@ -177,7 +216,6 @@ class PythonLanguageService(LanguageService):
 
         return target_element
 
-    # *** CHANGE START: Refactored _extract_part logic ***
     def _extract_part(self, code: str, element: 'CodeElement', part_name: Optional[str]) -> Optional[str]:
         """
         Extracts a specific part of the element (def, body) or the whole element,
@@ -302,21 +340,28 @@ class PythonLanguageService(LanguageService):
              # return '\n'.join(result_lines)
              return '\n'.join(lines_to_extract) # Return original lines as found
 
-    # *** CHANGE END ***
-
     def get_text_by_xpath_internal(self, code: str, xpath_nodes: List['CodeElementXPathNode']) -> Optional[str]:
-        """Internal implementation for getting text based on parsed XPath nodes for Python."""
+        """
+        Internal method to retrieve text content based on parsed XPath nodes for Python.
+        
+        Args:
+            code: The source code
+            xpath_nodes: The parsed XPath nodes
+            
+        Returns:
+            The extracted text or None if extraction fails
+        """
         logger.debug(f'get_text_by_xpath_internal: Starting for XPath: {XPathParser.to_string(xpath_nodes)}')
         if not xpath_nodes:
             return None
 
         # Perform extraction to get the element tree
-        # Use the property getter for the service instance
+        # Use the orchestrator for extraction
         try:
-             elements_result: 'CodeElementsResult' = self.extract(code)
+            elements_result = self._orchestrator.extract_all(code)
         except Exception as e:
-             logger.error(f"Error during extraction within get_text_by_xpath_internal: {e}", exc_info=True)
-             return None # Cannot proceed if extraction fails
+            logger.error(f"Error during orchestrator extraction within get_text_by_xpath_internal: {e}", exc_info=True)
+            return None # Cannot proceed if extraction fails
 
         logger.debug(f'get_text_by_xpath_internal: Extraction completed, {len(elements_result.elements)} top-level elements.')
 

@@ -1,0 +1,46 @@
+"""
+{{LANGUAGE_NAME}} parser implementation.
+
+This module provides implementation of the code parser interface for {{LANGUAGE_NAME}}.
+It uses tree-sitter to parse {{LANGUAGE_NAME}} code into syntax trees.
+"""
+
+import logging
+from typing import Any, Tuple
+
+from tree_sitter import Parser, Language
+
+from codehem.core.components.interfaces import ICodeParser
+from codehem.core.components import BaseCodeParser
+from codehem.core.engine.languages import get_parser, {{LANGUAGE_CONST}}
+
+logger = logging.getLogger(__name__)
+
+class {{LANGUAGE_PREFIX}}CodeParser(BaseCodeParser):
+    """
+    {{LANGUAGE_NAME}} implementation of the code parser.
+    
+    Uses tree-sitter to parse {{LANGUAGE_NAME}} code into syntax trees.
+    """
+    
+    def __init__(self):
+        """Initialize the {{LANGUAGE_NAME}} code parser."""
+        super().__init__('{{LANGUAGE_CODE}}')
+        self._parser = get_parser('{{LANGUAGE_CODE}}')
+        self._language = {{LANGUAGE_CONST}}
+    
+    def parse(self, code: str) -> Tuple[Any, bytes]:
+        """
+        Parse {{LANGUAGE_NAME}} code into a syntax tree.
+        
+        Args:
+            code: {{LANGUAGE_NAME}} source code as string
+            
+        Returns:
+            Tuple of (syntax_tree, code_bytes) where syntax_tree is the parsed tree
+            and code_bytes is the source code as bytes
+        """
+        logger.debug('Parsing {{LANGUAGE_NAME}} code with tree-sitter')
+        code_bytes = code.encode('utf8')
+        tree = self._parser.parse(code_bytes)
+        return (tree.root_node, code_bytes)

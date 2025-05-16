@@ -6,12 +6,45 @@ import re
 import logging
 from codehem.core.registry import registry
 from codehem.core.language_service import LanguageService
+# Import extended service
+from codehem.core.language_service_extended import ExtendedLanguageService
 
 logger = logging.getLogger(__name__)
 
 def get_language_service(language_code: str) -> Optional[LanguageService]:
-    """Get language service for the specified language code."""
-    return registry.get_language_service(language_code.lower())
+    """
+    Get language service for the specified language code.
+    
+    Returns the ExtendedLanguageService if available, otherwise falls back to
+    the base LanguageService.
+    """
+    # Get the base language service
+    base_service = registry.get_language_service(language_code.lower())
+    
+    if not base_service:
+        return None
+    
+    # Check if we can create an extended service instead
+    if isinstance(base_service, ExtendedLanguageService):
+        # Already extended
+        return base_service
+    elif language_code.lower() == 'python':
+        # For Python, we can use the extended service
+        try:
+            # Create extended service from base service attributes
+            extended_service = ExtendedLanguageService(
+                language_code=base_service.language_code, 
+                file_extensions=base_service.file_extensions
+            )
+            logger.debug(f"Created ExtendedLanguageService for {language_code}")
+            return extended_service
+        except Exception as e:
+            logger.error(f"Failed to create ExtendedLanguageService for {language_code}: {e}", exc_info=True)
+            # Fall back to base service
+            return base_service
+    
+    # For other languages, use the base service for now
+    return base_service
 
 def get_language_service_for_file(file_path: str) -> Optional[LanguageService]:
     """Get language service for the specified file based on its extension."""
@@ -22,7 +55,7 @@ def get_language_service_for_file(file_path: str) -> Optional[LanguageService]:
     
     # Try to get language service based on file extension
     for language_code in registry.get_supported_languages():
-        service = registry.get_language_service(language_code)
+        service = get_language_service(language_code)
         if service and ext.lower() in service.file_extensions:
             return service
     
