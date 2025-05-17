@@ -349,16 +349,24 @@ def validate_dict_schema(value: Dict[Any, Any], schema: Dict[str, Dict[str, Any]
     if not isinstance(value, dict):
         raise InvalidTypeError(param_name, value, dict)
     
+    allow_unknown_fields = schema.get('__allow_unknown_fields', True)
+    if isinstance(value, dict) and '__allow_unknown_fields' in value:
+        allow_unknown_fields = bool(value.get('__allow_unknown_fields'))
+
     # Check for required fields
     for field_name, field_schema in schema.items():
-        if field_schema.get('required', False) and field_name not in value:
+        is_optional = field_schema.get('optional', False)
+        is_required = field_schema.get('required', False) or (field_schema.get('not_empty', False) and not is_optional)
+        if is_required and field_name not in value:
             raise MissingParameterError(f"{param_name}.{field_name}")
     
     # Validate each field in the dictionary
     for field_name, field_value in value.items():
+        if field_name == '__allow_unknown_fields':
+            continue
+
         if field_name not in schema:
-            # If allow_unknown_fields is False, raise an error for unknown fields
-            if schema.get('__allow_unknown_fields', True) is False:
+            if not allow_unknown_fields:
                 raise InvalidParameterError(
                     param_name, field_name, f"known field in schema: {', '.join(schema.keys())}"
                 )
@@ -371,8 +379,10 @@ def validate_dict_schema(value: Dict[Any, Any], schema: Dict[str, Dict[str, Any]
         if 'type' in field_schema:
             validate_type(field_value, field_schema['type'], field_param_name)
         
+        is_optional = field_schema.get('optional', False)
+        is_required = field_schema.get('required', False) or (field_schema.get('not_empty', False) and not is_optional)
         # Skip further validation if None and not required
-        if field_value is None and not field_schema.get('required', False):
+        if field_value is None and not is_required:
             continue
         
         # Not empty check
