@@ -3,16 +3,20 @@ from typing import List, Dict, Optional
 from codehem.models.code_element import CodeElement, CodeRange
 from codehem.models.enums import CodeElementType
 from pydantic import ValidationError
-from codehem.languages.post_processor_base import BaseExtractionPostProcessor
+from codehem.core.post_processors.base import LanguagePostProcessor
 
 logger = logging.getLogger(__name__)
 
-class TypeScriptExtractionPostProcessor(BaseExtractionPostProcessor):
+class TypeScriptExtractionPostProcessor(LanguagePostProcessor):
     """
     TypeScript/JavaScript specific implementation of extraction post-processing.
     Transforms raw extraction dicts into structured CodeElement objects.
     V3: Adds helper for decorator processing, passes decorator lookup.
     """
+
+    def __init__(self) -> None:
+        """Initialize the TypeScript post processor."""
+        super().__init__("typescript")
 
     # --- process_imports (unchanged from previous thought process, assuming it's mostly correct) ---
     def process_imports(self, raw_imports: List[Dict]) -> List[CodeElement]:
