@@ -11,7 +11,6 @@ import time
 import re
 from typing import Any, Callable, List, Optional, Tuple, Type, TypeVar, Union
 
-from codehem.core.error_context import error_context
 
 # Type variables
 T = TypeVar('T')
@@ -132,25 +131,21 @@ def retry(max_attempts: int = DEFAULT_MAX_RETRIES,
             
             while attempt <= max_attempts:
                 try:
-                    with error_context("retry", 
-                                      operation=func.__name__, 
-                                      attempt=attempt, 
-                                      max_attempts=max_attempts):
-                        return func(*args, **kwargs)
+                    return func(*args, **kwargs)
                 except exceptions as e:
                     last_exception = e
-                    
+
                     if logger:
                         logger.warning(
                             f"Attempt {attempt}/{max_attempts} failed for {func.__name__}: {str(e)}"
                         )
-                    
+
                     attempt += 1
-                    
-                    # If this was the last attempt, don't log about retrying
-                    if attempt <= max_attempts:
-                        if logger:
-                            logger.info(f"Retrying {func.__name__} (attempt {attempt}/{max_attempts})...")
+
+                    if attempt <= max_attempts and logger:
+                        logger.info(
+                            f"Retrying {func.__name__} (attempt {attempt}/{max_attempts})..."
+                        )
             
             # If we get here, all attempts failed
             if logger:
@@ -209,11 +204,7 @@ def retry_with_backoff(
             
             while attempt <= max_attempts:
                 try:
-                    with error_context("retry", 
-                                      operation=func.__name__, 
-                                      attempt=attempt, 
-                                      max_attempts=max_attempts):
-                        return func(*args, **kwargs)
+                    return func(*args, **kwargs)
                 except exceptions as e:
                     last_exception = e
                     
@@ -377,11 +368,7 @@ def can_retry(
             
             while attempt <= max_attempts:
                 try:
-                    with error_context("retry", 
-                                      operation=func.__name__, 
-                                      attempt=attempt, 
-                                      max_attempts=max_attempts):
-                        result = func(*args, **kwargs)
+                    result = func(*args, **kwargs)
                     
                     # Check if we should retry based on the result
                     if retry_on_result and retry_on_result(result):

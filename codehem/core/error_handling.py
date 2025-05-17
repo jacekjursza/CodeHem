@@ -79,8 +79,13 @@ class InvalidParameterError(ValidationError):
 
 class InvalidTypeError(ValidationError):
     """Exception raised when a parameter has an incorrect type."""
-    def __init__(self, parameter: str, value: Any, expected_type: Union[Type, str], **kwargs):
-        expected_type_str = expected_type if isinstance(expected_type, str) else expected_type.__name__
+    def __init__(self, parameter: str, value: Any, expected_type: Union[Type, Tuple[Type, ...], str], **kwargs):
+        if isinstance(expected_type, str):
+            expected_type_str = expected_type
+        elif isinstance(expected_type, tuple):
+            expected_type_str = ', '.join(t.__name__ for t in expected_type)
+        else:
+            expected_type_str = expected_type.__name__
         message = f"Invalid type for parameter '{parameter}': {type(value).__name__}. Expected: {expected_type_str}"
         super().__init__(message, parameter=parameter, value=value, expected=expected_type_str, **kwargs)
 
