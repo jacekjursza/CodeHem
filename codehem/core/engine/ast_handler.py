@@ -1,14 +1,17 @@
 """
 AST Handler for CodeHem providing a unified interface for tree-sitter operations.
 """
+import logging
 import traceback
 from functools import lru_cache
 from typing import Tuple, List, Any, Optional, Dict, Callable
 
 from codehem.core.utils.hashing import sha1_code
 
-import rich
+
 from tree_sitter import Node, Query
+
+logger = logging.getLogger(__name__)
 
 class ASTHandler:
     """
@@ -92,12 +95,14 @@ class ASTHandler:
             raw_captures = query.captures(root, lambda n: self.get_node_text(n, code_bytes))
             return self.process_captures(raw_captures)
         except Exception as e:
-            print("--------------- ASTHandler.execute_query ---------------")
-            print(f"Error executing query: {e}")
-            print(f"query_string: {query_string}")
-            rich.print(root)
-            print(traceback.format_exc())
-            print(f"--------------- ASTHandler.execute_query [{self.language.version}] ---------------")
+            logger.error(
+                "Error executing query: %s\nquery_string: %s\n%s",
+                e,
+                query_string,
+                traceback.format_exc(),
+            )
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(root)
             return []
 
     @staticmethod
@@ -123,9 +128,9 @@ class ASTHandler:
             elif isinstance(captures, list):
                 result = captures
             else:
-                print(f'Unexpected captures type: {type(captures)}')
+                logger.error("Unexpected captures type: %s", type(captures))
         except Exception as e:
-            print(f'Error processing captures: {e}')
+            logger.error("Error processing captures: %s", e)
         return result
 
     def find_parent_of_type(self, node: Node, parent_type: str) -> Optional[Node]:
@@ -146,7 +151,10 @@ class ASTHandler:
         elif isinstance(parent_type, list):
             target_types = set(parent_type)
         else:
-            print(f"Invalid parent_types format in find_parent_of_type: {type(parent_type)}. Expected str or List[str].")
+            logger.error(
+                "Invalid parent_types format in find_parent_of_type: %s. Expected str or List[str].",
+                type(parent_type),
+            )
             return None
 
         current = node.parent

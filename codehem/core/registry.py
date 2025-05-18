@@ -7,7 +7,6 @@ import sys # Added sys import for checking module existence
 import traceback
 from typing import Any, List, Optional, Type, Dict, TYPE_CHECKING # Added Dict, TYPE_CHECKING
 
-import rich
 # *** CHANGE START ***
 # Use TYPE_CHECKING block for LanguageService import or string literals
 # from codehem.core.language_service import LanguageService # Removed direct import
@@ -61,7 +60,11 @@ class Registry:
             if language_code in self.language_detectors:
                 logger.warning(f"Language detector for '{language_code}' is already registered ({self.language_detectors[language_code].__class__.__name__}). Overwriting with {cls.__name__}.")
             self.language_detectors[language_code] = instance
-            rich.print(f'Registered language detector: {cls.__name__} for {language_code}')
+            logger.info(
+                "Registered language detector: %s for %s",
+                cls.__name__,
+                language_code,
+            )
         except Exception as e:
              logger.error(f"Failed to register language detector {cls.__name__}: {e}", exc_info=True)
         return cls
@@ -75,7 +78,11 @@ class Registry:
             if language_code in self.language_services:
                 logger.warning(f"Language service for '{language_code}' is already registered ({self.language_services[language_code].__name__}). Overwriting with {cls.__name__}.")
             self.language_services[language_code] = cls
-            rich.print(f'Registered language service: {cls.__name__} for {language_code}')
+            logger.info(
+                "Registered language service: %s for %s",
+                cls.__name__,
+                language_code,
+            )
         except Exception as e:
             logger.error(f"Failed to register language service {cls.__name__}: {e}", exc_info=True)
         return cls
@@ -91,7 +98,11 @@ class Registry:
             if extractor_key in self.all_extractors:
                 logger.warning(f"Extractor for '{extractor_key}' is already registered ({self.all_extractors[extractor_key].__name__}). Overwriting with {cls.__name__}.")
             self.all_extractors[extractor_key] = cls
-            rich.print(f'Registered extractor: {cls.__name__} for {extractor_key}')
+            logger.info(
+                "Registered extractor: %s for %s",
+                cls.__name__,
+                extractor_key,
+            )
         except Exception as e:
             logger.error(f"Failed to register extractor {cls.__name__}: {e}", exc_info=True)
         return cls
@@ -107,7 +118,12 @@ class Registry:
             if key in self.all_manipulators:
                 logger.warning(f"Manipulator for '{key}' is already registered ({self.all_manipulators[key].__name__}). Overwriting with {cls.__name__}.")
             self.all_manipulators[key] = cls
-            rich.print(f'Registered manipulator: {cls.__name__} for {language_code}/{element_type}')
+            logger.info(
+                "Registered manipulator: %s for %s/%s",
+                cls.__name__,
+                language_code,
+                element_type,
+            )
         except Exception as e:
              logger.error(f"Failed to register manipulator {cls.__name__}: {e}", exc_info=True)
         return cls
@@ -126,7 +142,12 @@ class Registry:
             if element_type in self.all_descriptors[language_code]:
                 logger.warning(f"Descriptor for '{language_code}/{element_type}' is already registered ({self.all_descriptors[language_code][element_type].__class__.__name__}). Overwriting with {cls.__name__}.")
             self.all_descriptors[language_code][element_type] = instance
-            rich.print(f'Registered descriptor: {cls.__name__} for {language_code}/{element_type}')
+            logger.info(
+                "Registered descriptor: %s for %s/%s",
+                cls.__name__,
+                language_code,
+                element_type,
+            )
         except Exception as e:
             logger.error(f"Failed to register element type descriptor {cls.__name__}: {e}", exc_info=True)
         return cls
@@ -303,7 +324,14 @@ class Registry:
         logger.info('All Manipulators: %d registered classes', len(self.all_manipulators))
         logger.info('--- End Registry Content ---')
         # Use rich.print for the final summary line if preferred
-        rich.print(f'Components initialized: {len(self.language_detectors)} detectors, {len(self.language_services)} services, {len(self.language_configs)} configs, {len(self.all_extractors)} extractors, {len(self.all_manipulators)} manipulators registered.')
+        logger.info(
+            'Components initialized: %d detectors, %d services, %d configs, %d extractors, %d manipulators',
+            len(self.language_detectors),
+            len(self.language_services),
+            len(self.language_configs),
+            len(self.all_extractors),
+            len(self.all_manipulators),
+        )
         logger.info('Component initialization finished.')
 
 # Singleton instance
@@ -320,10 +348,14 @@ def register_component(self, language_code: str, component_type: str, component_
         component_type: The type of component (e.g., 'code_parser', 'syntax_tree_navigator')
         component_class: The component class to register
     """
-    logger.debug(f"Registering component: {component_class.__name__} as {component_type} for {language_code}")
+    logger.debug(
+        "Registering component: %s as %s for %s",
+        component_class.__name__,
+        component_type,
+        language_code,
+    )
     # In the future, this would store components in a structured way
     # For now, we'll just log it and not block initialization
-    print(f"Registered component: {component_class.__name__} as {component_type} for {language_code}")
 
 # Decorators remain the same
 def language_detector(cls):
