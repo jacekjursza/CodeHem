@@ -355,10 +355,12 @@ class PythonLanguageService(ExtendedLanguageService):
         if not xpath_nodes:
             return None
 
-        # Perform extraction to get the element tree
-        # Use the orchestrator for extraction
+        # Perform extraction to get the element tree using the higher level
+        # ExtractionService to ensure consistent results with other API calls
+        from codehem.core.extraction_service import ExtractionService
         try:
-            elements_result = self._orchestrator.extract_all(code)
+            extraction_service = ExtractionService(self.LANGUAGE_CODE)
+            elements_result = extraction_service.extract_all(code)
         except Exception as e:
             logger.error(f"Error during orchestrator extraction within get_text_by_xpath_internal: {e}", exc_info=True)
             return None # Cannot proceed if extraction fails
