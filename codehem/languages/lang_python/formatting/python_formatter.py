@@ -4,11 +4,11 @@ Python-specific formatter implementation.
 import re
 from typing import Callable, Optional
 
-from codehem.core.formatting.formatter import BaseFormatter
+from codehem.core.formatting.indent_formatter import IndentFormatter
 from codehem.models.enums import CodeElementType
 
 
-class PythonFormatter(BaseFormatter):
+class PythonFormatter(IndentFormatter):
     """
     Python-specific implementation of the code formatter.
     """
@@ -236,21 +236,3 @@ class PythonFormatter(BaseFormatter):
         """
         lines = self.dedent(code).strip().splitlines()
         return '\n'.join((line.strip() for line in lines if line.strip()))
-
-    def _fix_spacing(self, code: str) -> str:
-        """
-        Fix spacing issues in Python code.
-        
-        Args:
-            code: Python code to fix
-            
-        Returns:
-            Code with fixed spacing
-        """
-        code = re.sub('([^\\s=!<>])=([^\\s=])', '\\1 = \\2', code)
-        code = re.sub('([^\\s!<>])==[^\\s]', '\\1 == \\2', code)
-        code = re.sub('([^\\s])([+\\-*/%])', '\\1 \\2', code)
-        code = re.sub(',([^\\s])', ', \\1', code)
-        code = re.sub('([^\\s]):([^\\s])', '\\1: \\2', code)
-        code = re.sub('\\n\\s*\\n\\s*\\n', '\\n\\n', code)
-        return code

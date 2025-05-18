@@ -60,6 +60,16 @@ class BaseFormatter:
         """
         return code
 
+    def _fix_spacing(self, code: str) -> str:
+        """Basic spacing normalization used by indent-based formatters."""
+        code = re.sub(r'([^\s=!<>])=([^\s=])', r'\1 = \2', code)
+        code = re.sub(r'([^\s!<>])==([^\s])', r'\1 == \2', code)
+        code = re.sub(r'([^\s])([+\-*/%])', r'\1 \2', code)
+        code = re.sub(r',([^\s])', r', \1', code)
+        code = re.sub(r'([^\s]):([^\s])', r'\1: \2', code)
+        code = re.sub(r'\n\s*\n\s*\n', r'\n\n', code)
+        return code
+
     def apply_indentation(self, code: str, base_indent: str) -> str:
         """
         Apply indentation to the code.
