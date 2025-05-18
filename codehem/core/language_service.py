@@ -1,6 +1,7 @@
 # Content of codehem\core\language_service.py
 import logging
 from abc import ABC, abstractmethod
+from functools import cached_property
 from typing import Dict, List, Optional, Tuple, Type, Union, TYPE_CHECKING
 from codehem.core.extractors.base import BaseExtractor
 from codehem.core.formatting.formatter import BaseFormatter
@@ -56,109 +57,123 @@ class LanguageService(ABC):
         current_language_code = self.language_code
         logger.info(f"Initializing LanguageService for '{current_language_code}'...")
 
-        self.element_type_descriptors: Dict[str, ElementTypeLanguageDescriptor] = {}
-        self.extractors: Dict[str, BaseExtractor] = {}
-        self.manipulators: Dict[str, ManipulatorBase] = {}
         self.formatter = formatter_class() if formatter_class else BaseFormatter()
         logger.debug(f'Using formatter: {self.formatter.__class__.__name__}')
         self._extraction_service_instance: Optional['ExtractionService'] = None
+        logger.debug('LanguageService initialization deferred. Components will be created lazily.')
 
-        logger.debug('Retrieving and initializing language-specific element type descriptors...')
+    # Lazy-initialized component containers
+
+    @cached_property
+    def element_type_descriptors(self) -> Dict[str, ElementTypeLanguageDescriptor]:
+        """Initialize and cache descriptor instances for this language."""
+        current_language_code = self.language_code
+        descriptors: Dict[str, ElementTypeLanguageDescriptor] = {}
         supported_types = self._get_supported_element_types_enum()
         all_descriptor_instances_for_lang = registry.all_descriptors.get(current_language_code, {})
 
         for element_type in supported_types:
-             element_type_key = element_type.value.lower()
-             descriptor_instance = all_descriptor_instances_for_lang.get(element_type_key)
-
-             if descriptor_instance:
-                 if isinstance(descriptor_instance, ElementTypeLanguageDescriptor):
-                      if descriptor_instance.language_code is None:
-                           descriptor_instance.language_code = current_language_code
-                      if descriptor_instance.element_type is None:
-                           descriptor_instance.element_type = element_type
-
-                      patterns_were_initialized = False
-                      if not descriptor_instance._patterns_initialized:
-                           logger.debug(f"  Attempting pattern initialization for {descriptor_instance.__class__.__name__} ({element_type_key})...")
-                           if descriptor_instance.initialize_patterns():
-                                logger.debug(f"  Pattern initialization method returned True for {descriptor_instance.__class__.__name__}.")
-                                patterns_were_initialized = True
-                           else:
-                                logger.warning(f"  Pattern initialization method returned False for descriptor {descriptor_instance.__class__.__name__} ({element_type_key}). Extractor might not work.")
-                      else:
-                            logger.debug(f"  Patterns already initialized flag was True for {descriptor_instance.__class__.__name__} ({element_type_key}).")
-                            patterns_were_initialized = True # Assume if flag is set, it was successful before
-
-                      # --- Add Verification Logging ---
-                      if patterns_were_initialized:
-                          query_state = repr(descriptor_instance.tree_sitter_query) if hasattr(descriptor_instance, 'tree_sitter_query') else 'Attribute Missing?'
-                          logger.info(f"VERIFY: Descriptor {descriptor_instance.__class__.__name__} ({element_type_key}) _patterns_initialized={descriptor_instance._patterns_initialized}. Query is: {query_state}")
-                      else:
-                          query_state = repr(descriptor_instance.tree_sitter_query) if hasattr(descriptor_instance, 'tree_sitter_query') else 'Attribute Missing?'
-                          logger.warning(f"VERIFY: Descriptor {descriptor_instance.__class__.__name__} ({element_type_key}) _patterns_initialized={descriptor_instance._patterns_initialized}. Query is: {query_state}")
-                      # --- End Verification Logging ---
-
-                      # Store the descriptor instance regardless of pattern init success for now
-                      self.element_type_descriptors[element_type_key] = descriptor_instance
-                 else:
-                      logger.error(f"  Registered item for {element_type_key} is not a valid ElementTypeLanguageDescriptor instance: {type(descriptor_instance)}")
-             else:
-                 logger.debug(f"  No descriptor instance registered for element type: {element_type_key}")
-
-        logger.debug('Creating language-specific extractor instances...')
-        all_extractor_classes = registry.all_extractors
-        for element_type in supported_types:
             element_type_key = element_type.value.lower()
-            descriptor_instance = self.element_type_descriptors.get(element_type_key)
+            descriptor_instance = all_descriptor_instances_for_lang.get(element_type_key)
 
             if not descriptor_instance:
-                logger.debug(f'  Skipping extractor for {element_type_key} - no descriptor instance available.')
+                logger.debug(f"  No descriptor instance registered for element type: {element_type_key}")
                 continue
-            # Check if patterns were actually initialized successfully
+            if not isinstance(descriptor_instance, ElementTypeLanguageDescriptor):
+                logger.error(
+                    f"  Registered item for {element_type_key} is not a valid ElementTypeLanguageDescriptor instance: {type(descriptor_instance)}"
+                )
+                continue
+
+            if descriptor_instance.language_code is None:
+                descriptor_instance.language_code = current_language_code
+            if descriptor_instance.element_type is None:
+                descriptor_instance.element_type = element_type
+
             if not descriptor_instance._patterns_initialized:
-                 logger.warning(f"  Skipping extractor for {element_type_key} - descriptor patterns failed to initialize or flag not set.")
-                 continue
+                logger.debug(
+                    f"  Attempting pattern initialization for {descriptor_instance.__class__.__name__} ({element_type_key})..."
+                )
+                if descriptor_instance.initialize_patterns():
+                    logger.debug(
+                        f"  Pattern initialization method returned True for {descriptor_instance.__class__.__name__}."
+                    )
+                else:
+                    logger.warning(
+                        f"  Pattern initialization method returned False for descriptor {descriptor_instance.__class__.__name__} ({element_type_key}). Extractor might not work."
+                    )
 
-            extractor_key = f'{current_language_code}/{element_type_key}'
+            descriptors[element_type_key] = descriptor_instance
+        return descriptors
+
+    @cached_property
+    def extractors(self) -> Dict[str, BaseExtractor]:
+        """Instantiate extractor objects lazily."""
+        current_language_code = self.language_code
+        extractors: Dict[str, BaseExtractor] = {}
+        all_extractor_classes = registry.all_extractors
+
+        for element_type, descriptor_instance in self.element_type_descriptors.items():
+            if not descriptor_instance._patterns_initialized:
+                logger.warning(
+                    f"  Skipping extractor for {element_type} - descriptor patterns failed to initialize or flag not set."
+                )
+                continue
+
+            extractor_key = f"{current_language_code}/{element_type}"
             extractor_cls = all_extractor_classes.get(extractor_key)
-
             if not extractor_cls:
-                fallback_key = f'__all__/{element_type_key}'
+                fallback_key = f"__all__/{element_type}"
                 extractor_cls = all_extractor_classes.get(fallback_key)
                 if extractor_cls:
-                    logger.debug(f'  Using fallback extractor class {extractor_cls.__name__} for {element_type_key}')
+                    logger.debug(f"  Using fallback extractor class {extractor_cls.__name__} for {element_type}")
 
             if extractor_cls:
                 try:
-                    extractor_instance = extractor_cls(language_code=current_language_code, language_type_descriptor=descriptor_instance)
-                    self.extractors[extractor_key] = extractor_instance
-                    logger.debug(f"  Created extractor instance: {extractor_instance.__class__.__name__} for key '{extractor_key}'")
+                    extractor_instance = extractor_cls(
+                        language_code=current_language_code,
+                        language_type_descriptor=descriptor_instance,
+                    )
+                    extractors[extractor_key] = extractor_instance
                 except Exception as e:
-                    logger.error(f'  Failed to instantiate extractor {extractor_cls.__name__} for {element_type_key}: {e}', exc_info=True)
+                    logger.error(
+                        f"  Failed to instantiate extractor {extractor_cls.__name__} for {element_type}: {e}",
+                        exc_info=True,
+                    )
             else:
-                 if not all_extractor_classes.get(f'__all__/{element_type_key}'):
-                      logger.warning(f'  No specific or fallback extractor class found in registry for {element_type_key}')
+                if not all_extractor_classes.get(f"__all__/{element_type}"):
+                    logger.warning(
+                        f"  No specific or fallback extractor class found in registry for {element_type}"
+                    )
+        return extractors
 
-        logger.debug('Creating language-specific manipulator instances...')
+    @cached_property
+    def manipulators(self) -> Dict[str, ManipulatorBase]:
+        """Instantiate manipulator objects lazily."""
+        current_language_code = self.language_code
+        manipulators: Dict[str, ManipulatorBase] = {}
         all_manipulator_classes = registry.all_manipulators
-        for element_type in supported_types:
+
+        for element_type in self._get_supported_element_types_enum():
             element_type_key = element_type.value.lower()
-            manipulator_map_key = f'{current_language_code}_{element_type_key}'
+            manipulator_map_key = f"{current_language_code}_{element_type_key}"
             manipulator_cls = all_manipulator_classes.get(manipulator_map_key)
             if manipulator_cls:
                 try:
-                    manipulator_instance = manipulator_cls(language_code=current_language_code, element_type=element_type, formatter=self.formatter)
-                    self.manipulators[element_type_key] = manipulator_instance
-                    logger.debug(f'  Created manipulator instance: {manipulator_instance.__class__.__name__} for {element_type_key}')
+                    manipulator_instance = manipulator_cls(
+                        language_code=current_language_code,
+                        element_type=element_type,
+                        formatter=self.formatter,
+                    )
+                    manipulators[element_type_key] = manipulator_instance
                 except Exception as e:
-                    logger.error(f'  Failed to instantiate manipulator {manipulator_cls.__name__} for {element_type_key}: {e}', exc_info=True)
+                    logger.error(
+                        f"  Failed to instantiate manipulator {manipulator_cls.__name__} for {element_type_key}: {e}",
+                        exc_info=True,
+                    )
             else:
-                logger.debug(f'  No manipulator class found in registry for key {manipulator_map_key}')
-
-        logger.info(f"LanguageService for '{current_language_code}' initialization complete. Loaded {len(self.element_type_descriptors)} descriptors ({sum(1 for d in self.element_type_descriptors.values() if d._patterns_initialized)} with initialized patterns), {len(self.extractors)} extractors, {len(self.manipulators)} manipulators.")
-
-    # ... (rest of the LanguageService class remains the same) ...
+                logger.debug(f"  No manipulator class found in registry for key {manipulator_map_key}")
+        return manipulators
 
     @property
     def extraction_service(self) -> 'ExtractionService':
