@@ -136,12 +136,16 @@ class TestExtractionService(unittest.TestCase):
     def test_find_by_xpath(self):
         """Test the find_by_xpath method."""
         # Find class by XPath
-        start_line, end_line = self.service.find_by_xpath(PYTHON_SAMPLE, 'FILE.ExampleClass')
+        result = self.service.find_by_xpath(PYTHON_SAMPLE, 'FILE.ExampleClass')
+        self.assertIsNotNone(result)
+        start_line, end_line = result
         self.assertGreater(start_line, 0, "Start line should be positive")
         self.assertGreaterEqual(end_line, start_line, "End line should be >= start line")
         
         # Find method by XPath
-        start_line, end_line = self.service.find_by_xpath(PYTHON_SAMPLE, 'FILE.ExampleClass.calculate')
+        result = self.service.find_by_xpath(PYTHON_SAMPLE, 'FILE.ExampleClass.calculate')
+        self.assertIsNotNone(result)
+        start_line, end_line = result
         self.assertGreater(start_line, 0, "Start line should be positive")
         self.assertGreaterEqual(end_line, start_line, "End line should be >= start line")
 

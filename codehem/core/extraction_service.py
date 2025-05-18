@@ -368,12 +368,9 @@ class ExtractionService:
 
         return result
 
-    def find_by_xpath(self, code: str, xpath: str) -> Tuple[int, int]:
-        """
-        Find an element's location using an XPath expression by running a full
-        extraction and then filtering the results.
-        """
-        logger.debug(f"Finding range by XPath: '{xpath}' using extract_all and filter.")
+    def find_by_xpath(self, code: str, xpath: str) -> Optional[Tuple[int, int]]:
+        """Return the line range of the element at ``xpath`` or ``None``."""
+        logger.debug("Finding range by XPath: '%s' using extract_all and filter.", xpath)
         try:
             # *** CHANGE START ***
             # Use string hint for the type that was causing the cycle
@@ -381,8 +378,8 @@ class ExtractionService:
             # *** CHANGE END ***
 
             if not elements_result or not elements_result.elements:
-                logger.warning(f"extract_all returned no elements for find_by_xpath('{xpath}').")
-                return (0, 0)
+                logger.warning("extract_all returned no elements for find_by_xpath('%s').", xpath)
+                return None
 
             # *** CHANGE START ***
             # Import locally if needed for filtering logic, or use string hint
@@ -394,18 +391,18 @@ class ExtractionService:
                 start_line = target_element.range.start_line
                 end_line = target_element.range.end_line
                 if isinstance(start_line, int) and isinstance(end_line, int) and start_line > 0 and end_line >= start_line:
-                    logger.debug(f"Found element via XPath '{xpath}' at lines {start_line}-{end_line}.")
+                    logger.debug("Found element via XPath '%s' at lines %d-%d.", xpath, start_line, end_line)
                     return (start_line, end_line)
                 else:
-                    logger.warning(f"Found element via XPath '{xpath}' but range is invalid: {target_element.range}")
-                    return (0, 0)
+                    logger.warning("Found element via XPath '%s' but range is invalid: %s", xpath, target_element.range)
+                    return None
             else:
-                logger.info(f"Element not found or has no range for XPath: '{xpath}'")
-                return (0, 0)
+                logger.info("Element not found or has no range for XPath: '%s'", xpath)
+                return None
 
         except Exception as e:
-             logger.error(f"Error during find_by_xpath('{xpath}'): {e}", exc_info=True)
-             return (0, 0)
+             logger.error("Error during find_by_xpath('%s'): %s", xpath, e, exc_info=True)
+             return None
 
     @classmethod
     def from_file_path(cls, file_path: str) -> 'ExtractionService':

@@ -66,24 +66,34 @@ def standalone_function(param: str) -> str:
 
     def test_find_by_xpath(self):
         """Test finding elements by XPath."""
-        start_line, end_line = self.codehem.find_by_xpath(self.sample_code, 'ExampleClass')
+        result = self.codehem.find_by_xpath(self.sample_code, 'ExampleClass')
+        self.assertIsNotNone(result)
+        start_line, end_line = result
         self.assertTrue(start_line > 0, "Class start line should be > 0")
         self.assertTrue(end_line >= start_line, "Class end line should be >= start line")
 
-        start_line, end_line = self.codehem.find_by_xpath(self.sample_code, 'ExampleClass.calculate')
+        result = self.codehem.find_by_xpath(self.sample_code, 'ExampleClass.calculate')
+        self.assertIsNotNone(result)
+        start_line, end_line = result
         self.assertTrue(start_line > 0, "Method start line should be > 0")
         self.assertTrue(end_line >= start_line, "Method end line should be >= start line")
 
-        start_line, end_line = self.codehem.find_by_xpath(self.sample_code, 'ExampleClass.calculate[method]')
+        result = self.codehem.find_by_xpath(self.sample_code, 'ExampleClass.calculate[method]')
+        self.assertIsNotNone(result)
+        start_line, end_line = result
         self.assertTrue(start_line > 0, "Method[method] start line should be > 0")
         self.assertTrue(end_line >= start_line, "Method[method] end line should be >= start line")
 
         # Test property getter specifically
-        start_line, end_line = self.codehem.find_by_xpath(self.sample_code, 'ExampleClass.value[property_getter]')
+        result = self.codehem.find_by_xpath(self.sample_code, 'ExampleClass.value[property_getter]')
+        self.assertIsNotNone(result)
+        start_line, end_line = result
         self.assertTrue(start_line > 0, "Getter start line should be > 0")
         self.assertTrue(end_line >= start_line, "Getter end line should be >= start line")
 
-        start_line, end_line = self.codehem.find_by_xpath(self.sample_code, 'standalone_function')
+        result = self.codehem.find_by_xpath(self.sample_code, 'standalone_function')
+        self.assertIsNotNone(result)
+        start_line, end_line = result
         self.assertTrue(start_line > 0, "Function start line should be > 0")
         self.assertTrue(end_line >= start_line, "Function end line should be >= start line")
 

@@ -12,8 +12,6 @@ from .languages import (
     get_language_service_for_file,
     get_supported_languages,
 )
-# Import ExtendedLanguageService for feature detection
-from .core.language_service_extended import ExtendedLanguageService
 from .models.code_element import CodeElement, CodeElementsResult
 from .models.enums import CodeElementType
 from .models.xpath import CodeElementXPathNode
@@ -217,7 +215,7 @@ class CodeHem:
             original_code, processed_xpath, new_code
         )
 
-    def find_by_xpath(self, code: str, xpath: str) -> Tuple[int, int]:
+    def find_by_xpath(self, code: str, xpath: str) -> Optional[Tuple[int, int]]:
         """
         Find an element's location using an XPath expression.
         Automatically prepends "FILE." if missing.
@@ -227,7 +225,7 @@ class CodeHem:
             xpath: XPath expression (e.g., 'ClassName.method_name', 'ClassName[interface].method_name[property_getter]')
 
         Returns:
-            Tuple of (start_line, end_line) or (0, 0) if not found
+            Tuple of (start_line, end_line) or None if not found
         """
         if not self.extraction:
              raise RuntimeError("Extraction service not initialized.")
@@ -347,9 +345,10 @@ class CodeHem:
     ) -> Optional[str]:
         """Helper function to get text for top-level elements (classes, functions)."""
         # This uses find_by_xpath, which now includes the FILE prefix logic
-        start_line, end_line = self.find_by_xpath(code, xpath)
-        if start_line == 0 and end_line == 0:
+        line_range = self.find_by_xpath(code, xpath)
+        if not line_range:
             return None
+        start_line, end_line = line_range
 
         lines = code.splitlines()
         # Adjust validation if start_line can be > end_line temporarily? No, find_by_xpath should return valid range.
