@@ -22,8 +22,6 @@ from codehem.core.components.base_implementations import (
     BaseExtractionOrchestrator
 )
 
-from codehem.core.post_processors.base import LanguagePostProcessor
-from codehem.core.post_processors.python import PythonPostProcessor
 
 __all__ = [
     'ICodeParser',
@@ -34,7 +32,5 @@ __all__ = [
     'BaseCodeParser',
     'BaseSyntaxTreeNavigator',
     'BaseElementExtractor',
-    'BaseExtractionOrchestrator',
-    'LanguagePostProcessor',
-    'PythonPostProcessor'
+    'BaseExtractionOrchestrator'
 ]

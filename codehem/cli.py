@@ -5,6 +5,7 @@ import argparse
 import sys
 import os
 import json
+import logging
 
 from codehem import CodeHem
 from rich.console import Console
@@ -17,10 +18,12 @@ def main():
     parser = argparse.ArgumentParser(description='CodeHem command-line interface')
     parser.add_argument('file', help='File to analyze')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
+    parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--extract', action='store_true', help='Extract code elements to JSON')
     parser.add_argument('--output', help='Output file for extracted elements')
     parser.add_argument('--raw-json', action='store_true', help='Output raw JSON without rich formatting')
     args = parser.parse_args()
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.WARNING)
     if not os.path.exists(args.file):
         console.print(f'[bold red]Error:[/bold red] File not found: {args.file}')
         sys.exit(1)

@@ -4,6 +4,8 @@ TypeScript components initialization.
 This module registers all TypeScript-specific components with the registry.
 """
 
+import logging
+
 from codehem.core.registry import registry
 from .parser import TypeScriptCodeParser
 from .navigator import TypeScriptSyntaxTreeNavigator
@@ -25,4 +27,5 @@ registry.register_component('typescript', 'extraction_orchestrator', TypeScriptE
 """
 
 # For now, just log that these components are available
-print(f"TypeScript components are available but not registered with registry yet.")
+logger = logging.getLogger(__name__)
+logger.info("TypeScript components are available but not registered with registry yet.")

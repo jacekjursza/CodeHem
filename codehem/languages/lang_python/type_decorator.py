@@ -1,13 +1,11 @@
 # Content of codehem\languages\lang_python\type_decorator.py
 import logging
-from typing import Optional # Added Optional
-# Removed: import sys - Not used
-# Removed: from codehem.models.element_type_template import create_element_type_descriptor # No longer needed here
-print(f'--- Executing {__name__} ---')
+from typing import Optional
+
+logger = logging.getLogger(__name__)
 from codehem.core.registry import element_type_descriptor
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.models.enums import CodeElementType
-logger = logging.getLogger(__name__)
 
 @element_type_descriptor
 class PythonDecoratorHandlerElementType(ElementTypeLanguageDescriptor):

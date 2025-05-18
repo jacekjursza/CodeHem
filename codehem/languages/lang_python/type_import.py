@@ -1,13 +1,11 @@
 # Content of codehem\languages\lang_python\type_import.py
 import logging
-from typing import Optional # Added Optional
-# Removed: import sys - Not used
-print(f'--- Executing {__name__} ---')
+from typing import Optional
+
+logger = logging.getLogger(__name__)
 from codehem.core.registry import element_type_descriptor
 from codehem.models.element_type_descriptor import ElementTypeLanguageDescriptor
 from codehem.models.enums import CodeElementType
-# Removed: from codehem.models.element_type_template import create_element_type_descriptor # No longer needed here
-logger = logging.getLogger(__name__)
 
 @element_type_descriptor
 class PythonImportHandlerElementType(ElementTypeLanguageDescriptor):

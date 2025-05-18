@@ -266,17 +266,19 @@ class Registry:
         logger.info('Starting CodeHem component initialization...')
         self.discover_modules() # Discover modules, trigger decorators & config registration
         self._initialized = True
-        # Print summary after initialization
-        print('--- Registry Content After Discovery ---')
-        print(f'Language Detectors: {list(self.language_detectors.keys())}')
-        print(f'Language Services: {list(self.language_services.keys())}')
-        print(f'Language Configs: {list(self.language_configs.keys())}')
+        # Log summary after initialization
+        logger.info('--- Registry Content After Discovery ---')
+        logger.info('Language Detectors: %s', list(self.language_detectors.keys()))
+        logger.info('Language Services: %s', list(self.language_services.keys()))
+        logger.info('Language Configs: %s', list(self.language_configs.keys()))
         # Limit descriptor output for brevity
-        descriptor_summary = {lang: f"{len(descs)} descriptors" for lang, descs in self.all_descriptors.items()}
-        print(f'All Descriptors: {descriptor_summary}')
-        print(f'All Extractors: {len(self.all_extractors)} registered classes')
-        print(f'All Manipulators: {len(self.all_manipulators)} registered classes')
-        print('--- End Registry Content ---')
+        descriptor_summary = {
+            lang: f"{len(descs)} descriptors" for lang, descs in self.all_descriptors.items()
+        }
+        logger.info('All Descriptors: %s', descriptor_summary)
+        logger.info('All Extractors: %d registered classes', len(self.all_extractors))
+        logger.info('All Manipulators: %d registered classes', len(self.all_manipulators))
+        logger.info('--- End Registry Content ---')
         # Use rich.print for the final summary line if preferred
         rich.print(f'Components initialized: {len(self.language_detectors)} detectors, {len(self.language_services)} services, {len(self.language_configs)} configs, {len(self.all_extractors)} extractors, {len(self.all_manipulators)} manipulators registered.')
         logger.info('Component initialization finished.')
