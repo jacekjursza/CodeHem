@@ -232,7 +232,7 @@ class CodeHem:
         processed_xpath = self._ensure_file_prefix(xpath)
         return self.extraction.find_by_xpath(code, processed_xpath)
 
-    def get_text_by_xpath(self, code: str, xpath: str) -> Optional[str]:
+    def get_text_by_xpath(self, code: str, xpath: str, return_hash: bool = False) -> Optional[str]:
         """
         Get the text content of an element using an XPath expression.
         Automatically prepends "FILE." if missing.
@@ -256,7 +256,13 @@ class CodeHem:
                  logger.warning(f"Could not parse XPath: '{processed_xpath}'")
                  return None
             # Call internal method with parsed nodes
-            return self.language_service.get_text_by_xpath_internal(code, xpath_nodes)
+            text = self.language_service.get_text_by_xpath_internal(code, xpath_nodes)
+            if text is None:
+                return None
+            if return_hash:
+                from codehem.core.utils.hashing import sha256_code
+                return text, sha256_code(text)
+            return text
         except Exception as e:
              logger.error(f"Error getting text by XPath '{xpath}' (processed: '{processed_xpath}'): {e}", exc_info=True)
              return None
@@ -366,3 +372,72 @@ class CodeHem:
             return "\n".join(code_lines[start_idx:end_idx])
 
         return extract_text(start_line, end_line, lines)
+
+    def get_element_hash(self, code: str, xpath: str) -> Optional[str]:
+        """Return SHA256 hash of the code fragment specified by XPath."""
+        text = self.get_text_by_xpath(code, xpath)
+        if text is None:
+            return None
+        from codehem.core.utils.hashing import sha256_code
+        return sha256_code(text)
+
+    def apply_patch(
+        self,
+        original_code: str,
+        xpath: str,
+        new_code: str,
+        mode: str = "replace",
+        original_hash: Optional[str] = None,
+        dry_run: bool = False,
+    ) -> object:
+        """Apply a patch to the code fragment selected by XPath."""
+        location = self.find_by_xpath(original_code, xpath)
+        if not location:
+            from codehem.core.error_handling import ElementNotFoundError
+            raise ElementNotFoundError("xpath", xpath)
+        start_line, end_line = location
+        lines = original_code.splitlines()
+        old_fragment = "\n".join(lines[start_line - 1 : end_line])
+        from codehem.core.utils.hashing import sha256_code
+        current_hash = sha256_code(old_fragment)
+        if original_hash is not None and original_hash != current_hash:
+            from codehem.core.error_handling import WriteConflictError
+            raise WriteConflictError(
+                expected_hash=original_hash,
+                actual_hash=current_hash,
+            )
+        if mode == "replace":
+            new_fragment_lines = new_code.splitlines()
+        elif mode == "append":
+            new_fragment_lines = lines[start_line - 1 : end_line] + new_code.splitlines()
+        elif mode == "prepend":
+            new_fragment_lines = new_code.splitlines() + lines[start_line - 1 : end_line]
+        else:
+            from codehem.core.error_handling import InvalidManipulationError
+            raise InvalidManipulationError("apply_patch", f"Unknown mode: {mode}")
+        patched_lines = (
+            lines[: start_line - 1] + new_fragment_lines + lines[end_line:]
+        )
+        patched_code = "\n".join(patched_lines)
+        from difflib import unified_diff
+        diff_lines = list(
+            unified_diff(
+                original_code.splitlines(True),
+                patched_code.splitlines(True),
+                fromfile="original",
+                tofile="patched",
+            )
+        )
+        if dry_run:
+            return "".join(diff_lines)
+
+        lines_added = sum(1 for l in diff_lines if l.startswith("+") and not l.startswith("+++"))
+        lines_removed = sum(1 for l in diff_lines if l.startswith("-") and not l.startswith("---"))
+        result = {
+            "status": "ok",
+            "lines_added": lines_added,
+            "lines_removed": lines_removed,
+            "new_hash": sha256_code("\n".join(new_fragment_lines)),
+            "code": patched_code,
+        }
+        return result

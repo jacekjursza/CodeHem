@@ -282,6 +282,17 @@ class ReplaceElementError(ManipulationError):
         self.element_name = element_name
         self.reason = reason
 
+class WriteConflictError(ManipulationError):
+    """Raised when apply_patch detects hash mismatch for the target fragment."""
+
+    def __init__(self, expected_hash: str, actual_hash: str, **kwargs):
+        message = (
+            f"Write conflict: expected hash {expected_hash} but found {actual_hash}"
+        )
+        super().__init__(message, expected_hash=expected_hash, actual_hash=actual_hash, **kwargs)
+        self.expected_hash = expected_hash
+        self.actual_hash = actual_hash
+
 # ===== Post-Processing Errors =====
 
 class PostProcessorError(CodeHemError):
