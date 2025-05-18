@@ -21,7 +21,7 @@
 | 3      | 🟢 in‑progress | Plugin architecture (entry‑points), JS alias, cookiecutter template |
 | 4      | 🚧 queued      | DRY formatter/manipulator refactor                                  |
 | 5      | 🚧 planned     | Patch API (`apply_patch`, `get_element_hash`)                       |
-| 6      | 🚧 planned     | Builder helpers, short XPath, JSON results                          |
+| 6      | 🟢 in-progress | Builder helpers, short XPath, JSON results                          |
 | 7      | 🚧 planned     | Workspace index, locks, thread‑safety                               |
 | 8      | 🚧 planned     | Docs, CLI polish, first public release 1.0                          |
 
