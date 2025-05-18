@@ -95,6 +95,20 @@ Output (truncated):
 
 The **full file never left runtime memory** – ideal for token‑budgeted agents.
 
+### Builder helpers
+
+Generate new functions or classes from structured data:
+
+```python
+result = hem.new_function(
+    code,
+    name="run",
+    args=["config"],
+    body=["print(config)", "return True"],
+    return_format="json",
+)
+``` 
+
 ---
 
 ## CLI highlights
