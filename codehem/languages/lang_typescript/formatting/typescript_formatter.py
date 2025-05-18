@@ -5,10 +5,10 @@ Provides basic formatting rules.
 import re
 import textwrap
 from typing import Callable, Optional
-from codehem.core.formatting.formatter import BaseFormatter
+from codehem.core.formatting.brace_formatter import BraceFormatter
 from codehem.models.enums import CodeElementType
 
-class TypeScriptFormatter(BaseFormatter):
+class TypeScriptFormatter(BraceFormatter):
     """
     TypeScript/JavaScript specific implementation of the code formatter.
     Applies basic indentation and spacing rules.

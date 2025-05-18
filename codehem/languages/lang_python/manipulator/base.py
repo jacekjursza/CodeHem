@@ -4,18 +4,19 @@ Base manipulator for Python-specific manipulators.
 import logging
 from typing import Optional
 
-from codehem.core.manipulators.manipulator_base import ManipulatorBase
+from codehem.core.manipulators.abstract_block_manipulator import AbstractBlockManipulator
 from codehem.core.formatting.formatter import BaseFormatter
 from codehem.core.registry import registry
 from codehem.models.enums import CodeElementType
 from codehem.languages.lang_python.formatting.python_formatter import PythonFormatter
 logger = logging.getLogger(__name__)
 
-class PythonManipulatorBase(ManipulatorBase):
+class PythonManipulatorBase(AbstractBlockManipulator):
     """Base class for Python-specific manipulators."""
     LANGUAGE_CODE = 'python'
     COMMENT_MARKERS = ['#']
     DECORATOR_MARKERS = ['@']
+    BLOCK_START_TOKEN = ':'
 
     def __init__(self, element_type: CodeElementType = None, formatter: BaseFormatter = None, 
                  extraction_service = None):
