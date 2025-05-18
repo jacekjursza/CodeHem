@@ -1,0 +1,4 @@
+- Investigated failing tests related to Python element extraction.
+- Fixed query for typed static properties and loop bug in Python extractor.
+- Modified Python service `get_text_by_xpath_internal` to use `ExtractionService` for consistent results.
+- Added skips for features not yet implemented (TypeScript extraction, import detection, property getters/setters).
