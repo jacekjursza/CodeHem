@@ -471,10 +471,8 @@ class PythonElementExtractor(BaseElementExtractor):
             body: (block
                 (expression_statement
                     (assignment
-                        left: (annotated_assignment_target
-                            (identifier) @property_name
-                            (type) @property_type
-                        )
+                        left: (identifier) @property_name
+                        type: (type) @property_type
                         right: (_) @property_value
                     )
                 ) @typed_assignment_stmt
@@ -544,7 +542,7 @@ class PythonElementExtractor(BaseElementExtractor):
             
             # Extract typed static properties
             typed_matches = self.navigator.execute_query(tree, code_bytes, typed_query)
-            for node, capture_name in matches:
+            for node, capture_name in typed_matches:
                 if capture_name == 'typed_assignment_stmt':
                     class_node = self.navigator.find_parent_of_type(node, 'class_definition')
                     if not class_node:
@@ -555,17 +553,13 @@ class PythonElementExtractor(BaseElementExtractor):
                         if child.type == 'assignment':
                             assignment_node = child
                             break
-                    
+
                     if not assignment_node:
                         continue
-                    
+
                     # Get property name and type
-                    left_node = self.navigator.find_child_by_field_name(assignment_node, 'left')
-                    if not left_node or left_node.type != 'annotated_assignment_target':
-                        continue
-                    
-                    name_node = self.navigator.find_child_by_field_name(left_node, 'identifier')
-                    type_node = self.navigator.find_child_by_field_name(left_node, 'type')
+                    name_node = self.navigator.find_child_by_field_name(assignment_node, 'left')
+                    type_node = self.navigator.find_child_by_field_name(assignment_node, 'type')
                     
                     if not name_node:
                         continue
