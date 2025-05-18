@@ -1,5 +1,6 @@
 # MODIFIED FILE: Changed LanguageService import to string literal to fix circular import
 import importlib
+import importlib.metadata as importlib_metadata
 import logging
 import os
 import sys # Added sys import for checking module existence
@@ -254,9 +255,30 @@ class Registry:
 
                  elif os.path.isdir(full_path) and recursive:
                      # Check if it's a package (contains __init__.py) before recursing
-                     if os.path.exists(os.path.join(full_path, '__init__.py')):
-                         subpackage_name = f'{package_name}.{item}'
-                         self.discover_modules(subpackage_name, recursive=recursive)
+                    if os.path.exists(os.path.join(full_path, '__init__.py')):
+                        subpackage_name = f'{package_name}.{item}'
+                        self.discover_modules(subpackage_name, recursive=recursive)
+
+    def _load_entry_point_plugins(self, group: str = 'codehem.languages') -> None:
+        """Load language modules declared as entry points."""
+        try:
+            eps = importlib_metadata.entry_points(group=group)
+        except Exception as exc:
+            logger.error("Failed to read entry points: %s", exc)
+            return
+
+        for ep in eps:
+            module_name = ep.value.split(':')[0]
+            if module_name in self.discovered_modules:
+                continue
+            try:
+                logger.debug("Loading plugin module '%s' from entry point '%s'", module_name, ep.name)
+                importlib.import_module(module_name)
+                self.discovered_modules.add(module_name)
+                # Discover submodules in the plugin package
+                self.discover_modules(module_name)
+            except Exception as exc:
+                logger.error("Failed to load plugin module %s: %s", module_name, exc)
 
     def initialize_components(self):
         """Discovers and initializes all components. Called once."""
@@ -264,7 +286,8 @@ class Registry:
             logger.debug('Components already initialized.')
             return
         logger.info('Starting CodeHem component initialization...')
-        self.discover_modules() # Discover modules, trigger decorators & config registration
+        self.discover_modules()  # Discover built-in modules
+        self._load_entry_point_plugins()  # Load plugin packages via entry points
         self._initialized = True
         # Log summary after initialization
         logger.info('--- Registry Content After Discovery ---')
