@@ -2,7 +2,10 @@
 AST Handler for CodeHem providing a unified interface for tree-sitter operations.
 """
 import traceback
+from functools import lru_cache
 from typing import Tuple, List, Any, Optional, Dict, Callable
+
+from codehem.core.utils.hashing import sha1_code
 
 import rich
 from tree_sitter import Node, Query
@@ -26,19 +29,26 @@ class ASTHandler:
         self.parser = parser
         self.language = language
 
+    @lru_cache(maxsize=128)
+    def _parse_cached(self, code_hash: str, code: str) -> Tuple[Node, bytes]:
+        """Internal cached parse implementation."""
+        code_bytes = code.encode("utf8")
+        tree = self.parser.parse(code_bytes)
+        return (tree.root_node, code_bytes)
+
     def parse(self, code: str) -> Tuple[Node, bytes]:
         """
-        Parse source code into an AST.
-        
+        Parse source code into an AST. Results are cached using an LRU cache
+        keyed by the SHA1 hash of ``code``.
+
         Args:
             code: Source code as string
-            
+
         Returns:
             Tuple of (root_node, code_bytes)
         """
-        code_bytes = code.encode('utf8')
-        tree = self.parser.parse(code_bytes)
-        return (tree.root_node, code_bytes)
+        code_hash = sha1_code(code)
+        return self._parse_cached(code_hash, code)
 
     def get_node_text(self, node: Node, code_bytes: bytes) -> str:
         """

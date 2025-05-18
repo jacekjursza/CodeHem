@@ -1,7 +1,9 @@
 import logging
 import os
-# Use TYPE_CHECKING to avoid runtime circular imports for type hints
+from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+
+from codehem.core.utils.hashing import sha1_code
 
 import rich
 
@@ -298,18 +300,13 @@ class ExtractionService:
 
     # *** CHANGE START ***
     # Updated type hint to use string literal
-    def extract_all(self, code: str) -> 'CodeElementsResult':
-        """
-        Extract all code elements and convert them to a structured CodeElementsResult.
-        Relies on the language-specific post-processor.
-        Args:
-        code: Source code as string
-
-        Returns:
-        CodeElementsResult containing extracted elements
-        """
-        from codehem.models.code_element import CodeElementsResult # Local import
-        logger.info(f'ExtractionService: Starting full extraction and post-processing for {self.language_code}') # MODIFIED LOG LEVEL
+    @lru_cache(maxsize=128)
+    def _extract_all_cached(self, code_hash: str, code: str) -> 'CodeElementsResult':
+        """Internal helper wrapped with LRU cache."""
+        from codehem.models.code_element import CodeElementsResult  # Local import
+        logger.info(
+            f'ExtractionService: Starting full extraction and post-processing for {self.language_code}'
+        )  # MODIFIED LOG LEVEL
         result = CodeElementsResult(elements=[])
         try:
             raw_elements = self._extract_file_raw(code)
@@ -363,19 +360,29 @@ class ExtractionService:
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug("Final Extracted Elements Structure (Top-Level):")
             for i, element in enumerate(result.elements):
-                 children_summary = f", Children: {[(c.name, c.type.value) for c in element.children]}" if element.children else ""
-                 logger.debug(f"  [{i}] Name: {element.name}, Type: {element.type.value}, Parent: {element.parent_name}, Range: {element.range.start_line if element.range else 'N/A'}{children_summary}")
+                children_summary = f", Children: {[(c.name, c.type.value) for c in element.children]}" if element.children else ""
+                logger.debug(
+                    f"  [{i}] Name: {element.name}, Type: {element.type.value}, Parent: {element.parent_name}, Range: {element.range.start_line if element.range else 'N/A'}{children_summary}"
+                )
 
         return result
+
+    def extract_all(self, code: str) -> 'CodeElementsResult':
+        """Public wrapper using the LRU cache."""
+        code_hash = sha1_code(code)
+        return self._extract_all_cached(code_hash, code)
 
     def find_by_xpath(self, code: str, xpath: str) -> Optional[Tuple[int, int]]:
         """Return the line range of the element at ``xpath`` or ``None``."""
         logger.debug("Finding range by XPath: '%s' using extract_all and filter.", xpath)
+        code_hash = sha1_code(code)
+        return self._find_by_xpath_cached(code_hash, xpath, code)
+
+    @lru_cache(maxsize=128)
+    def _find_by_xpath_cached(self, code_hash: str, xpath: str, code: str) -> Optional[Tuple[int, int]]:
+        """Internal helper for ``find_by_xpath`` with caching."""
         try:
-            # *** CHANGE START ***
-            # Use string hint for the type that was causing the cycle
             elements_result: 'CodeElementsResult' = self.extract_all(code)
-            # *** CHANGE END ***
 
             if not elements_result or not elements_result.elements:
                 logger.warning("extract_all returned no elements for find_by_xpath('%s').", xpath)
