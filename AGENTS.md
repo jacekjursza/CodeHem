@@ -22,7 +22,7 @@
 | 4      | 🚧 queued      | DRY formatter/manipulator refactor                                  |
 | 5      | 🚧 planned     | Patch API (`apply_patch`, `get_element_hash`)                       |
 | 6      | 🟢 in-progress | Builder helpers, short XPath, JSON results                          |
-| 7      | 🚧 planned     | Workspace index, locks, thread‑safety                               |
+| 7      | ✅ done         | Workspace index, locks, thread‑safety                               |
 | 8      | 🚧 planned     | Docs, CLI polish, first public release 1.0                          |
 
 Anything beyond Sprint 3 is subject to change; check issues before diving into those areas.

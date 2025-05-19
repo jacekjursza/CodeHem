@@ -95,6 +95,13 @@ Output (truncated):
 
 The **full file never left runtime memory** – ideal for token‑budgeted agents.
 
+### Workspace example
+```python
+ws = CodeHem.open_workspace("/path/to/repo")
+file, xp = ws.find(name="calculate", kind="function")
+ws.apply_patch(file, xp, "def calculate(x):\n    return x * 2\n")
+```
+
 ### Builder helpers
 
 Generate new functions or classes from structured data:
