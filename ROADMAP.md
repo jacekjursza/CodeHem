@@ -114,6 +114,8 @@ Minimalizacja promptów LLM – agent przekazuje czysty JSON, CodeHem generuje s
 
 ## Sprint 7 — Workspace & thread-safe writes
 
+### Status: ✅ zakończono
+
 ### Co robimy
 
 * `workspace = CodeHem.open_workspace(repo_root)`
