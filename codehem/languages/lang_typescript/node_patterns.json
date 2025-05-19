@@ -1,0 +1,121 @@
+{
+  "class": {
+    "tree_sitter_query": "\n(class_declaration\n  name: (type_identifier) @class_name\n  body: (class_body) @class_body\n) @class_def\n\n(export_statement\n  declaration: (class_declaration\n    name: (type_identifier) @class_name\n    body: (class_body) @class_body\n  ) @class_def_exported\n)\n",
+    "CLASS_NODE": "class_declaration",
+    "NAME_NODE": "type_identifier",
+    "BODY_NODE": "class_body",
+    "CLASS_PATTERN": "(?:export\\s+)?(?:abstract\\s+)?class",
+    "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "INHERITANCE_PATTERN": "(?:\\s+(?:extends|implements)\\s+[\\w.,\\s<>]+)?",
+    "BODY_START": "{"
+  },
+  "interface": {
+    "tree_sitter_query": "\n(interface_declaration\n  name: (type_identifier) @interface_name\n  body: (interface_body) @interface_body\n) @interface_def\n\n(export_statement\n  declaration: (interface_declaration\n    name: (type_identifier) @interface_name\n    body: (interface_body) @interface_body\n  ) @interface_def_exported\n)\n",
+    "INTERFACE_NODE": "interface_declaration",
+    "NAME_NODE": "type_identifier",
+    "BODY_NODE": "interface_body",
+    "INTERFACE_PATTERN": "(?:export\\s+)?interface",
+    "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "EXTENDS_PATTERN": "(?:\\s+extends\\s+[\\w.,\\s<>]+)?",
+    "BODY_START": "{"
+  },
+  "method": {
+    "tree_sitter_query": "\n(method_definition\n  name: (property_identifier) @method_name\n  parameters: (formal_parameters) @params\n  return_type: (type_annotation)? @return_type\n  body: (statement_block)? @body\n) @method_def\n",
+    "NAME_NODE": "property_identifier",
+    "FIRST_PARAM_ID": "this",
+    "METHOD_PATTERN": "(?:(?:public|private|protected|static|readonly)\\s+)*(?:async\\s+)?[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "RETURN_TYPE_PATTERN": "(?:\\s*:\\s*[\\w.<>\\[\\]|&\\s'\"{}()=>]+)?",
+    "BODY_START": "{"
+  },
+  "function": {
+    "tree_sitter_query": "\n(function_declaration\n  name: (identifier) @function_name\n  parameters: (formal_parameters) @params\n  return_type: (type_annotation)? @return_type\n  body: (statement_block) @body\n) @function_def\n\n(export_statement\n  declaration: (function_declaration\n    name: (identifier) @function_name\n    parameters: (formal_parameters) @params\n    return_type: (type_annotation)? @return_type\n    body: (statement_block) @body\n  ) @function_def_exported\n)\n\n(lexical_declaration\n  (variable_declarator\n    name: (identifier) @function_name\n    value: (arrow_function\n      parameters: (_) @params\n      return_type: (type_annotation)? @return_type\n      body: (_) @arrow_func_body\n    )\n  )\n) @arrow_function_def\n\n(export_statement\n  declaration: (lexical_declaration\n    (variable_declarator\n      name: (identifier) @function_name\n      value: (arrow_function\n        parameters: (_) @params\n        return_type: (type_annotation)? @return_type\n        body: (_) @arrow_func_body\n      )\n    )\n  ) @arrow_function_def_exported\n)\n",
+    "NAME_NODE": "identifier",
+    "PARAMS_NODE": "formal_parameters",
+    "RETURN_TYPE_NODE": "type_annotation",
+    "BODY_NODE": "statement_block",
+    "FUNCTION_PATTERN": "(?:export\\s+)?(?:async\\s+)?function",
+    "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "PARAMS_PATTERN": "[^)]*",
+    "RETURN_TYPE_PATTERN": "(?:\\s*:\\s*[\\w.<>\\[\\]|&\\s'\"{}()=>]+)?",
+    "BODY_START": "{",
+    "ARROW_FUNCTION_PATTERN": "(?:export\\s+)?(?:const|let)\\s+[a-zA-Z_$][a-zA-Z0-9_$]*\\s*[:]?.*=\\s*(?:async\\s+)?\\(?[^)]*\\)?(?:\\s*:\\s*[\\w.<>\\[\\]|&\\s'\"{}()=>]+)?\\s*=>"
+  },
+  "import": {
+    "tree_sitter_query": "\n(import_statement) @import_statement\n",
+    "custom_extract": true,
+    "IMPORT_NODE": "import_statement",
+    "IMPORT_PATTERN": "(?:^|\\n)\\s*(?:import(?:\\s+(?:[\\w*{},\\s]+)\\s+from)?\\s+['\"].*?['\"];?|export\\s+(?:\\*|{[^}]+})\\s+from\\s+['\"].*?['\"];?)"
+  },
+  "property": {
+    "tree_sitter_query": "\n(public_field_definition\n  name: (property_identifier) @property_name\n  type: (type_annotation)? @type\n  value: (_)? @value\n) @property_def\n",
+    "PROPERTY_NODE": "public_field_definition",
+    "NAME_NODE": "property_identifier",
+    "TYPE_NODE": "type_annotation",
+    "VALUE_NODE": "_",
+    "PROPERTY_PATTERN": "(?:^|\\n)\\s*(?:(?:public|private|protected|static|readonly)\\s+)*(?:readonly\\s+)?[a-zA-Z_$][a-zA-Z0-9_$]*(?:\\s*:\\s*[\\w.<>\\[\\]|&\\s'\"{}()=>]+)??\\s*(?:=\\s*[^;\\n]+?)?\\s*;?",
+    "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*"
+  },
+  "static_property": {
+    "tree_sitter_query": "\n(public_field_definition\n  name: (property_identifier) @property_name\n  type: (type_annotation)? @type\n  value: (_)? @value\n) @property_def\n",
+    "STATIC_PROP_NODE": "public_field_definition",
+    "NAME_NODE": "property_identifier",
+    "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "OPTIONAL_NEWLINE_INDENT": "(?:^|\\n)\\s+",
+    "OPTIONAL_TYPE_HINT": "(?:\\s*:\\s*[\\w.<>\\[\\]|&\\s'\"{}()=>]+)??",
+    "VALUE_CAPTURE": ".+?",
+    "OPTIONAL_COMMENT_ENDLINE": "(?:$|\\s*//|\\s*/\\*)"
+  },
+  "property_getter": {
+    "tree_sitter_query": "\n(method_definition\n  name: (property_identifier) @method_name\n  parameters: (formal_parameters) @params\n  return_type: (type_annotation)? @return_type\n  body: (statement_block)? @body\n) @method_def\n",
+    "NAME_NODE": "property_identifier",
+    "GETTER_DECORATOR_ID": "get",
+    "GETTER_DECORATOR_PATTERN": "(?:(?:public|private|protected|static|readonly)\\s+)*get",
+    "METHOD_PATTERN": "get\\s+[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "FIRST_PARAM_PATTERN": "",
+    "RETURN_TYPE_PATTERN": "(?:\\s*:\\s*[\\w.<>\\[\\]|&\\s'\"{}()=>]+)?",
+    "BODY_CAPTURE_LOOKAHEAD": "{[\\s\\S]*"
+  },
+  "property_setter": {
+    "tree_sitter_query": "\n(method_definition\n  name: (property_identifier) @method_name\n  parameters: (formal_parameters) @params\n  return_type: (type_annotation)? @return_type\n  body: (statement_block)? @body\n) @method_def\n",
+    "NAME_NODE": "property_identifier",
+    "SETTER_DECORATOR_ATTR": "set",
+    "PROPERTY_NAME_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "SETTER_ATTR_PATTERN": "set",
+    "METHOD_PATTERN": "set\\s+[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "FIRST_PARAM_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*",
+    "RETURN_TYPE_PATTERN": "(?:\\s*:\\s*[\\w.<>\\[\\]|&\\s'\"{}()=>]+)?",
+    "BODY_CAPTURE_LOOKAHEAD": "{[\\s\\S]*"
+  },
+  "decorator": {
+    "tree_sitter_query": "\n(decorator\n   ;; Capture the node right after '@'\n   ;; Usually a 'call_expression' or 'identifier'\n   (_) @decorator_expression\n) @decorator_node\n",
+    "DECORATOR_NODE": "decorator",
+    "DECORATOR_PREFIX": "@",
+    "QUALIFIED_NAME_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*(?:\\.[a-zA-Z_$][a-zA-Z0-9_$]*)*",
+    "ARGS_PATTERN": "(?:\\([^)]*\\))?"
+  },
+  "type_alias": {
+    "tree_sitter_query": "\n(type_alias_declaration\n  name: (type_identifier) @type_name\n  value: (_) @type_value\n) @type_alias_def\n\n(export_statement\n  declaration: (type_alias_declaration\n    name: (type_identifier) @type_name\n    value: (_) @type_value\n  ) @type_alias_def_exported\n)\n",
+    "TYPE_NODE": "type_alias_declaration",
+    "NAME_NODE": "type_identifier",
+    "VALUE_NODE": "_",
+    "TYPE_PATTERN": "(?:export\\s+)?type",
+    "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*"
+  },
+  "enum": {
+    "tree_sitter_query": "\n(enum_declaration\n  name: (identifier) @enum_name\n  body: (enum_body) @enum_body\n) @enum_def\n\n(export_statement\n  declaration: (enum_declaration\n    name: (identifier) @enum_name\n    body: (enum_body) @enum_body\n  ) @enum_def_exported\n)\n",
+    "ENUM_NODE": "enum_declaration",
+    "NAME_NODE": "identifier",
+    "BODY_NODE": "enum_body",
+    "ENUM_PATTERN": "(?:export\\s+)?enum"
+  },
+  "namespace": {
+    "tree_sitter_query": "\n(module\n  name: [\n    (identifier) @namespace_name\n    (string) @namespace_name_string\n  ] @namespace_name_capture\n  body: (module_body | statement_block)? @namespace_body\n) @namespace_def\n\n(export_statement\n  declaration: (module\n    name: [ (identifier) @namespace_name (string) @namespace_name_string ] @namespace_name_capture\n    body: (module_body | statement_block)? @namespace_body\n  ) @namespace_def_exported\n)\n\n(ambient_declaration\n  (module\n     name: [ (identifier) @namespace_name (string) @namespace_name_string ] @namespace_name_capture\n     body: (module_body | statement_block)? @namespace_body\n  )\n) @ambient_namespace_def\n",
+    "NAMESPACE_NODE": "module",
+    "NAME_NODE": "identifier",
+    "BODY_NODE": "module_body",
+    "NAMESPACE_PATTERN": "(?:export\\s+)?(?:namespace|module)"
+  }
+}
