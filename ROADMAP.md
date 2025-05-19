@@ -1,161 +1,161 @@
-# Roadmap → CodeHem 1.0 (**kontekst = Agenci AI**)
+# Roadmap → CodeHem 1.0 (**context: AI agents**)
 
-> środowisko CI/testy już istnieją
-> nie ma użytkowników produkcyjnych → wolno zmieniać API bez migracji
-
----
-
-## Sprint 1 — Stabilizacja i czytelne API
-
-### Co robimy
-
-* Wyrzucamy wszystkie `print()`; zostają wyłącznie logi (`logger.debug`/`info`).
-* Upraszczamy `get_language_service` – kasujemy specjal-case dla Pythona, zostaje jednolita ścieżka.
-* Ujednolicamy brak wyniku
-
-  * `find_by_xpath` zwraca `None` (nie `(0,0)`).
-  * `get_text_by_xpath` już jest `None` – pozostaje bez zmian.
-* Poziom logów domyślnie `WARNING`; w CLI `--debug` przełącza na `DEBUG`.
-* Testy regresyjne dla powyższych.
-
-### Powód
-
-Bez czystego, przewidywalnego API późniejsze feature’y (cache, patch-API) będą wprowadzały chaos.
+> CI/testing environment already exists
+> no production users → API can change without migrations
 
 ---
 
-## Sprint 2 — Cache + Lazy Loading + Profil
+## Sprint 1 — Stabilization and clear API
 
-### Co robimy
+### Tasks
 
-* LRU-cache AST oraz wyniku ekstrakcji (`maxsize=128`, klucz = sha1(code)).
-* Cache `(code_hash, xpath)` w `find_by_xpath`.
-* Zamieniamy listy/dict ekstraktorów na `@cached_property`; instancje tworzą się przy pierwszym użyciu.
-* Profilujemy cold / warm run (plik 10 k LOC) – cel ≥ 3× przyspieszenie drugiego wywołania.
+* Remove all `print()` statements; keep only logs (`logger.debug`/`info`).
+* Simplify `get_language_service` – drop the Python special case for a unified path.
+* Standardize missing results
 
-### Powód
+  * `find_by_xpath` returns `None` (not `(0,0)`).
+  * `get_text_by_xpath` already returns `None` – keep as is.
+* Default log level `WARNING`; CLI flag `--debug` switches to `DEBUG`.
+* Regression tests for the above.
 
-Agenci będą wielokrotnie zadawać zapytania do tych samych plików – brak cache to marnowanie tokenów i CPU.
+### Rationale
+
+Without a clean, predictable API later features (cache, patch API) would introduce chaos.
 
 ---
 
-## Sprint 3 — Pluginowa architektura języków
+## Sprint 2 — Cache + Lazy Loading + Profiling
 
-### Co robimy
+### Tasks
 
-* Wprowadzamy entry-points `codehem.languages` + loader `importlib.metadata.entry_points`.
+* LRU-cache the AST and extraction result (`maxsize=128`, key = sha1(code)).
+* Cache `(code_hash, xpath)` in `find_by_xpath`.
+* Replace extractor lists/dicts with `@cached_property`; instances created on first use.
+* Profile cold / warm run (10k LOC file) – goal ≥ 3× speed‑up on second run.
+
+### Rationale
+
+Agents will repeatedly query the same files – no cache wastes tokens and CPU.
+
+---
+
+## Sprint 3 — Plug‑in architecture for languages
+
+### Tasks
+
+* Provide entry-points `codehem.languages` + loader `importlib.metadata.entry_points`.
 * Alias `'javascript'` → `TypeScriptLanguageService`.
-* Dodajemy prosty `JavaScriptLanguageDetector` (regexy `function`, `=>`, `export`, `var/let/const`).
-* Tworzymy cookie-cutter `codehem-lang-template` (service, formatter, tests).
+* Add a simple `JavaScriptLanguageDetector` (regexes for `function`, `=>`, `export`, `var/let/const`).
+* Create cookie-cutter `codehem-lang-template` (service, formatter, tests).
 
-### Powód
+### Rationale
 
-Krok konieczny, by w przyszłości wtyczki (np. Java, Go) mogły być instalowane osobno i obsługiwane przez agentów bez zmian w core.
+A necessary step so that future plug‑ins (e.g. Java, Go) can be installed separately and work without changes to the core.
 
 ---
 
 ## Sprint 4 — DRY: formatter + manipulator
 
-### Co robimy
+### Tasks
 
-* Tworzymy `IndentFormatter` (języki wcięciowe) i `BraceFormatter` (klamrowe).
+* Create `IndentFormatter` (indent‑based languages) and `BraceFormatter` (brace‑based).
 
-  * Wspólne helpery (`_fix_spacing`, `apply_indentation`) przenosimy do bazowej klasy.
-* Tworzymy `AbstractBlockManipulator` z uniwersalną logiką wstawiania; Python/TS podają tylko token bloku (`:` vs `{`).
+  * Move common helpers (`_fix_spacing`, `apply_indentation`) to the base class.
+* Create `AbstractBlockManipulator` with universal insertion logic; Python/TS only provide the block token (`:` vs `{`).
 * Descriptor-as-data
 
-  * Konfiguracja JSON/TOML z node-patternami zamiast powielania klas ekstraktora.
+  * JSON/TOML configuration with node patterns instead of duplicating extractor classes.
 
-### Powód
+### Rationale
 
-Minimalizujemy duplikację przed wprowadzeniem kolejnych języków; zmniejszamy powierzchnię edycji dla AI-patchy.
+Minimize duplication before adding more languages; reduce the editing surface for AI patches.
 
 ---
 
-## Sprint 5 — Patch API (v1) — „minimal-diff”
+## Sprint 5 — Patch API (v1) — “minimal-diff”
 
-### Co robimy
+### Tasks
 
-* `get_element_hash(xpath)` – sha256 wybranego fragmentu.
+* `get_element_hash(xpath)` – sha256 of the selected fragment.
 * `apply_patch(xpath, new_code, mode="replace|prepend|append", original_hash=None, dry_run=False)`
 
-  * jeżeli `original_hash` nie zgadza się z bieżącym -> ConflictError.
-  * `dry_run=True` zwraca unified-diff (string) bez zapisu.
-* Zwracamy wynik w JSON:
+  * if `original_hash` doesn’t match current → `ConflictError`.
+  * `dry_run=True` returns a unified diff (string) without writing.
+* Return result in JSON:
 
   ```json
   { "status":"ok", "lines_added":7, "lines_removed":2, "new_hash":"..." }
   ```
-* Testy: replace + append + conflict.
+* Tests: replace + append + conflict.
 
-### Powód
+### Rationale
 
-LLM potrzebuje wymieniać **tylko** zmieniony fragment, nie pełen plik; konflikt-hash daje bezpieczeństwo przy równoległych agentach.
+An LLM needs to exchange **only** the changed fragment, not the whole file; the conflict hash provides safety with concurrent agents.
 
 ---
 
 ## Sprint 6 — Patch API (v2) + Builder helpers
 
-### Co robimy
+### Tasks
 
 * **Builder**
 
   * `hem.new_method(parent="MyClass", name="reset", args=["self"], body=["..."], decorators=[])`.
-  * `hem.new_class(...)`, `hem.new_function(...)` – zwracają kod + od razu wstawiają.
-* `short_xpath(element)` – zwraca najkrótszą unikalną ścieżkę (oszczędność tokenów).
-* Parametr `return_format="json|text"` w każdej publicznej funkcji.
-* Dołączyć przykłady w docs „jak agent ma formować JSON”.
+  * `hem.new_class(...)`, `hem.new_function(...)` – return code and insert immediately.
+* `short_xpath(element)` – return the shortest unique path (token savings).
+* Parameter `return_format="json|text"` in every public function.
+* Include docs examples “how an agent should form JSON”.
 
-### Powód
+### Rationale
 
-Minimalizacja promptów LLM – agent przekazuje czysty JSON, CodeHem generuje syntaktycznie poprawny kod.
+Minimize LLM prompts – the agent sends clean JSON and CodeHem produces syntactically correct code.
 
 ---
 
 ## Sprint 7 — Workspace & thread-safe writes
 
-### Status: ✅ zakończono
+### Status: ✅ completed
 
-### Co robimy
+### Tasks
 
 * `workspace = CodeHem.open_workspace(repo_root)`
 
-  * indeks plików → język → elementy (na cache).
-  * `workspace.find(name="calculate", kind="method")` zwraca `(file, xpath)`.
-* Lock-file przy zapisie (per plik) + `on_conflict` callback – pozwala AI podjąć decyzję.
-* Smoke-test 20 wątków × 100 patchy (thread safety).
-* Stres-test pliku 200 k LOC (timeout < 5 s warm).
+  * index files → language → elements (cached).
+  * `workspace.find(name="calculate", kind="method")` returns `(file, xpath)`.
+* Lock file on write (per file) + `on_conflict` callback lets the AI decide.
+* Smoke test 20 threads × 100 patches (thread safety).
+* Stress test on 200k LOC file (timeout < 5 s warm).
 
-### Powód
+### Rationale
 
-Agenci mogą działać równolegle; workspace skraca wyszukiwanie, lock zapewnia atomiczność.
+Agents may operate in parallel; the workspace shortens searches and the lock ensures atomicity.
 
 ---
 
-## Sprint 8 — Dokumentacja + CLI + Release 1.0
+## Sprint 8 — Documentation + CLI + Release 1.0
 
-### Status: ✅ zakończono
+### Status: ✅ completed
 
-### Co robimy
+### Tasks
 
-* **Developer Guide** – opis pluginów, buildera, patch API; diagramy PlantUML; hostowane przez GitHub Pages.
+* **Developer Guide** – description of plugins, builder, patch API; PlantUML diagrams; hosted via GitHub Pages.
 * **User Guide / Quick-Start for LLMs** – JSON → patch → diff → commit.
 * CLI polish
 
-  * `codehem detect file.py` → język + short-stats
+  * `codehem detect file.py` → language + short stats
   * `codehem patch --xpath "My.f.x" --file update.txt`
-* Wersja `1.0.0` na PyPI.
+* Version `1.0.0` on PyPI.
 
-### Powód
+### Rationale
 
-Bez dobrej dokumentacji nawet najlepsze API nie trafi do użytkowników (w tym agentów). Release 1.0 = wyjście z bety.
+Without good documentation even the best API won’t reach users (including agents). Release 1.0 = leaving beta.
 
 ---
 
-## Kolejne kierunki (po 1.0)
+## Next directions (post‑1.0)
 
-* **Vector-search elementów** (embeddings AST + nazwy) – semantyczne find.
-* **LSIF/LSP streaming** – realtime refaktoryzacja w edytorach.
+* **Vector-search of elements** (AST embeddings + names) – semantic find.
+* **LSIF/LSP streaming** – real‑time refactoring in editors.
 * **VS Code extension** – CodeHem-driven quick-fix & rename.
 
 *Ship it — AI-ready, diff-first, zero-noise!*
