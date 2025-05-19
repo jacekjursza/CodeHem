@@ -1,0 +1,478 @@
+"""
+{{LANGUAGE_NAME}} post-processor implementation.
+
+This module provides implementation of the post-processor interface for {{LANGUAGE_NAME}}.
+It transforms raw extraction results into structured CodeElement objects.
+"""
+
+import logging
+from typing import Dict, List, Optional, TYPE_CHECKING
+
+from codehem.core.components.interfaces import IPostProcessor
+from codehem.models.enums import CodeElementType
+from codehem.models.code_element import CodeElement, CodeElementsResult
+from codehem.models.range import CodeRange
+
+logger = logging.getLogger(__name__)
+
+class {{LANGUAGE_PREFIX}}PostProcessor(IPostProcessor):
+    """
+    {{LANGUAGE_NAME}} implementation of the post-processor.
+    
+    Transforms raw extraction results into structured CodeElement objects.
+    """
+    
+    def __init__(self):
+        """Initialize the {{LANGUAGE_NAME}} post-processor."""
+        self._language_code = '{{LANGUAGE_CODE}}'
+    
+    def process_imports(self, raw_imports: List[Dict]) -> List[CodeElement]:
+        """
+        Process raw import data into CodeElement objects.
+        
+        Args:
+            raw_imports: List of raw import dictionaries
+            
+        Returns:
+            List of CodeElement objects representing imports
+        """
+        logger.debug(f'Processing {len(raw_imports)} {{LANGUAGE_NAME}} imports')
+        
+        if not raw_imports:
+            return []
+        
+        # Combine all imports into a single CodeElement
+        combined_content = ""
+        start_line = float('inf')
+        end_line = 0
+        
+        for imp in raw_imports:
+            combined_content += imp.get('content', '') + "\n"
+            
+            # Track the overall start and end lines
+            imp_start = imp.get('start_line', 0)
+            imp_end = imp.get('end_line', 0)
+            
+            if imp_start and imp_start < start_line:
+                start_line = imp_start
+            
+            if imp_end and imp_end > end_line:
+                end_line = imp_end
+        
+        # Ensure valid range
+        if start_line == float('inf'):
+            start_line = 1
+        
+        if end_line < start_line:
+            end_line = start_line
+        
+        # Create a code range for the combined imports
+        imports_range = CodeRange(
+            start_line=start_line,
+            end_line=end_line,
+            start_column=0,
+            end_column=0
+        )
+        
+        # Create the imports CodeElement
+        imports_element = CodeElement(
+            type=CodeElementType.IMPORT,
+            name="imports",
+            content=combined_content.strip(),
+            range=imports_range,
+            parent_name=None,
+            value_type=None,
+            additional_data={},
+            children=[]
+        )
+        
+        return [imports_element]
+    
+    def process_functions(self, raw_functions: List[Dict], 
+                        all_decorators: Optional[List[Dict]]=None) -> List[CodeElement]:
+        """
+        Process raw function data into CodeElement objects.
+        
+        Args:
+            raw_functions: List of raw function dictionaries
+            all_decorators: Optional list of all decorators found in the file
+            
+        Returns:
+            List of CodeElement objects representing functions
+        """
+        logger.debug(f'Processing {len(raw_functions)} {{LANGUAGE_NAME}} functions')
+        
+        results = []
+        
+        for func_data in raw_functions:
+            # Create a code range for the function
+            func_range = CodeRange(
+                start_line=func_data.get('start_line', 0),
+                end_line=func_data.get('end_line', 0),
+                start_column=0,
+                end_column=0
+            )
+            
+            # Create the function CodeElement
+            func_element = CodeElement(
+                type=CodeElementType.FUNCTION,
+                name=func_data.get('name', ''),
+                content=func_data.get('content', ''),
+                range=func_range,
+                parent_name=None,
+                value_type=None,
+                additional_data={},
+                children=[]
+            )
+            
+            # Process parameters and add as children
+            if 'parameters' in func_data and func_data['parameters']:
+                self._process_parameters(func_element, func_data['parameters'])
+            
+            # Process return info and add as child
+            if 'return_info' in func_data and func_data['return_info']:
+                self._process_return_value(func_element, func_data['return_info'])
+            
+            # Process decorators if available
+            if all_decorators and 'decorators' in func_data:
+                self._process_decorators(func_data)
+            
+            results.append(func_element)
+        
+        return results
+    
+    def process_classes(self, raw_classes: List[Dict], members: List[Dict], 
+                      static_props: List[Dict], properties: Optional[List[Dict]]=None,
+                      all_decorators: Optional[List[Dict]]=None) -> List[CodeElement]:
+        """
+        Process raw class data into CodeElement objects.
+        
+        Args:
+            raw_classes: List of raw class dictionaries
+            members: List of raw member dictionaries (methods, getters, setters)
+            static_props: List of raw static property dictionaries
+            properties: Optional list of raw property dictionaries
+            all_decorators: Optional list of all decorators found in the file
+            
+        Returns:
+            List of CodeElement objects representing classes with their members
+        """
+        logger.debug(f'Processing {len(raw_classes)} {{LANGUAGE_NAME}} classes')
+        
+        results = []
+        
+        # Create a lookup dictionary for members by parent class name
+        member_lookup = {}
+        for member in members:
+            parent_name = member.get('parent_name', '')
+            if parent_name:
+                if parent_name not in member_lookup:
+                    member_lookup[parent_name] = []
+                member_lookup[parent_name].append(member)
+        
+        # Create a lookup dictionary for static properties by parent class name
+        static_prop_lookup = {}
+        for prop in static_props:
+            parent_name = prop.get('parent_name', '')
+            if parent_name:
+                if parent_name not in static_prop_lookup:
+                    static_prop_lookup[parent_name] = []
+                static_prop_lookup[parent_name].append(prop)
+        
+        # Create a lookup dictionary for properties by parent class name
+        prop_lookup = {}
+        if properties:
+            for prop in properties:
+                parent_name = prop.get('parent_name', '')
+                if parent_name:
+                    if parent_name not in prop_lookup:
+                        prop_lookup[parent_name] = []
+                    prop_lookup[parent_name].append(prop)
+        
+        # Process each class
+        for class_data in raw_classes:
+            class_name = class_data.get('name', '')
+            
+            # Create a code range for the class
+            class_range = CodeRange(
+                start_line=class_data.get('start_line', 0),
+                end_line=class_data.get('end_line', 0),
+                start_column=0,
+                end_column=0
+            )
+            
+            # Create the class CodeElement
+            class_element = CodeElement(
+                type=CodeElementType.CLASS,
+                name=class_name,
+                content=class_data.get('content', ''),
+                range=class_range,
+                parent_name=None,
+                value_type=None,
+                additional_data={},
+                children=[]
+            )
+            
+            # Process decorators for the class
+            if all_decorators and 'decorators' in class_data:
+                self._process_decorators(class_data)
+            
+            # Add members (methods, getters, setters)
+            if class_name in member_lookup:
+                for method_data in member_lookup[class_name]:
+                    self._process_method_element(method_data, class_element)
+            
+            # Add static properties
+            if class_name in static_prop_lookup:
+                for prop_data in static_prop_lookup[class_name]:
+                    self._process_static_property(prop_data, class_element)
+            
+            # Add properties
+            if class_name in prop_lookup:
+                for prop_data in prop_lookup[class_name]:
+                    self._process_property(prop_data, class_element)
+            
+            results.append(class_element)
+        
+        return results
+    
+    def process_all(self, raw_elements: Dict[str, List[Dict]]) -> CodeElementsResult:
+        """
+        Process all raw element data into a CodeElementsResult.
+        
+        Args:
+            raw_elements: Dictionary of element type to list of raw element dictionaries
+            
+        Returns:
+            CodeElementsResult containing processed elements
+        """
+        logger.info(f'Processing all {{LANGUAGE_NAME}} elements')
+        
+        all_elements = []
+        
+        # Process imports
+        imports = raw_elements.get('imports', [])
+        if imports:
+            all_elements.extend(self.process_imports(imports))
+        
+        # Get decorators for reference
+        decorators = raw_elements.get('decorators', [])
+        
+        # Process functions
+        functions = raw_elements.get('functions', [])
+        if functions:
+            all_elements.extend(self.process_functions(functions, decorators))
+        
+        # Process classes with their members
+        classes = raw_elements.get('classes', [])
+        members = raw_elements.get('members', [])
+        static_props = raw_elements.get('static_properties', [])
+        properties = raw_elements.get('properties', [])
+        
+        if classes:
+            all_elements.extend(self.process_classes(
+                classes, members, static_props, properties, decorators
+            ))
+        
+        # Process other language-specific elements
+        # ...
+        
+        return CodeElementsResult(elements=all_elements)
+    
+    def _process_parameters(self, element: CodeElement, params_data: List[Dict]) -> None:
+        """
+        Convert raw parameter dictionaries into Parameter CodeElement children.
+        
+        Args:
+            element: Parent CodeElement to add children to
+            params_data: List of parameter data dictionaries
+        """
+        for param in params_data:
+            param_name = param.get('name', '')
+            
+            # Create parameter CodeElement
+            param_element = CodeElement(
+                type=CodeElementType.PARAMETER,
+                name=param_name,
+                content=param.get('content', ''),
+                range=None,  # Parameters typically don't have a range
+                parent_name=element.name,
+                value_type=param.get('type'),
+                additional_data={
+                    'default_value': param.get('default_value'),
+                    'is_optional': param.get('is_optional', False)
+                },
+                children=[]
+            )
+            
+            element.children.append(param_element)
+    
+    def _process_return_value(self, element: CodeElement, return_info: Dict) -> None:
+        """
+        Convert raw return info dictionary into a ReturnValue CodeElement child.
+        
+        Args:
+            element: Parent CodeElement to add child to
+            return_info: Return information dictionary
+        """
+        # Create return value CodeElement
+        return_element = CodeElement(
+            type=CodeElementType.RETURN_VALUE,
+            name="return",
+            content="",
+            range=None,  # Return values typically don't have a range
+            parent_name=element.name,
+            value_type=return_info.get('type'),
+            additional_data={
+                'return_values': return_info.get('values', [])
+            },
+            children=[]
+        )
+        
+        element.children.append(return_element)
+    
+    def _process_method_element(self, method_data: Dict, parent_class_element: CodeElement) -> None:
+        """
+        Process a raw member dictionary into the appropriate CodeElement type.
+        
+        Args:
+            method_data: Raw method data dictionary
+            parent_class_element: Parent class CodeElement
+        """
+        method_type = method_data.get('method_type', 'method')
+        element_type = CodeElementType.METHOD
+        
+        # Determine the correct element type
+        if method_type == 'getter':
+            element_type = CodeElementType.PROPERTY_GETTER
+        elif method_type == 'setter':
+            element_type = CodeElementType.PROPERTY_SETTER
+        
+        # Create a code range for the method
+        method_range = CodeRange(
+            start_line=method_data.get('start_line', 0),
+            end_line=method_data.get('end_line', 0),
+            start_column=0,
+            end_column=0
+        )
+        
+        # Create the method CodeElement
+        method_element = CodeElement(
+            type=element_type,
+            name=method_data.get('name', ''),
+            content=method_data.get('content', ''),
+            range=method_range,
+            parent_name=parent_class_element.name,
+            value_type=None,
+            additional_data={},
+            children=[]
+        )
+        
+        # Process parameters and add as children
+        if 'parameters' in method_data and method_data['parameters']:
+            self._process_parameters(method_element, method_data['parameters'])
+        
+        # Process return info and add as child
+        if 'return_info' in method_data and method_data['return_info']:
+            self._process_return_value(method_element, method_data['return_info'])
+        
+        # Process decorators if available
+        if 'decorators' in method_data:
+            self._process_decorators(method_data)
+        
+        parent_class_element.children.append(method_element)
+    
+    def _process_static_property(self, prop_data: Dict, parent_class_element: CodeElement) -> None:
+        """
+        Process a raw static property dictionary into a StaticProperty CodeElement.
+        
+        Args:
+            prop_data: Raw static property data dictionary
+            parent_class_element: Parent class CodeElement
+        """
+        # Create a code range for the property
+        prop_range = CodeRange(
+            start_line=prop_data.get('start_line', 0),
+            end_line=prop_data.get('end_line', 0),
+            start_column=0,
+            end_column=0
+        )
+        
+        # Create the static property CodeElement
+        prop_element = CodeElement(
+            type=CodeElementType.STATIC_PROPERTY,
+            name=prop_data.get('name', ''),
+            content=prop_data.get('content', ''),
+            range=prop_range,
+            parent_name=parent_class_element.name,
+            value_type=prop_data.get('type'),
+            additional_data={
+                'value': prop_data.get('value')
+            },
+            children=[]
+        )
+        
+        parent_class_element.children.append(prop_element)
+    
+    def _process_property(self, prop_data: Dict, parent_class_element: CodeElement) -> None:
+        """
+        Process a raw property dictionary into a Property CodeElement.
+        
+        Args:
+            prop_data: Raw property data dictionary
+            parent_class_element: Parent class CodeElement
+        """
+        # Create a code range for the property
+        prop_range = CodeRange(
+            start_line=prop_data.get('start_line', 0),
+            end_line=prop_data.get('end_line', 0),
+            start_column=0,
+            end_column=0
+        )
+        
+        # Create the property CodeElement
+        prop_element = CodeElement(
+            type=CodeElementType.PROPERTY,
+            name=prop_data.get('name', ''),
+            content=prop_data.get('content', ''),
+            range=prop_range,
+            parent_name=parent_class_element.name,
+            value_type=prop_data.get('type'),
+            additional_data={
+                'value': prop_data.get('value')
+            },
+            children=[]
+        )
+        
+        parent_class_element.children.append(prop_element)
+    
+    def _process_decorators(self, element_data: Dict) -> None:
+        """
+        Process raw decorator dictionaries found within an element's data.
+        
+        Args:
+            element_data: Raw element data dictionary containing decorators
+        """
+        # Implementation depends on how decorators are stored in element_data
+        # This is a placeholder implementation
+        pass
+    
+    def _build_lookup(self, items: List[Dict], key_field: str) -> Dict[str, List[Dict]]:
+        """
+        Build a lookup dictionary from a list of dictionaries based on a key field.
+        
+        Args:
+            items: List of dictionaries
+            key_field: Field to use as key in the lookup dictionary
+            
+        Returns:
+            Dictionary mapping key field values to lists of items
+        """
+        result = {}
+        for item in items:
+            key = item.get(key_field, '')
+            if key:
+                if key not in result:
+                    result[key] = []
+                result[key].append(item)
+        return result

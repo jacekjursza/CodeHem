@@ -1,0 +1,215 @@
+"""
+{{LANGUAGE_NAME}} syntax tree navigator implementation.
+
+This module provides implementation of the syntax tree navigator interface for {{LANGUAGE_NAME}}.
+It allows traversing and querying {{LANGUAGE_NAME}} syntax trees.
+"""
+
+import logging
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from tree_sitter import Node, Query
+
+from codehem.core.components.interfaces import ISyntaxTreeNavigator
+from codehem.core.components import BaseSyntaxTreeNavigator
+from codehem.core.engine.languages import {{LANGUAGE_CONST}}
+from codehem.models.enums import CodeElementType
+
+logger = logging.getLogger(__name__)
+
+class {{LANGUAGE_PREFIX}}SyntaxTreeNavigator(BaseSyntaxTreeNavigator):
+    """
+    {{LANGUAGE_NAME}} implementation of the syntax tree navigator.
+    
+    Provides methods for navigating and querying {{LANGUAGE_NAME}} syntax trees.
+    """
+    
+    def __init__(self):
+        """Initialize the {{LANGUAGE_NAME}} syntax tree navigator."""
+        super().__init__('{{LANGUAGE_CODE}}')
+        self._language = {{LANGUAGE_CONST}}
+    
+    def find_element(self, tree: Node, code_bytes: bytes, element_type: str, 
+                   element_name: Optional[str]=None, parent_name: Optional[str]=None) -> Tuple[int, int]:
+        """
+        Find an element in the {{LANGUAGE_NAME}} syntax tree based on type, name, and parent.
+        
+        Args:
+            tree: The syntax tree to search
+            code_bytes: The original code as bytes
+            element_type: Type of element to find (e.g., 'function', 'class', 'method')
+            element_name: Optional name of the element to find
+            parent_name: Optional name of the parent element (e.g., class name for methods)
+            
+        Returns:
+            Tuple of (start_line, end_line) or (0, 0) if not found
+        """
+        logger.debug(f"{{LANGUAGE_PREFIX}}SyntaxTreeNavigator: Finding element type='{element_type}', name='{element_name}', parent='{parent_name}'")
+        
+        # Build a query string for the specified element type and constraints
+        query_string = self._build_query_for_element_type(element_type, element_name, parent_name)
+        
+        if not query_string:
+            logger.warning(f"No query string could be generated for element type '{element_type}'")
+            return (0, 0)
+        
+        try:
+            # Execute the query
+            results = self.execute_query(tree, code_bytes, query_string)
+            
+            if not results:
+                logger.debug(f"No results found for query: {query_string}")
+                return (0, 0)
+            
+            # Process results to find the matching element
+            for node, capture_name in results:
+                if capture_name == 'element' or capture_name == element_type:
+                    # Get the node's range
+                    start_line, end_line = self.get_node_range(node)
+                    logger.debug(f"Found element at lines {start_line}-{end_line}")
+                    return (start_line, end_line)
+            
+            return (0, 0)
+        except Exception as e:
+            logger.error(f"Error in find_element: {e}", exc_info=True)
+            return (0, 0)
+    
+    def execute_query(self, tree: Node, code_bytes: bytes, query_string: str) -> List[Tuple[Node, str]]:
+        """
+        Execute a tree-sitter query on the {{LANGUAGE_NAME}} syntax tree.
+        
+        Args:
+            tree: The syntax tree to query
+            code_bytes: The original code as bytes
+            query_string: The query to execute
+            
+        Returns:
+            List of tuples (node, capture_name) matching the query
+        """
+        logger.debug(f"Executing {{LANGUAGE_NAME}} query: {query_string}")
+        
+        try:
+            query = Query(self._language, query_string)
+            captures = query.captures(tree, code_bytes)
+            
+            # Process captures into a list of (node, capture_name) tuples
+            results = []
+            for node, capture_name in captures:
+                results.append((node, capture_name))
+            
+            logger.debug(f"Query returned {len(results)} captures")
+            return results
+        except Exception as e:
+            logger.error(f"Error in execute_query: {e}", exc_info=True)
+            return []
+    
+    def get_node_text(self, node: Node, code_bytes: bytes) -> str:
+        """
+        Get the text for a node in the {{LANGUAGE_NAME}} syntax tree.
+        
+        Args:
+            node: The node to get text for
+            code_bytes: The original code as bytes
+            
+        Returns:
+            The text of the node
+        """
+        if not node:
+            return ""
+        
+        start_byte = node.start_byte
+        end_byte = node.end_byte
+        
+        return code_bytes[start_byte:end_byte].decode('utf8')
+    
+    def get_node_range(self, node: Node) -> Tuple[int, int]:
+        """
+        Get the line range for a node in the {{LANGUAGE_NAME}} syntax tree.
+        
+        Args:
+            node: The node to get range for
+            
+        Returns:
+            Tuple of (start_line, end_line)
+        """
+        if not node:
+            return (0, 0)
+        
+        # Tree-sitter lines are 0-based, convert to 1-based
+        start_line = node.start_point[0] + 1
+        end_line = node.end_point[0] + 1
+        
+        return (start_line, end_line)
+    
+    def find_child_by_field_name(self, node: Node, field_name: str) -> Optional[Node]:
+        """
+        Find a direct child node by its field name.
+        
+        Args:
+            node: The parent node
+            field_name: The field name to look for
+            
+        Returns:
+            The child node or None if not found
+        """
+        if not node:
+            return None
+        
+        for child in node.children:
+            if child.is_named and child.field_name == field_name:
+                return child
+        
+        return None
+    
+    def find_parent_of_type(self, node: Node, parent_type: Union[str, List[str]]) -> Optional[Node]:
+        """
+        Find the nearest ancestor node of a specified type.
+        
+        Args:
+            node: The starting node
+            parent_type: Type or types to look for
+            
+        Returns:
+            The parent node or None if not found
+        """
+        if not node:
+            return None
+        
+        if isinstance(parent_type, str):
+            parent_type = [parent_type]
+        
+        current = node.parent
+        while current:
+            if current.type in parent_type:
+                return current
+            current = current.parent
+        
+        return None
+    
+    def _build_query_for_element_type(self, element_type: str, 
+                                    element_name: Optional[str]=None, 
+                                    parent_name: Optional[str]=None) -> str:
+        """
+        Build a tree-sitter query string for the specified element type and constraints.
+        
+        Args:
+            element_type: The type of element to find
+            element_name: Optional name of the element
+            parent_name: Optional name of the parent element
+            
+        Returns:
+            A tree-sitter query string
+        """
+        # Implementation specific to {{LANGUAGE_NAME}}
+        # Example for a simple function query (adapt for your language)
+        if element_type == 'function':
+            if element_name:
+                return f"(function_declaration name: (identifier) @name (#eq? @name \"{element_name}\")) @element"
+            else:
+                return f"(function_declaration) @element"
+        
+        # Handle other element types
+        # ...
+        
+        logger.warning(f"Unsupported element type: {element_type}")
+        return ""

@@ -1,0 +1,9 @@
+## class_name: ComplexDecoratedClass
+## method_name: complex_decorated_method
+## decorator_pattern: @decorator_with_args
+
+class ComplexDecoratedClass:
+    
+    @decorator_with_args(param1="value1", param2=42)
+    def complex_decorated_method(self, arg):
+        return f"Complex {arg}"

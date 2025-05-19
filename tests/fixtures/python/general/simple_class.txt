@@ -1,0 +1,9 @@
+## class_name: SimpleClass
+## start_line: 2
+## end_line: 6
+
+class SimpleClass:
+    """A simple class for testing."""
+    
+    def __init__(self):
+        self.value = 0

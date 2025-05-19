@@ -1,1 +1,3 @@
-# Tests helper module initialization
+"""
+Helper utilities for CodeHem tests.
+"""

@@ -1,0 +1,5 @@
+import unittest
+
+class Test{{cookiecutter.language_name}}(unittest.TestCase):
+    def test_placeholder(self):
+        self.assertTrue(True)

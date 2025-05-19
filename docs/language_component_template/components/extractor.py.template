@@ -1,0 +1,269 @@
+"""
+{{LANGUAGE_NAME}} element extractor implementation.
+
+This module provides implementation of the element extractor interface for {{LANGUAGE_NAME}}.
+It extracts various code elements (functions, classes, methods, etc.) from {{LANGUAGE_NAME}} syntax trees.
+"""
+
+import logging
+import re
+from typing import Any, Dict, List, Optional, Tuple
+
+from tree_sitter import Node
+
+from codehem.core.components.interfaces import IElementExtractor, ISyntaxTreeNavigator
+from codehem.core.components import BaseElementExtractor
+from codehem.models.enums import CodeElementType
+from codehem.core.error_handling import handle_extraction_errors
+
+logger = logging.getLogger(__name__)
+
+class {{LANGUAGE_PREFIX}}ElementExtractor(BaseElementExtractor):
+    """
+    {{LANGUAGE_NAME}} implementation of the element extractor.
+    
+    Extracts various code elements from {{LANGUAGE_NAME}} syntax trees.
+    """
+    
+    def __init__(self, navigator: ISyntaxTreeNavigator):
+        """
+        Initialize the {{LANGUAGE_NAME}} element extractor.
+        
+        Args:
+            navigator: The {{LANGUAGE_NAME}} syntax tree navigator to use
+        """
+        super().__init__('{{LANGUAGE_CODE}}', navigator)
+    
+    @handle_extraction_errors
+    def extract_functions(self, tree: Node, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract functions from the {{LANGUAGE_NAME}} syntax tree.
+        
+        Args:
+            tree: The syntax tree to extract from
+            code_bytes: The original code as bytes
+            
+        Returns:
+            List of function data dictionaries
+        """
+        logger.debug('Extracting functions from {{LANGUAGE_NAME}} code')
+        
+        # Example query for function declarations (adapt for your language)
+        query_string = """
+            (function_declaration 
+                name: (identifier) @name
+                parameters: (parameter_list) @params
+                body: (block) @body
+            ) @function
+        """
+        
+        results = []
+        try:
+            # Execute the query
+            query_results = self.navigator.execute_query(tree, code_bytes, query_string)
+            
+            # Process each result
+            capture_dict = {}
+            for node, capture_name in query_results:
+                if not capture_dict.get('function'):
+                    capture_dict = {}
+                
+                capture_dict[capture_name] = node
+                
+                if capture_name == 'function' and 'name' in capture_dict:
+                    # Extract function details
+                    function_node = capture_dict['function']
+                    name_node = capture_dict['name']
+                    
+                    # Get function name
+                    name = self.navigator.get_node_text(name_node, code_bytes)
+                    
+                    # Get function content
+                    content = self.navigator.get_node_text(function_node, code_bytes)
+                    
+                    # Get line range
+                    start_line, end_line = self.navigator.get_node_range(function_node)
+                    
+                    # Extract parameters if available
+                    params = []
+                    if 'params' in capture_dict:
+                        params = self._extract_parameters(capture_dict['params'], code_bytes)
+                    
+                    # Extract return type info if applicable
+                    return_info = self._extract_return_info(function_node, code_bytes)
+                    
+                    # Create function data dictionary
+                    function_data = {
+                        'type': 'function',
+                        'name': name,
+                        'content': content,
+                        'start_line': start_line,
+                        'end_line': end_line,
+                        'parameters': params,
+                        'return_info': return_info,
+                    }
+                    
+                    results.append(function_data)
+                    capture_dict = {}
+            
+            logger.debug(f'Extracted {len(results)} functions')
+            return results
+        except Exception as e:
+            logger.error(f'Error in extract_functions: {e}', exc_info=True)
+            return []
+    
+    @handle_extraction_errors
+    def extract_classes(self, tree: Node, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract classes from the {{LANGUAGE_NAME}} syntax tree.
+        
+        Args:
+            tree: The syntax tree to extract from
+            code_bytes: The original code as bytes
+            
+        Returns:
+            List of class data dictionaries
+        """
+        logger.debug('Extracting classes from {{LANGUAGE_NAME}} code')
+        
+        # Implementation specific to {{LANGUAGE_NAME}}
+        # Return a list of class data dictionaries
+        
+        # Placeholder implementation
+        return []
+    
+    @handle_extraction_errors
+    def extract_methods(self, tree: Node, code_bytes: bytes, 
+                      class_name: Optional[str]=None) -> List[Dict]:
+        """
+        Extract methods from the {{LANGUAGE_NAME}} syntax tree.
+        
+        Args:
+            tree: The syntax tree to extract from
+            code_bytes: The original code as bytes
+            class_name: Optional class name to filter by
+            
+        Returns:
+            List of method data dictionaries
+        """
+        logger.debug(f'Extracting methods from {{LANGUAGE_NAME}} code, class_name={class_name}')
+        
+        # Implementation specific to {{LANGUAGE_NAME}}
+        # Return a list of method data dictionaries
+        
+        # Placeholder implementation
+        return []
+    
+    @handle_extraction_errors
+    def extract_imports(self, tree: Node, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract imports from the {{LANGUAGE_NAME}} syntax tree.
+        
+        Args:
+            tree: The syntax tree to extract from
+            code_bytes: The original code as bytes
+            
+        Returns:
+            List of import data dictionaries
+        """
+        logger.debug('Extracting imports from {{LANGUAGE_NAME}} code')
+        
+        # Implementation specific to {{LANGUAGE_NAME}}
+        # Return a list of import data dictionaries
+        
+        # Placeholder implementation
+        return []
+    
+    @handle_extraction_errors
+    def extract_properties(self, tree: Node, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract properties from the {{LANGUAGE_NAME}} syntax tree.
+        
+        Args:
+            tree: The syntax tree to extract from
+            code_bytes: The original code as bytes
+            
+        Returns:
+            List of property data dictionaries
+        """
+        logger.debug('Extracting properties from {{LANGUAGE_NAME}} code')
+        
+        # Implementation specific to {{LANGUAGE_NAME}}
+        # Return a list of property data dictionaries
+        
+        # Placeholder implementation
+        return []
+    
+    @handle_extraction_errors
+    def extract_static_properties(self, tree: Node, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract static properties from the {{LANGUAGE_NAME}} syntax tree.
+        
+        Args:
+            tree: The syntax tree to extract from
+            code_bytes: The original code as bytes
+            
+        Returns:
+            List of static property data dictionaries
+        """
+        logger.debug('Extracting static properties from {{LANGUAGE_NAME}} code')
+        
+        # Implementation specific to {{LANGUAGE_NAME}}
+        # Return a list of static property data dictionaries
+        
+        # Placeholder implementation
+        return []
+    
+    @handle_extraction_errors
+    def extract_decorators(self, tree: Node, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract decorators from the {{LANGUAGE_NAME}} syntax tree.
+        
+        Args:
+            tree: The syntax tree to extract from
+            code_bytes: The original code as bytes
+            
+        Returns:
+            List of decorator data dictionaries
+        """
+        logger.debug('Extracting decorators from {{LANGUAGE_NAME}} code')
+        
+        # Implementation specific to {{LANGUAGE_NAME}}
+        # Return a list of decorator data dictionaries
+        
+        # Placeholder implementation
+        return []
+    
+    def _extract_parameters(self, param_node: Node, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract parameters from a parameter list node.
+        
+        Args:
+            param_node: The parameter list node
+            code_bytes: The original code as bytes
+            
+        Returns:
+            List of parameter data dictionaries
+        """
+        # Implementation specific to {{LANGUAGE_NAME}}
+        # Return a list of parameter data dictionaries
+        
+        # Placeholder implementation
+        return []
+    
+    def _extract_return_info(self, function_node: Node, code_bytes: bytes) -> Dict:
+        """
+        Extract return type information from a function node.
+        
+        Args:
+            function_node: The function node
+            code_bytes: The original code as bytes
+            
+        Returns:
+            Dictionary with return type information
+        """
+        # Implementation specific to {{LANGUAGE_NAME}}
+        # Return a dictionary with return type information
+        
+        # Placeholder implementation
+        return {}

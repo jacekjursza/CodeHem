@@ -1,4 +1,0 @@
-{
-  "original": "def function():\n\n    if True:\n        print(\"Hello\")\n\n    ",
-  "expected": "def function():\n\n    if True:\n        print(\"Hello\")\n\n    "
-}

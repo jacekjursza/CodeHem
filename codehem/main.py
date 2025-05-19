@@ -1,79 +1,126 @@
-"""
-Language handler for PatchCommander.
-Provides a unified interface for language-specific operations.
-"""
-import re
 import os
-from typing import Optional
-from codehem.core.ast_handler import ASTHandler
-from codehem.core.formatting import get_formatter
-from codehem.core.languages import get_language_for_file, FILE_EXTENSIONS
-from codehem.core.manipulator.factory import get_code_manipulator
-from codehem.core.models import CodeElementsResult, CodeElement, CodeElementType
-from codehem.core.services.extraction_service import ExtractionService
-from codehem.core.strategies import get_strategy
-from codehem.core.finder.factory import get_code_finder
-from codehem.core.utils.logs import logger
+import logging
+from typing import List, Optional, Tuple
+
+from .core.engine.xpath_parser import XPathParser
+from .core.extraction_service import ExtractionService
+from .core.manipulation_service import ManipulationService
+from .core.post_processors.factory import PostProcessorFactory
+from .languages import (
+    get_language_service,
+    get_language_service_for_code,
+    get_language_service_for_file,
+    get_supported_languages,
+)
+from .models.code_element import CodeElement, CodeElementsResult
+from .models.enums import CodeElementType
+from .models.xpath import CodeElementXPathNode
+from .builder import build_class, build_function, build_method
+
+logger = logging.getLogger(__name__)
+
 
 class CodeHem:
     """
-    Central handler for language-specific operations.
-    Provides access to appropriate finder and manipulator for a given language.
+    Main entry point for CodeHem.
+    Provides language-agnostic interface for code manipulation.
     """
 
     def __init__(self, language_code: str):
         """
-        Initialize a language handler for a specific language.
+        Initialize CodeHem for a specific language.
 
         Args:
-        language_code: Code of the language (e.g., 'python', 'javascript')
+            language_code: Language code (e.g., 'python', 'typescript')
+
+        Raises:
+            ValueError: If the language is not supported
         """
-        self.language_code = language_code
-        # JavaScript uses TypeScript finder but keeps its own language code
-        finder_language = language_code
-        if language_code.lower() == 'javascript':
-            finder_language = 'typescript'
-            self.language_code = 'typescript'
-        self.finder = get_code_finder(finder_language)
-        self.manipulator = get_code_manipulator(finder_language)
-        self.ast_handler = ASTHandler(finder_language)
-        self.formatter = get_formatter(finder_language)
-        self.strategy = get_strategy(finder_language)
+        self.language_service = get_language_service(language_code)
+        if not self.language_service:
+            raise ValueError(f"Unsupported language: {language_code}")
+
+        # Initialize services lazily or ensure they are created correctly
+        try:
+            # Initialize extraction service
+            logger.debug(f"Using ExtractionService for {language_code}")
+            self.extraction = ExtractionService(language_code)
+
+            # Initialize manipulation service
+            self.manipulation = ManipulationService(language_code)
+        except ValueError as e:
+            # Handle cases where services might fail initialization if LanguageService failed
+            logger.error(f"Failed to initialize services for {language_code}: {e}")
+            raise  # Re-raise the error
 
     @classmethod
-    def from_file_path(cls, file_path: str) -> Optional['CodeHem']:
+    def from_file_path(cls, file_path: str) -> "CodeHem":
         """
-        Create a language handler based on file path.
+        Create a CodeHem instance based on file extension.
 
         Args:
-        file_path: Path to the file
+            file_path: Path to the file
 
         Returns:
-        LanguageHandler for the detected language or None if not supported
+            CodeHem instance
+
+        Raises:
+            ValueError: If the file extension is not supported
         """
-        import os
-        file_ext = os.path.splitext(file_path.lower())[1]
-        return cls.from_file_extension(file_ext)
+        language_service = get_language_service_for_file(file_path)
+        if not language_service:
+            raise ValueError(
+                f"Unsupported file extension: {os.path.splitext(file_path)[1]}"
+            )
+        return cls(language_service.language_code)
 
     @classmethod
-    def from_file_extension(cls, file_ext: str) -> Optional['CodeHem']:
+    def from_raw_code(cls, code: str) -> "CodeHem":
         """
-        Create a language handler based on file extension.
+        Create a CodeHem instance by detecting language from code.
 
         Args:
-        file_ext: File extension (with or without leading dot)
+            code: Source code as string
 
         Returns:
-        LanguageHandler for the detected language or None if not supported
+            CodeHem instance
+
+        Raises:
+            ValueError: If the language could not be detected
         """
-        file_ext = file_ext.lower()
-        if not file_ext.startswith('.'):
-            file_ext = '.' + file_ext
-        for (ext, lang) in FILE_EXTENSIONS.items():
-            if ext == file_ext:
-                return cls(lang)
-        logger.warning(f'Unsupported file extension: {file_ext}')
-        return None
+        language_service = get_language_service_for_code(code)
+        if not language_service:
+            # Raise error instead of defaulting to Python
+            raise ValueError("Could not detect language from code")
+            # return cls('python') # Old behavior
+        return cls(language_service.language_code)
+
+    @staticmethod
+    def supported_languages() -> List[str]:
+        """
+        Get a list of supported language codes.
+
+        Returns:
+            List of supported language codes
+        """
+        return get_supported_languages()
+
+    @staticmethod
+    def supported_post_processors() -> List[str]:
+        """
+        Get a list of language codes with post-processor support.
+
+        Returns:
+            List of languages with post-processor support
+        """
+        return PostProcessorFactory.get_supported_languages()
+
+    @staticmethod
+    def open_workspace(repo_root: str) -> "Workspace":
+        """Open a workspace rooted at ``repo_root`` and build its index."""
+        from codehem.core.workspace import Workspace
+
+        return Workspace.open(repo_root)
 
     @staticmethod
     def load_file(file_path: str) -> str:
@@ -92,239 +139,447 @@ class CodeHem:
         """
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
-
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            # Try UTF-8 first
+            with open(file_path, "r", encoding="utf-8") as f:
                 return f.read()
         except UnicodeDecodeError:
-            # Try with a different encoding if UTF-8 fails
-            with open(file_path, 'r') as f:
+            logger.warning(
+                f"Could not decode {file_path} as UTF-8, trying default encoding."
+            )
+            # Fallback to default encoding if UTF-8 fails
+            with open(file_path, "r") as f:
                 return f.read()
+        except IOError as e:
+            logger.error(f"IOError reading file {file_path}: {e}")
+            raise
 
-    @classmethod
-    def from_raw_code(cls, code_or_path: str, check_for_file: bool=True) -> Optional['CodeHem']:
+    def detect_element_type(self, code: str) -> str:
         """
-        Create a CodeHem instance from raw code string or file path with language auto-detection.
+        Detect the type of element in the code.
 
         Args:
-        code_or_path: Raw code string or path to a file
-        check_for_file: If True, try to load file if code_or_path exists as a file
+            code: Code to analyze
 
         Returns:
-        CodeHem instance with appropriate language settings or None if language not supported
+            Element type string (from CodeElementType)
         """
-        code = code_or_path
-        if check_for_file and os.path.isfile(code_or_path):
-            try:
-                code = cls.load_file(code_or_path)
-            except Exception as e:
-                logger.warning(f'Failed to load file {code_or_path}: {str(e)}')
-        finders = {'python': get_code_finder('python'), 'typescript': get_code_finder('typescript')}
-        matching_languages = []
-        language_confidences = {}
-        for (lang, finder) in finders.items():
-            try:
-                if finder.can_handle(code):
-                    matching_languages.append(lang)
-                    if hasattr(finder, 'get_confidence_score'):
-                        language_confidences[lang] = finder.get_confidence_score(code)
-            except Exception as e:
-                logger.warning(f'Error in language detector for {lang}: {str(e)}')
-        if len(matching_languages) == 1:
-            return cls(matching_languages[0])
-        if len(matching_languages) > 1:
-            logger.warning(f'Multiple language handlers claim they can handle this code: {matching_languages}.')
-            if language_confidences:
-                max_score = max(language_confidences.values())
-                best_languages = [lang for (lang, score) in language_confidences.items() if score == max_score]
-                if len(best_languages) > 1:
-                    logger.warning(f'Multiple languages have the same confidence score ({max_score}): {best_languages}. Using the first one.')
-                return cls(best_languages[0])
-            logger.warning("Couldn't determine best language based on confidence. Using first match.")
-            return cls(matching_languages[0])
-        logger.warning('No language handler matched the code. Returning None.')
-        return None
+        if not self.language_service:
+            raise RuntimeError("Language service not initialized.")
+        return self.language_service.detect_element_type(code)
 
-    @staticmethod
-    def analyze_file(file_path: str) -> None:
+    def upsert_element(
+        self,
+        original_code: str,
+        element_type: str,
+        name: str,
+        new_code: str,
+        parent_name: Optional[str] = None,
+    ) -> str:
         """
-        Analyze a file and print statistics in a rich JSON format.
+        Add or replace an element in the code.
 
         Args:
-        file_path: Path to the file
+            original_code: Original source code
+            element_type: Type of element to add/replace (from CodeElementType)
+            name: Name of the element
+            new_code: New content for the element
+            parent_name: Name of parent element (e.g., class name for methods)
+
+        Returns:
+            Modified code
         """
+        if not self.manipulation:
+            raise RuntimeError("Manipulation service not initialized.")
+        return self.manipulation.upsert_element(
+            original_code, element_type, name, new_code, parent_name
+        )
+
+    def _ensure_file_prefix(self, xpath: str) -> str:
+        """Internal helper to ensure XPath starts with FILE."""
+        root_prefix = XPathParser.ROOT_ELEMENT + "."
+        if not xpath.startswith(root_prefix) and not xpath.startswith(
+            "["
+        ):  # Avoid prefixing special selectors like [import]
+            logger.debug(
+                f"XPath '{xpath}' does not start with '{root_prefix}'. Prepending it."
+            )
+            xpath = root_prefix + xpath
+        return xpath
+
+    def upsert_element_by_xpath(
+        self, original_code: str, xpath: str, new_code: str
+    ) -> str:
+        """
+        Add or replace an element in the code using XPath expression.
+        Automatically prepends "FILE." if missing.
+
+        Args:
+            original_code: Original source code
+            xpath: XPath expression (e.g., 'ClassName.method_name', 'ClassName[interface].method_name[property_getter]')
+            new_code: New content for the element
+
+        Returns:
+            Modified code
+        """
+        if not self.manipulation:
+            raise RuntimeError("Manipulation service not initialized.")
+        # Ensure xpath starts with FILE. before passing to manipulation service
+        processed_xpath = self._ensure_file_prefix(xpath)
+        return self.manipulation.upsert_element_by_xpath(
+            original_code, processed_xpath, new_code
+        )
+
+    def find_by_xpath(self, code: str, xpath: str) -> Optional[Tuple[int, int]]:
+        """
+        Find an element's location using an XPath expression.
+        Automatically prepends "FILE." if missing.
+
+        Args:
+            code: Source code as string
+            xpath: XPath expression (e.g., 'ClassName.method_name', 'ClassName[interface].method_name[property_getter]')
+
+        Returns:
+            Tuple of (start_line, end_line) or None if not found
+        """
+        if not self.extraction:
+            raise RuntimeError("Extraction service not initialized.")
+        processed_xpath = self._ensure_file_prefix(xpath)
+        return self.extraction.find_by_xpath(code, processed_xpath)
+
+    def get_text_by_xpath(
+        self, code: str, xpath: str, return_hash: bool = False
+    ) -> Optional[str]:
+        """
+        Get the text content of an element using an XPath expression.
+        Automatically prepends "FILE." if missing.
+        Handles property getters/setters and parts like [def], [body].
+
+        Args:
+            code: Source code as string
+            xpath: XPath expression (e.g., 'ClassName.method_name', 'ClassName.value[property_getter]')
+
+        Returns:
+            Text content of the element, or None if not found
+        """
+        if not self.language_service:
+            raise RuntimeError("Language service not initialized.")
+        # Ensure xpath starts with FILE. before parsing
+        processed_xpath = self._ensure_file_prefix(xpath)
         try:
-            # Import rich library
-            from rich.console import Console
-            from rich.panel import Panel
+            # Parse the potentially modified xpath
+            xpath_nodes = XPathParser.parse(processed_xpath)
+            if not xpath_nodes:
+                logger.warning(f"Could not parse XPath: '{processed_xpath}'")
+                return None
+            # Call internal method with parsed nodes
+            text = self.language_service.get_text_by_xpath_internal(code, xpath_nodes)
+            if text is None:
+                return None
+            if return_hash:
+                from codehem.core.utils.hashing import sha256_code
 
-            console = Console()
-
-            # Load the file content
-            content = CodeHem.load_file(file_path)
-
-            # Create CodeHem instance from the content, skip file path check
-            hem = CodeHem.from_raw_code(content, check_for_file=False)
-
-            # Extract code elements
-            code_elements = hem.extract(content)
-
-            # Build the analysis data structure
-            analysis = {
-                "file": os.path.basename(file_path),
-                "path": file_path,
-                "language": hem.language_code,
-                "content_type": hem.get_content_type(content),
-                "statistics": {}
-            }
-
-            if hasattr(code_elements, 'elements'):
-                # Total elements
-                analysis["statistics"]["total_elements"] = len(code_elements.elements)
-
-                # Count by type
-                type_counts = {}
-                for element in code_elements.elements:
-                    if element.type not in type_counts:
-                        type_counts[element.type] = 0
-                    type_counts[element.type] += 1
-
-                analysis["statistics"]["elements_by_type"] = type_counts
-
-                # Classes details
-                classes = [e for e in code_elements.elements if e.is_class]
-                if classes:
-                    analysis["classes"] = []
-                    for cls in classes:
-                        methods = [c for c in cls.children if c.is_method]
-                        properties = [c for c in cls.children if c.is_property]
-                        meta_elements = [c for c in cls.children if c.is_meta_element]
-
-                        class_data = {
-                            "name": cls.name,
-                            "methods_count": len(methods),
-                            "properties_count": len(properties),
-                            "meta_elements_count": len(meta_elements)
-                        }
-
-                        # Add method names if there are any
-                        if methods:
-                            class_data["methods"] = [{"name": m.name, "type": m.type} for m in methods]
-
-                        # Add property names if there are any
-                        if properties:
-                            class_data["properties"] = [{"name": p.name, "type": p.value_type} for p in properties]
-
-                        analysis["classes"].append(class_data)
-
-                # Standalone functions
-                funcs = [e for e in code_elements.elements if e.is_function and not getattr(e, 'parent_name', None)]
-                if funcs:
-                    analysis["functions"] = []
-                    for func in funcs:
-                        func_data = {
-                            "name": func.name,
-                            "parameters_count": len([p for p in func.children if p.is_parameter])
-                        }
-
-                        # Add return type if available
-                        if func.return_value:
-                            func_data["return_type"] = func.return_value.value_type
-
-                        analysis["functions"].append(func_data)
-
-                # Handle imports
-                imports = [e for e in code_elements.elements if e.type == CodeElementType.IMPORT]
-                if imports and imports[0].additional_data and "import_statements" in imports[0].additional_data:
-                    import_statements = imports[0].additional_data["import_statements"]
-                    if isinstance(import_statements, list):
-                        analysis["imports"] = [s.strip() for s in import_statements if s.strip()]
-
-            # Print a header
-            console.print(Panel(f"[bold blue]Code Analysis for[/bold blue] [bold green]{os.path.basename(file_path)}[/bold green]", expand=False))
-
-            # Print the JSON analysis
-            console.print_json(data=analysis)
-
+                return text, sha256_code(text)
+            return text
         except Exception as e:
-            logger.error(f"[bold red]Error analyzing file:[/bold red] {str(e)}")
-            import traceback
-            logger.error(f"[dim red]{traceback.format_exc()}[/dim red]")
+            logger.error(
+                f"Error getting text by XPath '{xpath}' (processed: '{processed_xpath}'): {e}",
+                exc_info=True,
+            )
+            return None
 
-    def get_content_type(self, content: str) -> str:
+    def extract(self, code: str) -> CodeElementsResult:
         """
-        Determine the type of content by delegating to the language-specific strategy.
+        Extract code elements from the source code.
 
         Args:
-            content: The code content to analyze
+            code: Source code as string
 
         Returns:
-            A string representation of the content type from CodeElementType
+            CodeElementsResult containing extracted elements
         """
-        if self.strategy:
-            return self.strategy.get_content_type(content)
-
-        # Fallback to basic detection if no strategy is available
-        if not content or not content.strip():
-            return CodeElementType.MODULE.value
-
-        content = content.strip()
-        first_line = content.splitlines()[0] if content.splitlines() else ""
-
-        # Generic detection logic as fallback
-        if re.search(r'^\s*(class|interface)\s+\w+', first_line, re.IGNORECASE):
-            if 'interface' in first_line.lower():
-                return CodeElementType.INTERFACE.value
-            return CodeElementType.CLASS.value
-
-        if re.search(r'^\s*(def|function|async|public|private|protected|static)\s+\w+\s*\(', first_line, re.IGNORECASE):
-            return CodeElementType.FUNCTION.value
-
-        return CodeElementType.MODULE.value
-
-    def extract(self, code: str) -> 'CodeElementsResult':
-        """
-        Extract code elements from source code and return them as Pydantic models.
-
-        Args:
-        code: Source code as string
-
-        Returns:
-        CodeElementsResult containing all found code elements
-        """
-        service = ExtractionService(self.finder, self.strategy)
-        return service.extract_code_elements(code)
+        if not self.extraction:
+            raise RuntimeError("Extraction service not initialized.")
+        return self.extraction.extract_all(code)
 
     @staticmethod
-    def filter(elements: CodeElementsResult, xpath: str='') -> Optional[CodeElement]:
+    def _ensure_file_prefix_static(xpath: str) -> str:
+        """Static helper to ensure XPath starts with FILE."""
+        root_prefix = XPathParser.ROOT_ELEMENT + "."
+        if not xpath.startswith(root_prefix) and not xpath.startswith("["):
+            # Note: Static method doesn't have logger instance easily
+            # print(f"DEBUG: XPath '{xpath}' does not start with '{root_prefix}'. Prepending it.")
+            xpath = root_prefix + xpath
+        return xpath
+
+    @staticmethod
+    def filter(elements: CodeElementsResult, xpath: str = "") -> Optional[CodeElement]:
         """
-        Filter code elements based on xpath expression.
+        Filter code elements based on XPath expression.
+        Automatically prepends "FILE." if missing.
+        Delegates to the ElementFilter utility class.
 
         Args:
-        elements: CodeElementsResult containing code elements
-        xpath: XPath-like expression for filtering (e.g., "ClassName.method_name", "function_name")
+            elements: CodeElementsResult containing elements
+            xpath: XPath expression (e.g., 'ClassName.method_name', 'ClassName[interface].method_name[property_getter]')
 
         Returns:
-        Matching CodeElement or None if not found
+            Matching CodeElement or None if not found
         """
-        if not xpath or not elements or (not hasattr(elements, 'elements')):
+        # Use ElementFilter utility to avoid duplicating filtering logic
+        from codehem.models.element_filter import ElementFilter
+
+        # Process the xpath first to ensure FILE. prefix (for compatibility)
+        if (
+            xpath
+            and not xpath.startswith(XPathParser.ROOT_ELEMENT + ".")
+            and not xpath.startswith("[")
+        ):
+            processed_xpath = CodeHem._ensure_file_prefix_static(xpath)
+        else:
+            processed_xpath = xpath
+
+        return ElementFilter.filter(elements, processed_xpath)
+
+    @staticmethod
+    def parse_xpath(xpath: str) -> List[CodeElementXPathNode]:
+        """
+        Parse an XPath expression into component nodes.
+        Does NOT automatically prepend "FILE.".
+
+        Args:
+            xpath: XPath expression (e.g., 'FILE.ClassName.method_name', 'ClassName[interface].method_name[property_getter]')
+
+        Returns:
+            List of CodeElementXPathNode objects representing the path
+        """
+        # This method specifically should NOT add FILE automatically,
+        # as its purpose is purely parsing the given string.
+        return XPathParser.parse(xpath)
+
+    @staticmethod
+    def format_xpath(nodes: List[CodeElementXPathNode]) -> str:
+        """
+        Format XPath nodes back into an XPath expression string.
+
+        Args:
+            nodes: List of CodeElementXPathNode objects
+
+        Returns:
+            XPath expression string
+        """
+        return XPathParser.to_string(nodes)
+
+    # _get_text_for_top_level_element remains private helper, no change needed
+    def _get_text_for_top_level_element(self, code: str, xpath: str) -> Optional[str]:
+        """Helper function to get text for top-level elements (classes, functions)."""
+        # This uses find_by_xpath, which now includes the FILE prefix logic
+        line_range = self.find_by_xpath(code, xpath)
+        if not line_range:
             return None
-        if xpath.lower() == 'imports':
-            for element in elements.elements:
-                if element.type == CodeElementType.IMPORT:
-                    return element
-        if '.' in xpath:
-            parts = xpath.split('.', 1)
-            if len(parts) == 2:
-                (class_name, member_name) = parts
-                for element in elements.elements:
-                    if element.type == CodeElementType.CLASS and element.name == class_name:
-                        for child in element.children:
-                            if hasattr(child, 'name') and child.name == member_name:
-                                return child
+        start_line, end_line = line_range
+
+        lines = code.splitlines()
+        # Adjust validation if start_line can be > end_line temporarily? No, find_by_xpath should return valid range.
+        if (
+            start_line > len(lines)
+            or end_line > len(lines)
+            or start_line <= 0
+            or end_line < start_line
+        ):
+            logger.warning(
+                f'Invalid line range returned by find_by_xpath for "{xpath}": ({start_line}, {end_line})'
+            )
             return None
-        for element in elements.elements:
-            if hasattr(element, 'name') and element.name == xpath:
-                if element.parent_name is None or element.parent_name == '':
-                    return element
-        return None
+
+        def extract_text(start, end, code_lines):
+            # Ensure indices are within bounds for slicing
+            start_idx = max(0, start - 1)
+            end_idx = min(len(code_lines), end)
+            if start_idx >= end_idx:
+                logger.warning(
+                    f"Adjusted invalid line range for extraction: start_idx={start_idx}, end_idx={end_idx}"
+                )
+                return None
+            return "\n".join(code_lines[start_idx:end_idx])
+
+        return extract_text(start_line, end_line, lines)
+
+    def get_element_hash(self, code: str, xpath: str) -> Optional[str]:
+        """Return SHA256 hash of the code fragment specified by XPath."""
+        text = self.get_text_by_xpath(code, xpath)
+        if text is None:
+            return None
+        from codehem.core.utils.hashing import sha256_code
+
+        return sha256_code(text)
+
+    def apply_patch(
+        self,
+        original_code: str,
+        xpath: str,
+        new_code: str,
+        mode: str = "replace",
+        original_hash: Optional[str] = None,
+        dry_run: bool = False,
+        return_format: str = "json",
+    ) -> object:
+        """Apply a patch to the code fragment selected by XPath."""
+        location = self.find_by_xpath(original_code, xpath)
+        if not location:
+            from codehem.core.error_handling import ElementNotFoundError
+
+            raise ElementNotFoundError("xpath", xpath)
+        start_line, end_line = location
+        lines = original_code.splitlines()
+        old_fragment = "\n".join(lines[start_line - 1 : end_line])
+        from codehem.core.utils.hashing import sha256_code
+
+        current_hash = sha256_code(old_fragment)
+        if original_hash is not None and original_hash != current_hash:
+            from codehem.core.error_handling import WriteConflictError
+
+            raise WriteConflictError(
+                expected_hash=original_hash,
+                actual_hash=current_hash,
+            )
+        if mode == "replace":
+            new_fragment_lines = new_code.splitlines()
+        elif mode == "append":
+            new_fragment_lines = (
+                lines[start_line - 1 : end_line] + new_code.splitlines()
+            )
+        elif mode == "prepend":
+            new_fragment_lines = (
+                new_code.splitlines() + lines[start_line - 1 : end_line]
+            )
+        else:
+            from codehem.core.error_handling import InvalidManipulationError
+
+            raise InvalidManipulationError("apply_patch", f"Unknown mode: {mode}")
+        patched_lines = lines[: start_line - 1] + new_fragment_lines + lines[end_line:]
+        patched_code = "\n".join(patched_lines)
+        from difflib import unified_diff
+
+        diff_lines = list(
+            unified_diff(
+                original_code.splitlines(True),
+                patched_code.splitlines(True),
+                fromfile="original",
+                tofile="patched",
+            )
+        )
+        if dry_run:
+            return "".join(diff_lines)
+
+        lines_added = sum(
+            1
+            for line in diff_lines
+            if line.startswith("+") and not line.startswith("+++")
+        )
+        lines_removed = sum(
+            1
+            for line in diff_lines
+            if line.startswith("-") and not line.startswith("---")
+        )
+        result = {
+            "status": "ok",
+            "lines_added": lines_added,
+            "lines_removed": lines_removed,
+            "new_hash": sha256_code("\n".join(new_fragment_lines)),
+            "code": patched_code,
+        }
+        if return_format == "text":
+            return patched_code
+        return result
+
+    def new_function(
+        self,
+        original_code: str,
+        name: str,
+        args: Optional[List[str]] = None,
+        body: Optional[List[str]] = None,
+        decorators: Optional[List[str]] = None,
+        return_format: str = "text",
+    ) -> object:
+        """Create and insert a new top-level function."""
+        snippet = build_function(name, args, body, decorators)
+        patched = self.upsert_element(
+            original_code, CodeElementType.FUNCTION.value, name, snippet
+        )
+        if return_format == "json":
+            return {"status": "ok", "code": patched}
+        return patched
+
+    def new_class(
+        self,
+        original_code: str,
+        name: str,
+        body: Optional[List[str]] = None,
+        decorators: Optional[List[str]] = None,
+        return_format: str = "text",
+    ) -> object:
+        """Create and insert a new class."""
+        snippet = build_class(name, body, decorators)
+        patched = self.upsert_element(
+            original_code, CodeElementType.CLASS.value, name, snippet
+        )
+        if return_format == "json":
+            return {"status": "ok", "code": patched}
+        return patched
+
+    def new_method(
+        self,
+        original_code: str,
+        parent: str,
+        name: str,
+        args: Optional[List[str]] = None,
+        body: Optional[List[str]] = None,
+        decorators: Optional[List[str]] = None,
+        return_format: str = "text",
+    ) -> object:
+        """Create and insert a new method inside a parent class."""
+        snippet = build_method(name, args, body, decorators)
+        patched = self.upsert_element(
+            original_code,
+            CodeElementType.METHOD.value,
+            name,
+            snippet,
+            parent_name=parent,
+        )
+        if return_format == "json":
+            return {"status": "ok", "code": patched}
+        return patched
+
+    def short_xpath(self, elements: CodeElementsResult, element: CodeElement) -> str:
+        """Return the shortest unique XPath for ``element``."""
+
+        def find_path(
+            current: CodeElement, path: List[CodeElement]
+        ) -> List[CodeElement]:
+            if current is element:
+                return path + [current]
+            for child in getattr(current, "children", []):
+                result = find_path(child, path + [current])
+                if result:
+                    return result
+            return []
+
+        path_elements: List[CodeElement] = []
+        for top in elements.elements:
+            path_elements = find_path(top, [])
+            if path_elements:
+                break
+        if not path_elements:
+            return ""
+
+        nodes = [CodeElementXPathNode(type=CodeElementType.FILE.value)]
+        for el in path_elements:
+            nodes.append(CodeElementXPathNode(name=el.name, type=el.type.value))
+        full_nodes = nodes[:]
+        for i in range(len(nodes)):
+            candidate = XPathParser.to_string(nodes[i:])
+            found = CodeHem.filter(elements, candidate)
+            if found is element:
+                return candidate
+        return XPathParser.to_string(full_nodes)

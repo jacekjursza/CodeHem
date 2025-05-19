@@ -1,4 +1,0 @@
-{
-  "class_name": "TestClass",
-  "expected_methods": ["method1", "method2", "static_method"]
-}

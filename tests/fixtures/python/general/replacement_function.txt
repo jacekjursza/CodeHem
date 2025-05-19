@@ -1,0 +1,7 @@
+## function_name: test_function
+## unique_marker: FUNCTION_REPLACEMENT_MARKER
+
+def test_function(arg, factor=2):
+    """A replacement test function."""
+    # FUNCTION_REPLACEMENT_MARKER
+    return arg * factor

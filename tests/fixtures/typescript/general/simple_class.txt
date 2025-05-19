@@ -1,0 +1,11 @@
+## class_name: SimpleLogger
+## start_line: 1
+## end_line: 6
+
+export class SimpleLogger {
+    private prefix: string = "LOG";
+
+    log(message: string): void {
+        console.log(`${this.prefix}: ${message}`);
+    }
+}

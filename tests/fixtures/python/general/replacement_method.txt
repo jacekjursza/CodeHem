@@ -1,0 +1,8 @@
+## method_name: original_method
+## unique_marker: REPLACEMENT_UNIQUE_MARKER
+
+def original_method(self, param, extra=None):
+    # REPLACEMENT_UNIQUE_MARKER
+    if extra:
+        return param * self.value + extra
+    return param * self.value

@@ -1,0 +1,8 @@
+## function_name: decorated_function
+## decorators: route, cache_result
+
+@route('/api/endpoint')
+@cache_result(timeout=60)
+def decorated_function(param):
+    """A decorated standalone function."""
+    return f"Processed {param}"

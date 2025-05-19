@@ -1,4 +1,0 @@
-{
-  "class_name": "MyClass",
-  "expected_decorators": ["@class_decorator1", "@class_decorator2"]
-}

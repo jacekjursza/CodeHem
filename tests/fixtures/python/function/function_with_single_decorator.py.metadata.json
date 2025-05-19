@@ -1,7 +1,0 @@
-{
-  "function_name": "my_function",
-  "start_line": 2,
-  "end_line": 3,
-  "include_extra_start_line": 1,
-  "include_extra_end_line": 3
-}

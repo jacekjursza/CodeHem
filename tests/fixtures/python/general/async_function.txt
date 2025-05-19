@@ -1,0 +1,10 @@
+## function_name: async_test
+## return_type: str
+## parameters: arg, timeout=30
+
+async def async_test(arg, timeout=30):
+    """An async function for testing."""
+    result = await some_async_operation(arg)
+    if timeout > 0:
+        await asyncio.wait_for(another_operation(), timeout)
+    return result

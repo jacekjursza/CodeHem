@@ -1,0 +1,46 @@
+from pydantic import BaseModel, Field
+from django.models import Model
+
+class MyClass:
+    static_property: str = "Hello, World!"
+
+    def __init__(self, name: str):
+        self.name = name
+
+    @property
+    def new_property(self) -> str:
+        return f"Hello, {self.name}!"
+
+    @new_property.setter
+    def new_property(self, value: str) -> None:
+        self.name = value
+
+    @greetdecorator
+    def greet(self) -> str:
+        return f"Hello, {self.name}!"
+
+    @mydecorator
+    def other(self, x: int, y: str) -> str:
+        return f"This is other: {x} {y}."
+
+
+class DocstringClass:
+
+    @decor
+    def documented_method(self, param1, param2, param3):
+        """This is a docstring for testing.
+
+        It has multiple lines.
+        """
+        return "Documented"
+
+    def duplicated_method(self, param1, param2):
+        print("Duplicated method")
+        return "Duplicated 1"
+
+    def duplicated_method(self, param1, param2):
+        print("Duplicated method")
+        return "Duplicated 2"
+
+def my_function(x: int) -> int:
+    return x + 1

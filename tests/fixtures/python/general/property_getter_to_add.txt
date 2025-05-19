@@ -1,0 +1,5 @@
+## property_name: new_property
+
+@property
+def new_property(self):
+    return self._internal_value * 2

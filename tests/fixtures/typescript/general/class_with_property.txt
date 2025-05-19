@@ -1,0 +1,13 @@
+## class_name: ConfigData
+## property_name: apiKey
+## start_line: 2
+## end_line: 2
+
+class ConfigData {
+    public apiKey: string = "default_key";
+    readonly endpoint: string;
+
+    constructor(endpointUrl: string) {
+        this.endpoint = endpointUrl;
+    }
+}

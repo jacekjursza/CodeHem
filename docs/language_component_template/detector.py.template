@@ -1,0 +1,76 @@
+"""
+{{LANGUAGE_NAME}} language detector implementation.
+
+This module provides implementation of the language detector interface for {{LANGUAGE_NAME}}.
+It detects whether a given code snippet is likely {{LANGUAGE_NAME}} code.
+"""
+
+import logging
+import re
+from typing import Dict, List
+
+from codehem.core.detector import BaseLanguageDetector
+from codehem.core.components.extended_interfaces import ILanguageDetector
+
+logger = logging.getLogger(__name__)
+
+@language_detector('{{LANGUAGE_CODE}}')
+class {{LANGUAGE_PREFIX}}LanguageDetector(BaseLanguageDetector, ILanguageDetector):
+    """
+    {{LANGUAGE_NAME}} implementation of the language detector.
+    
+    Detects whether a given code snippet is likely {{LANGUAGE_NAME}} code.
+    """
+    
+    def detect_confidence(self, code: str) -> float:
+        """
+        Calculate a confidence score for the code being {{LANGUAGE_NAME}}.
+        
+        Args:
+            code: The code snippet to analyze
+            
+        Returns:
+            Confidence score between 0.0 and 1.0
+        """
+        logger.debug(f'Detecting if code is {{LANGUAGE_NAME}}')
+        
+        # Skip empty code
+        if not code or not code.strip():
+            return 0.0
+        
+        # Start with a base confidence
+        confidence = 0.1
+        
+        # List of {{LANGUAGE_NAME}} keywords to check for
+        keywords = [
+            {{LANGUAGE_KEYWORDS}}
+        ]
+        
+        # List of patterns that indicate {{LANGUAGE_NAME}} code
+        patterns = [
+            {{LANGUAGE_PATTERNS}}
+        ]
+        
+        # List of anti-patterns that suggest it's not {{LANGUAGE_NAME}} code
+        anti_patterns = [
+            {{LANGUAGE_ANTI_PATTERNS}}
+        ]
+        
+        # Check for presence of keywords
+        keyword_count = sum(1 for keyword in keywords if re.search(r'\b' + re.escape(keyword) + r'\b', code))
+        confidence += min(0.4, keyword_count * 0.05)
+        
+        # Check for language-specific patterns
+        pattern_matches = sum(1 for pattern in patterns if re.search(pattern, code))
+        confidence += min(0.3, pattern_matches * 0.1)
+        
+        # Check for anti-patterns (patterns that suggest it's not {{LANGUAGE_NAME}})
+        anti_pattern_matches = sum(1 for pattern in anti_patterns if re.search(pattern, code))
+        confidence -= min(confidence, anti_pattern_matches * 0.2)
+        
+        # Adjust confidence based on file extension hints if present
+        if '{{LANGUAGE_EXTENSION}}' in code:
+            confidence += 0.1
+        
+        # Cap confidence between 0.0 and 1.0
+        return max(0.0, min(1.0, confidence))

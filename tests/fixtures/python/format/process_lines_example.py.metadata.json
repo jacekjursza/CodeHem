@@ -1,7 +1,0 @@
-{
-  "original_lines": ["line 1", "line 2", "line 3", "line 4", "line 5"],
-  "new_lines": ["new line 2", "new line 3"],
-  "start_idx": 1,
-  "end_idx": 2,
-  "expected_lines": ["line 1", "new line 2", "new line 3", "line 4", "line 5"]
-}

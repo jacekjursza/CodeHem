@@ -1,0 +1,9 @@
+## interface_name: IUser
+## start_line: 1
+## end_line: 5
+
+interface IUser {
+    id: number;
+    name: string;
+    email?: string; // Optional property
+}

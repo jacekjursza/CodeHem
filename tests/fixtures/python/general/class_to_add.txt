@@ -1,0 +1,10 @@
+## class_name: NewClass
+
+class NewClass:
+    """A new class to add to a module."""
+    
+    def __init__(self, value=None):
+        self.value = value
+    
+    def get_value(self):
+        return self.value

@@ -1,0 +1,7 @@
+## method_name: new_method
+
+def new_method(self, param1, param2=None):
+    """A new method to add to a class."""
+    if param2 is None:
+        return param1
+    return param1 + param2

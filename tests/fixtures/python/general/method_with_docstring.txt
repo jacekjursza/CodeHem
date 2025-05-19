@@ -1,0 +1,12 @@
+## class_name: DocstringClass
+## method_name: documented_method
+## docstring_marker: This is a docstring
+
+class DocstringClass:
+    
+    def documented_method(self):
+        """This is a docstring for testing.
+        
+        It has multiple lines.
+        """
+        return "Documented"

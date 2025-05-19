@@ -1,0 +1,9 @@
+## function_name: greetUser
+## start_line: 5
+## end_line: 7
+## language_variant: javascript
+
+// Simple JS function
+function greetUser(name) {
+    return "Hello, " + name + "!";
+}

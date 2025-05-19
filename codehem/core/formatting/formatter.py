@@ -1,44 +1,56 @@
 """
-Code formatting system for standardizing code output across languages.
+Base formatter class for CodeHem.
 """
 import re
 import textwrap
+from typing import Optional, Callable, Dict
 
+class BaseFormatter:
+    """Base class for code formatters."""
 
-class CodeFormatter:
-    """
-    Base class for language-specific code formatters.
-    Provides common formatting utilities and language-specific hooks.
-    """
-    
     def __init__(self, indent_size: int = 4):
         """
-        Initialize a code formatter.
+        Initialize the formatter.
         
         Args:
-            indent_size: Number of spaces for each indentation level
+            indent_size: Number of spaces per indentation level
         """
         self.indent_size = indent_size
         self.indent_string = ' ' * indent_size
-    
-    def format_method(self, method_code: str) -> str:
-        """
-        Format a method definition.
-        Default implementation, can be overridden by language-specific formatters.
 
+    def format_element(self, element_type: str, code: str) -> str:
+        """
+        Format a code element of the specified type.
+        
         Args:
-            method_code: Method code to format
-
+            element_type: Type of the element to format
+            code: Code to format
+            
         Returns:
-            Formatted method code
-            :param method_code: 
+            Formatted code
         """
-        return method_code
-    
+        formatter = self._get_element_formatter(element_type)
+        if formatter:
+            return formatter(code)
+        return self.format_code(code)
+
+    def _get_element_formatter(self, element_type: str) -> Optional[Callable]:
+        """
+        Get the formatter function for the specified element type.
+        Override this in language-specific formatters.
+        
+        Args:
+            element_type: Element type
+            
+        Returns:
+            Formatter function or None if no specific formatter
+        """
+        return None
+
     def format_code(self, code: str) -> str:
         """
         Format code according to language standards.
-        This is a placeholder to be overridden by language-specific formatters.
+        Override this in language-specific formatters.
         
         Args:
             code: Code to format
@@ -47,20 +59,50 @@ class CodeFormatter:
             Formatted code
         """
         return code
-    
-    def get_indentation(self, line: str) -> str:
+
+    def _fix_spacing(self, code: str) -> str:
+        """Basic spacing normalization used by indent-based formatters."""
+        code = re.sub(r'([^\s=!<>])=([^\s=])', r'\1 = \2', code)
+        code = re.sub(r'([^\s!<>])==([^\s])', r'\1 == \2', code)
+        code = re.sub(r'([^\s])([+\-*/%])', r'\1 \2', code)
+        code = re.sub(r',([^\s])', r', \1', code)
+        code = re.sub(r'([^\s]):([^\s])', r'\1: \2', code)
+        code = re.sub(r'\n\s*\n\s*\n', r'\n\n', code)
+        return code
+
+    def apply_indentation(self, code: str, base_indent: str) -> str:
         """
-        Get the whitespace indentation from a line.
+        Apply indentation to the code.
         
         Args:
-            line: Source line to analyze
+            code: Code to indent
+            base_indent: Base indentation to apply
+            
+        Returns:
+            Indented code
+        """
+        lines = code.splitlines()
+        result = []
+        for line in lines:
+            if line.strip():
+                result.append(base_indent + line.lstrip())
+            else:
+                result.append('')
+        return '\n'.join(result)
+
+    def get_indentation(self, line: str) -> str:
+        """
+        Get the indentation from a line.
+        
+        Args:
+            line: Line to analyze
             
         Returns:
             Indentation string
         """
-        match = re.match(r'^(\s*)', line)
+        match = re.match('^(\\s*)', line)
         return match.group(1) if match else ''
-    
+
     def dedent(self, code: str) -> str:
         """
         Remove common leading whitespace from all lines.
@@ -72,79 +114,38 @@ class CodeFormatter:
             Dedented code
         """
         return textwrap.dedent(code)
-    
-    def apply_indentation(self, code: str, indent: str) -> str:
-        """
-        Apply indentation to all non-empty lines of code.
-        
-        Args:
-            code: Code to indent
-            indent: Indentation string to apply
-            
-        Returns:
-            Indented code
-        """
-        lines = code.splitlines()
-        result = []
-        
-        for line in lines:
-            if line.strip():
-                result.append(f"{indent}{line.lstrip()}")
-            else:
-                result.append(line)
-                
-        return '\n'.join(result)
-    
-    def normalize_indentation(self, code: str, base_indent: str = '') -> str:
+
+    def normalize_indentation(self, code: str, target_indent: str='') -> str:
         """
         Normalize indentation to be consistent throughout the code.
         
         Args:
             code: Code to normalize
-            base_indent: Base indentation to apply
+            target_indent: Target indentation
             
         Returns:
             Code with normalized indentation
         """
         lines = code.splitlines()
-        
-        # Find common indentation and indentation steps
         non_empty_lines = [line for line in lines if line.strip()]
         if not non_empty_lines:
             return code
-            
-        min_indent = min(len(self.get_indentation(line)) for line in non_empty_lines)
-        
-        # Remove common indentation and apply base indent
+        min_indent = float('inf')
+        for line in non_empty_lines:
+            indent_size = len(self.get_indentation(line))
+            if indent_size < min_indent:
+                min_indent = indent_size
+        if min_indent == float('inf'):
+            min_indent = 0
         result = []
         for line in lines:
             if not line.strip():
                 result.append('')
                 continue
-                
-            current_indent = len(self.get_indentation(line))
-            if current_indent >= min_indent:
-                indent_depth = current_indent - min_indent
-                result.append(f"{base_indent}{' ' * indent_depth}{line[current_indent:]}")
+            indent = self.get_indentation(line)
+            if len(indent) >= min_indent:
+                relative_indent = len(indent) - min_indent
+                result.append(target_indent + ' ' * relative_indent + line[len(indent):])
             else:
-                result.append(f"{base_indent}{line}")
-                
+                result.append(target_indent + line)
         return '\n'.join(result)
-    
-    def merge_indentation(self, code: str, reference_code: str) -> str:
-        """
-        Apply indentation from reference code to new code.
-        
-        Args:
-            code: Code to format
-            reference_code: Reference code to get indentation from
-            
-        Returns:
-            Code with merged indentation
-        """
-        ref_lines = reference_code.splitlines()
-        if not ref_lines:
-            return code
-            
-        ref_indent = self.get_indentation(ref_lines[0])
-        return self.apply_indentation(self.dedent(code), ref_indent)
