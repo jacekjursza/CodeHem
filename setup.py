@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="CodeHem",
-    version="0.1.6.1",
+    version="1.0.0",
     author="Jacek Jursza",
     author_email="jacek.jursza@gmail.com",
     description="A language-agnostic library for code querying and manipulation",
@@ -17,7 +17,7 @@ setup(
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
