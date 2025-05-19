@@ -22,4 +22,9 @@ This document verifies whether features described for Sprints 4–7 in `ROADMAP.
 - **Repository evidence:** `Workspace` class with file-locking in `core/workspace.py`【F:codehem/core/workspace.py†L103-L166】. README provides a workspace usage snippet【F:README.md†L96-L103】.
 - **Conclusion:** sprint completed as described.
 
-Overall, README and code confirm implementation of features for Sprints 4–7 as outlined in `ROADMAP.md`.
+## Sprint 8 — Documentation & CLI polish
+- **Roadmap scope:** Developer and user guides, new CLI commands for detection and patching.
+- **Repository evidence:** Developer guide present【F:docs/Developer-Guide.md†L1-L29】 and quick-start guide for LLMs【F:docs/QuickStart-LLM.md†L1-L25】. CLI subcommands `detect` and `patch` implemented【F:codehem/cli.py†L35-L108】.
+- **Conclusion:** sprint objectives delivered.
+
+Overall, README and code confirm implementation of features for Sprints 4–8 as outlined in `ROADMAP.md`.

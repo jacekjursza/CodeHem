@@ -134,6 +134,8 @@ Agenci mogą działać równolegle; workspace skraca wyszukiwanie, lock zapewnia
 
 ## Sprint 8 — Dokumentacja + CLI + Release 1.0
 
+### Status: ✅ zakończono
+
 ### Co robimy
 
 * **Developer Guide** – opis pluginów, buildera, patch API; diagramy PlantUML; hostowane przez GitHub Pages.

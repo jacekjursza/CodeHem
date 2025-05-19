@@ -9,12 +9,12 @@ from .core.post_processors.factory import PostProcessorFactory
 # Initialize all components
 registry.initialize_components()
 
-__version__ = '0.1.8.0'
+__version__ = "1.0.0"
 __all__ = [
-    'CodeHem', 
-    'CodeElementType', 
-    'CodeElementXPathNode', 
-    'CodeElementsResult',
-    'PostProcessorFactory',
-    'Workspace',
+    "CodeHem",
+    "CodeElementType",
+    "CodeElementXPathNode",
+    "CodeElementsResult",
+    "PostProcessorFactory",
+    "Workspace",
 ]

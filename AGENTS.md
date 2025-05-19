@@ -18,12 +18,12 @@
 | ------ | -------------- | ------------------------------------------------------------------- |
 | 1      | ✅ done         | API clean‑up, remove prints, unify error handling                   |
 | 2      | ✅ done         | AST & XPath cache, lazy loading                                     |
-| 3      | 🟢 in‑progress | Plugin architecture (entry‑points), JS alias, cookiecutter template |
-| 4      | 🚧 queued      | DRY formatter/manipulator refactor                                  |
-| 5      | 🚧 planned     | Patch API (`apply_patch`, `get_element_hash`)                       |
-| 6      | 🟢 in-progress | Builder helpers, short XPath, JSON results                          |
+| 3      | ✅ done         | Plugin architecture (entry‑points), JS alias, cookiecutter template |
+| 4      | ✅ done         | DRY formatter/manipulator refactor |
+| 5      | ✅ done         | Patch API (`apply_patch`, `get_element_hash`) |
+| 6      | ✅ done         | Builder helpers, short XPath, JSON results |
 | 7      | ✅ done         | Workspace index, locks, thread‑safety                               |
-| 8      | 🚧 planned     | Docs, CLI polish, first public release 1.0                          |
+| 8      | ✅ done         | Docs, CLI polish, first public release 1.0 |
 
 Anything beyond Sprint 3 is subject to change; check issues before diving into those areas.
 
