@@ -116,6 +116,13 @@ class CodeHem:
         return PostProcessorFactory.get_supported_languages()
 
     @staticmethod
+    def open_workspace(repo_root: str) -> "Workspace":
+        """Open a workspace rooted at ``repo_root`` and build its index."""
+        from codehem.core.workspace import Workspace
+
+        return Workspace.open(repo_root)
+
+    @staticmethod
     def load_file(file_path: str) -> str:
         """
         Load content from a file.
