@@ -134,6 +134,7 @@ CodeHemError
 * `docs/Developer‑Guide.md` – in‑depth walkthrough of CodeHem API (once Sprint 8 ships).
 * `tests/fixtures/` – curated real‑world code pieces used in regression tests.
 * `ROADMAP.md` (tbd) – living document reflecting sprint progress.
+* `ROADMAP/NextTask.md` – pointer to the next ticket to pick up.
 
 ---
 
