@@ -37,3 +37,7 @@ from .extractors import python_decorator_extractor
 from .extractors import python_property_extractor
 from .extractors import python_property_getter_extractor
 from .extractors import python_property_setter_extractor
+
+# Register post-processor with factory
+from codehem.core.post_processors.factory import PostProcessorFactory
+PostProcessorFactory.register('python', 'codehem.languages.lang_python.components.post_processor.PythonPostProcessor')

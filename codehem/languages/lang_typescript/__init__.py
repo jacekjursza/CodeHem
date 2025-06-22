@@ -31,3 +31,7 @@ from . import type_property_setter  # noqa: F401
 
 # Register manipulators
 from .manipulator import base  # noqa: F401
+
+# Register post-processor with factory
+from codehem.core.post_processors.factory import PostProcessorFactory
+PostProcessorFactory.register('typescript', 'codehem.languages.lang_typescript.typescript_post_processor.TypeScriptExtractionPostProcessor')

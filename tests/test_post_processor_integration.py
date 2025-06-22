@@ -12,8 +12,8 @@ from typing import Dict, List
 
 from codehem.main import CodeHem
 from codehem.core.post_processors.factory import PostProcessorFactory
-from codehem.core.post_processors.python import PythonPostProcessor
-from codehem.core.post_processors.typescript import TypeScriptPostProcessor
+from codehem.languages.lang_python.components.post_processor import PythonPostProcessor
+from codehem.languages.lang_typescript.typescript_post_processor import TypeScriptExtractionPostProcessor
 from codehem.models.enums import CodeElementType
 
 
@@ -29,7 +29,7 @@ class PostProcessorIntegrationTest(unittest.TestCase):
         
         # Check that JavaScript maps to TypeScript
         js_processor = PostProcessorFactory.get_post_processor('javascript')
-        self.assertIsInstance(js_processor, TypeScriptPostProcessor)
+        self.assertIsInstance(js_processor, TypeScriptExtractionPostProcessor)
     
     def test_post_processor_instantiation(self):
         """Test that post-processors can be instantiated correctly."""
@@ -37,7 +37,7 @@ class PostProcessorIntegrationTest(unittest.TestCase):
         ts_processor = PostProcessorFactory.get_post_processor('typescript')
         
         self.assertIsInstance(python_processor, PythonPostProcessor)
-        self.assertIsInstance(ts_processor, TypeScriptPostProcessor)
+        self.assertIsInstance(ts_processor, TypeScriptExtractionPostProcessor)
         
         # Check language codes
         self.assertEqual(python_processor.language_code, 'python')

@@ -57,9 +57,11 @@ class XPathParser:
 
             if rel_index == 0: # First meaningful element
                 if num_meaningful_nodes == 1: # Only one element specified
-                    # Don't infer type for single elements - let ElementFilter handle matching
-                    # This allows "IUser" to match both classes and interfaces
-                    pass  # Leave node.type as None
+                    # Infer type for single elements based on naming convention
+                    if node.name and node.name[0].isupper():
+                        node.type = CodeElementType.CLASS.value # Uppercase names typically classes
+                    else:
+                        node.type = CodeElementType.FUNCTION.value # Lowercase names typically functions
                 else: # First element in a longer path
                     # For multi-element paths, still assume first element is class-like
                     if node.name and node.name[0].isupper():
