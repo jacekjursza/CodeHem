@@ -148,10 +148,15 @@ class TypeScriptSyntaxTreeNavigator(BaseSyntaxTreeNavigator):
                     multi_capture_multi_node = max_nodes > 1 and len(captures) > 1
                     
                     if multi_capture_multi_node:
-                        # Create multiple matches with corresponding nodes
+                        # Sort all capture nodes by their start position to ensure correct pairing
+                        sorted_captures = {}
+                        for capture_name, nodes in captures.items():
+                            sorted_captures[capture_name] = sorted(nodes, key=lambda n: n.start_point)
+                        
+                        # Create multiple matches with corresponding nodes (now correctly sorted)
                         for i in range(max_nodes):
                             match_dict = {}
-                            for capture_name, nodes in captures.items():
+                            for capture_name, nodes in sorted_captures.items():
                                 if i < len(nodes):
                                     match_dict[capture_name] = nodes[i]
                             
