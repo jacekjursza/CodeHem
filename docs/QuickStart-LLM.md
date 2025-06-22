@@ -1,25 +1,61 @@
 # Quick‑Start for LLMs
 
-This short guide shows the typical workflow for autonomous agents.
+This guide shows the typical workflow for autonomous agents using CodeHem.
 
-1. **Detect the language** of a file:
+## Installation
 
-   ```bash
-   codehem detect path/to/file.py
-   ```
+```bash
+# Install CodeHem
+pip install codehem
 
-2. **Query and patch** using JSON:
+# Or for CLI usage
+pipx install codehem
+```
 
-   ```json
-   { "xpath": "Example.greet[method]", "new_code": "print('hi')" }
-   ```
+## Basic Workflow
 
-   Send this payload to `CodeHem.apply_patch` and apply the result.
+### 1. **Detect the language** of a file:
 
-3. **Preview diffs from the CLI** before writing:
+```bash
+codehem detect path/to/file.py
+```
 
-   ```bash
-   codehem patch path/to/file.py --xpath "Example.greet[method]" --file update.txt --dry-run
-   ```
+### 2. **Query and patch** using JSON:
 
-4. **Commit** the updated file when the patch succeeds.
+```json
+{ "xpath": "Example.greet[method]", "new_code": "print('hi')" }
+```
+
+Send this payload to `CodeHem.apply_patch` and apply the result.
+
+### 3. **Preview diffs from the CLI** before writing:
+
+```bash
+codehem patch path/to/file.py --xpath "Example.greet[method]" --file update.txt --dry-run
+```
+
+### 4. **Commit** the updated file when the patch succeeds.
+
+## Python API Example
+
+```python
+from codehem import CodeHem
+
+# Initialize for specific language
+hem = CodeHem("python")
+
+# Extract elements
+result = hem.extract(code)
+
+# Apply patch with conflict detection
+fragment, hash_val = hem.get_text_by_xpath(code, xpath, return_hash=True)
+result = hem.apply_patch(
+    xpath=xpath,
+    new_code=new_implementation,
+    mode="replace",
+    original_hash=hash_val,
+    return_format="json"
+)
+```
+
+For more detailed examples, see the [AI Agent Tutorial](AI-Agent-Tutorial.md).

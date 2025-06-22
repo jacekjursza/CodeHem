@@ -42,14 +42,49 @@ CodeHem lets tools and autonomous agents **query**, **patch** and **refactor** c
 
 ## Installation
 
+### Basic Installation
+
 ```bash
-pip install codehem        # or pipx install codehem
+# Install CodeHem
+pip install codehem
+
+# Alternative: Install with pipx (recommended for CLI usage)
+pipx install codehem
 ```
 
-Optional plugins install automatically:
+### Development Installation
 
 ```bash
-pip install codehem‑lang‑java   # hypothetical future plugin
+# Clone the repository
+git clone https://github.com/codehem/codehem.git
+cd codehem
+
+# Install in development mode
+pip install -e .
+
+# Install with development dependencies
+pip install -e .[dev]
+```
+
+### Language Plugins
+
+CodeHem comes with built-in support for Python and TypeScript/JavaScript. Additional language plugins can be installed separately:
+
+```bash
+# Example future plugins (not yet available)
+pip install codehem-lang-java
+pip install codehem-lang-go
+pip install codehem-lang-rust
+```
+
+### Verify Installation
+
+```bash
+# Check installation
+codehem --version
+
+# Test language detection
+codehem detect example.py
 ```
 
 ---

@@ -1,0 +1,356 @@
+@startuml CodeHem Architecture
+
+!define RECTANGLE class
+!define INTERFACE interface
+
+title CodeHem Architecture - Component Relationships
+
+package "Main API" {
+  RECTANGLE CodeHem {
+    +extract(code: str): CodeElementsResult
+    +apply_patch(xpath, new_code, mode): PatchResult
+    +get_text_by_xpath(code, xpath): str
+    +new_function(name, args, body): str
+    +new_class(name, methods): str
+    +new_method(parent, name, args, body): str
+  }
+  
+  RECTANGLE Workspace {
+    +find(name, kind): List[Tuple[str, str]]
+    +apply_patch(file_path, xpath, new_code): PatchResult
+    +index_files(): void
+  }
+}
+
+package "Core Engine" {
+  RECTANGLE ASTHandler {
+    +parse_code(code: str, language: str): Tree
+    +get_node_text(node, code_bytes): str
+    +get_node_range(node): Tuple[int, int]
+  }
+  
+  RECTANGLE XPathParser {
+    +parse_xpath(xpath: str): XPathQuery
+    +validate_xpath(xpath: str): bool
+  }
+  
+  RECTANGLE LanguageRegistry {
+    +get_language_for_file(file_path: str): str
+    +get_parser(language: str): Parser
+  }
+}
+
+package "Language Services" {
+  INTERFACE ILanguageService {
+    +detect_language(file_path, content): bool
+    +get_parser(): Parser
+    +get_components(): Dict
+  }
+  
+  RECTANGLE PythonLanguageService {
+    +file_extensions: ['.py']
+  }
+  
+  RECTANGLE TypeScriptLanguageService {
+    +file_extensions: ['.ts', '.tsx', '.js', '.jsx']
+  }
+}
+
+package "Core Components" {
+  INTERFACE ICodeParser {
+    +parse(code: str): Tree
+  }
+  
+  INTERFACE ISyntaxTreeNavigator {
+    +execute_query(tree, code_bytes, query): List[Dict]
+    +find_element(tree, element_type, name): Tuple[int, int]
+  }
+  
+  INTERFACE IElementExtractor {
+    +extract_classes(tree, code_bytes): List[Dict]
+    +extract_functions(tree, code_bytes): List[Dict]
+    +extract_methods(tree, code_bytes): List[Dict]
+  }
+  
+  INTERFACE IPostProcessor {
+    +process(raw_data): CodeElementsResult
+  }
+}
+
+package "Python Implementation" {
+  RECTANGLE PythonCodeParser
+  RECTANGLE PythonSyntaxTreeNavigator
+  RECTANGLE PythonElementExtractor
+  RECTANGLE PythonPostProcessor
+  RECTANGLE PythonFormatter
+}
+
+package "TypeScript Implementation" {
+  RECTANGLE TypeScriptCodeParser
+  RECTANGLE TypeScriptSyntaxTreeNavigator
+  RECTANGLE TypeScriptElementExtractor
+  RECTANGLE TypeScriptPostProcessor
+  RECTANGLE TypeScriptFormatter
+}
+
+package "Data Models" {
+  RECTANGLE CodeElement {
+    +name: str
+    +type: CodeElementType
+    +range: CodeRange
+    +content: str
+  }
+  
+  RECTANGLE CodeElementsResult {
+    +classes: List[CodeElement]
+    +functions: List[CodeElement]
+    +imports: List[CodeElement]
+  }
+  
+  RECTANGLE CodeRange {
+    +start_line: int
+    +end_line: int
+  }
+}
+
+package "Error Handling" {
+  RECTANGLE ErrorHandler {
+    +handle_retry(operation, max_attempts): Any
+    +format_error(error): str
+  }
+  
+  RECTANGLE RetryUtilities {
+    +retry_exponential(func, max_attempts): Any
+    +wait_strategy(attempt): float
+  }
+}
+
+' Relationships
+CodeHem --> ASTHandler
+CodeHem --> XPathParser
+CodeHem --> LanguageRegistry
+Workspace --> CodeHem
+
+LanguageRegistry --> PythonLanguageService
+LanguageRegistry --> TypeScriptLanguageService
+
+PythonLanguageService --> PythonCodeParser
+PythonLanguageService --> PythonSyntaxTreeNavigator
+PythonLanguageService --> PythonElementExtractor
+PythonLanguageService --> PythonPostProcessor
+
+TypeScriptLanguageService --> TypeScriptCodeParser
+TypeScriptLanguageService --> TypeScriptSyntaxTreeNavigator
+TypeScriptLanguageService --> TypeScriptElementExtractor
+TypeScriptLanguageService --> TypeScriptPostProcessor
+
+PythonCodeParser ..|> ICodeParser
+PythonSyntaxTreeNavigator ..|> ISyntaxTreeNavigator
+PythonElementExtractor ..|> IElementExtractor
+PythonPostProcessor ..|> IPostProcessor
+
+TypeScriptCodeParser ..|> ICodeParser
+TypeScriptSyntaxTreeNavigator ..|> ISyntaxTreeNavigator
+TypeScriptElementExtractor ..|> IElementExtractor
+TypeScriptPostProcessor ..|> IPostProcessor
+
+IElementExtractor --> CodeElement
+IPostProcessor --> CodeElementsResult
+CodeElementsResult --> CodeElement
+CodeElement --> CodeRange
+
+CodeHem --> ErrorHandler
+ErrorHandler --> RetryUtilities
+
+note right of CodeHem
+  Main entry point for all operations.
+  Delegates to language-specific services
+  based on detected language.
+end note
+
+note right of Workspace
+  Repository-level operations.
+  Indexes files for fast searching.
+  Maintains cache of parsed elements.
+end note
+
+note bottom of ILanguageService
+  Plugin interface for language support.
+  Each language implements this interface
+  and registers via entry-points.
+end note
+
+note bottom of "Core Components"
+  Abstract interfaces that all
+  language implementations must follow.
+  Ensures consistent behavior across languages.
+end note
+
+@enduml
+
+@startuml CodeHem Data Flow
+
+title CodeHem Data Flow - From Code to Modification
+
+participant Client
+participant CodeHem
+participant LanguageService
+participant Parser
+participant Navigator
+participant Extractor
+participant PostProcessor
+participant Manipulator
+
+Client -> CodeHem: extract(code)
+activate CodeHem
+
+CodeHem -> LanguageService: detect_language(code)
+LanguageService --> CodeHem: "python"
+
+CodeHem -> Parser: parse(code)
+activate Parser
+Parser -> Parser: create_tree_sitter_tree()
+Parser --> CodeHem: AST_Tree
+deactivate Parser
+
+CodeHem -> Navigator: execute_query(tree, query)
+activate Navigator
+Navigator -> Navigator: run_tree_sitter_query()
+Navigator --> CodeHem: query_matches
+deactivate Navigator
+
+CodeHem -> Extractor: extract_elements(matches)
+activate Extractor
+Extractor -> Extractor: process_classes()
+Extractor -> Extractor: process_functions()
+Extractor -> Extractor: process_methods()
+Extractor --> CodeHem: raw_elements
+deactivate Extractor
+
+CodeHem -> PostProcessor: process(raw_elements)
+activate PostProcessor
+PostProcessor -> PostProcessor: create_code_elements()
+PostProcessor -> PostProcessor: establish_relationships()
+PostProcessor --> CodeHem: CodeElementsResult
+deactivate PostProcessor
+
+CodeHem --> Client: CodeElementsResult
+deactivate CodeHem
+
+note over Client, PostProcessor
+  Extraction Phase Complete
+end note
+
+Client -> CodeHem: apply_patch(xpath, new_code, mode)
+activate CodeHem
+
+CodeHem -> Navigator: find_element(xpath)
+Navigator --> CodeHem: element_location
+
+CodeHem -> Manipulator: apply_modification(location, new_code, mode)
+activate Manipulator
+Manipulator -> Manipulator: validate_syntax()
+Manipulator -> Manipulator: apply_change()
+Manipulator -> Manipulator: format_result()
+Manipulator --> CodeHem: modified_code
+deactivate Manipulator
+
+CodeHem --> Client: PatchResult
+deactivate CodeHem
+
+@enduml
+
+@startuml CodeHem Plugin System
+
+title CodeHem Plugin System - Language Extension
+
+package "Core System" {
+  class PluginRegistry {
+    +discover_plugins()
+    +load_plugin(name: str)
+    +get_language_service(lang: str)
+  }
+  
+  interface ILanguageService {
+    +detect_language(file_path, content): bool
+    +get_components(): ComponentSet
+  }
+}
+
+package "Python Plugin" {
+  class PythonLanguageService {
+    +file_extensions = ['.py']
+  }
+  
+  class PythonComponents {
+    +parser: PythonCodeParser
+    +navigator: PythonSyntaxTreeNavigator
+    +extractor: PythonElementExtractor
+    +post_processor: PythonPostProcessor
+    +formatter: PythonFormatter
+  }
+}
+
+package "TypeScript Plugin" {
+  class TypeScriptLanguageService {
+    +file_extensions = ['.ts', '.tsx', '.js', '.jsx']
+  }
+  
+  class TypeScriptComponents {
+    +parser: TypeScriptCodeParser
+    +navigator: TypeScriptSyntaxTreeNavigator
+    +extractor: TypeScriptElementExtractor
+    +post_processor: TypeScriptPostProcessor
+    +formatter: TypeScriptFormatter
+  }
+}
+
+package "Future Java Plugin" {
+  class JavaLanguageService {
+    +file_extensions = ['.java']
+  }
+  
+  class JavaComponents {
+    +parser: JavaCodeParser
+    +navigator: JavaSyntaxTreeNavigator
+    +extractor: JavaElementExtractor
+    +post_processor: JavaPostProcessor
+    +formatter: JavaFormatter
+  }
+}
+
+package "Entry Points Configuration" {
+  note as EntryPoints
+    **setup.py / pyproject.toml**
+    
+    [project.entry-points."codehem.languages"]
+    python = "codehem.languages.lang_python:PythonLanguageService"
+    typescript = "codehem.languages.lang_typescript:TypeScriptLanguageService" 
+    java = "codehem_lang_java:JavaLanguageService"
+  end note
+}
+
+PluginRegistry --> ILanguageService : discovers via entry-points
+PythonLanguageService ..|> ILanguageService
+TypeScriptLanguageService ..|> ILanguageService
+JavaLanguageService ..|> ILanguageService
+
+PythonLanguageService --> PythonComponents
+TypeScriptLanguageService --> TypeScriptComponents
+JavaLanguageService --> JavaComponents
+
+PluginRegistry ..> EntryPoints : reads configuration
+
+note right of PluginRegistry
+  Automatically discovers and loads
+  language plugins at runtime using
+  Python entry-points mechanism.
+end note
+
+note bottom of JavaLanguageService
+  Future plugin example.
+  Can be installed separately:
+  pip install codehem-lang-java
+end note
+
+@enduml
