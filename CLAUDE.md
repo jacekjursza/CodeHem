@@ -43,6 +43,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `xpath_parser.py` - XPath-like query parsing
 - `languages.py` - Language detection and mapping
 
+**Core Components (`codehem/core/`):**
+- `extractors/` - Base extractor classes (`BaseExtractor`, `TemplateExtractor`) and common templates
+- `formatting/` - Base formatters (`BaseFormatter`, `BraceFormatter`, `IndentFormatter`)
+- `manipulators/` - Base manipulator classes and common manipulation logic
+- `components/` - Abstract interfaces (`ICodeParser`, `ISyntaxTreeNavigator`, `IElementExtractor`)
+- `post_processors/` - Base post-processor interface and factory
+
 ### Key Patterns
 
 **XPath Queries** - Use `"ClassName.method_name[method]"` syntax to target specific code elements. The system supports queries across Python and TypeScript with uniform syntax.
@@ -66,16 +73,15 @@ Each language plugin follows this structure:
 lang_<language>/
 ├── service.py          # Main language service
 ├── detector.py         # File type detection  
-├── components/         # Core language components
-├── extractors/         # Element extraction logic
-├── formatting/         # Code formatting rules
-├── manipulator/        # Code modification handlers
+├── components/         # Language-specific implementations of core interfaces
+├── extractors/         # Language-specific element extractors
+├── formatting/         # Language-specific formatters extending base classes
+├── manipulator/        # Language-specific code modification handlers
+├── post_processors/    # Language-specific post-processing logic
 └── node_patterns.json  # AST pattern definitions
 ```
 
 **Error Handling (`codehem/core/error_utilities/`)** - Comprehensive error management with retry mechanisms, user-friendly formatting, and batch processing capabilities.
-
-**Post-Processors (`codehem/core/post_processors/`)** - Language-specific code cleanup and formatting after modifications.
 
 ### Workspace Operations
 

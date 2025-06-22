@@ -1,0 +1,13 @@
+## class_name: Calculator
+## method_name: multiply
+## start_line: 1
+## end_line: 7
+
+function Calculator(initialValue) {
+    this.value = initialValue || 0;
+}
+
+Calculator.prototype.multiply = function(factor) {
+    this.value *= factor;
+    return this;
+};

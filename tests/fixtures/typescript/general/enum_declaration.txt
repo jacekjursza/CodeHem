@@ -1,0 +1,9 @@
+## enum_name: UserRole
+## start_line: 1
+## end_line: 5
+
+enum UserRole {
+    ADMIN = "admin",
+    USER = "user",
+    GUEST = "guest"
+}

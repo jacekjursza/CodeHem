@@ -1,0 +1,11 @@
+## namespace_name: Utils
+## start_line: 1
+## end_line: 7
+
+namespace Utils {
+    export function formatDate(date: Date): string {
+        return date.toISOString().split('T')[0];
+    }
+    
+    export const DEFAULT_TIMEOUT = 5000;
+}

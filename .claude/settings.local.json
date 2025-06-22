@@ -12,7 +12,10 @@
       "Bash(pytest:*)",
       "Bash(python:*)",
       "Bash(pip install:*)",
-      "Bash(codehem detect:*)"
+      "Bash(codehem detect:*)",
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

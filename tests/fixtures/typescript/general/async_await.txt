@@ -1,0 +1,12 @@
+## function_name: processAsync
+## start_line: 1
+## end_line: 8
+
+async function processAsync(data: string[]): Promise<ProcessResult> {
+    try {
+        const results = await Promise.all(data.map(item => processItem(item)));
+        return { success: true, results };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}

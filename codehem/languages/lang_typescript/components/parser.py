@@ -25,8 +25,10 @@ class TypeScriptCodeParser(BaseCodeParser):
     def __init__(self):
         """Initialize the TypeScript code parser."""
         super().__init__('typescript')
-        self.parser = get_parser()
+        self.parser = get_parser('typescript')
         self.language = LANGUAGES['typescript']
+        # Set the language for the parser - use language property
+        self.parser.language = self.language
     
     def parse(self, code: str) -> Tuple[Any, bytes]:
         """
@@ -42,7 +44,7 @@ class TypeScriptCodeParser(BaseCodeParser):
         
         try:
             code_bytes = code.encode('utf-8')
-            tree = self.parser.parse(code_bytes, self.language)
+            tree = self.parser.parse(code_bytes)
             logger.debug("Successfully parsed TypeScript code")
             return tree, code_bytes
         except Exception as e:

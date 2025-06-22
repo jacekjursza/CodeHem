@@ -677,7 +677,7 @@ class TypeScriptPostProcessor(LanguagePostProcessor):
         # Process classes with their members, static properties, and properties
         classes = self.process_classes(
             raw_elements.get('classes', []),
-            raw_elements.get('methods', []),
+            raw_elements.get('members', []),  # Fixed: Use 'members' instead of 'methods'
             raw_elements.get('static_properties', []),
             raw_elements.get('properties', []),
             all_decorators

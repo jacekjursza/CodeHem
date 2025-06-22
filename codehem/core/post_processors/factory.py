@@ -14,7 +14,7 @@ from codehem.core.post_processors.base import LanguagePostProcessor
 # Only import specific post-processors when needed 
 # to avoid circular imports
 if TYPE_CHECKING:
-    from codehem.core.post_processors.python import PythonPostProcessor
+    from codehem.languages.lang_python.post_processors import PythonPostProcessor
     from codehem.languages.lang_typescript.typescript_post_processor import TypeScriptExtractionPostProcessor as TypeScriptPostProcessor
 
 logger = logging.getLogger(__name__)

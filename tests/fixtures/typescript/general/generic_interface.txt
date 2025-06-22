@@ -1,0 +1,9 @@
+## interface_name: IRepository
+## start_line: 1
+## end_line: 5
+
+interface IRepository<T, K = string> {
+    findById(id: K): Promise<T | null>;
+    save(entity: T): Promise<T>;
+    deleteById(id: K): Promise<boolean>;
+}

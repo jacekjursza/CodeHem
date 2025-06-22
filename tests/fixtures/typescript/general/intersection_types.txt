@@ -1,0 +1,9 @@
+## type_name: UserWithPermissions
+## start_line: 5
+## end_line: 5
+
+type User = { name: string; email: string };
+type Permissions = { canRead: boolean; canWrite: boolean };
+type Role = { role: 'admin' | 'user' };
+
+type UserWithPermissions = User & Permissions & Role;

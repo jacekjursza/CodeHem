@@ -57,12 +57,15 @@ class XPathParser:
 
             if rel_index == 0: # First meaningful element
                 if num_meaningful_nodes == 1: # Only one element specified
+                    # Don't infer type for single elements - let ElementFilter handle matching
+                    # This allows "IUser" to match both classes and interfaces
+                    pass  # Leave node.type as None
+                else: # First element in a longer path
+                    # For multi-element paths, still assume first element is class-like
                     if node.name and node.name[0].isupper():
-                        node.type = CodeElementType.CLASS.value
+                        node.type = CodeElementType.CLASS.value # Could be class or interface
                     else:
                         node.type = CodeElementType.FUNCTION.value # Default assumption
-                else: # First element in a longer path
-                    node.type = CodeElementType.CLASS.value # Default assumption
             elif rel_index > 0: # Nested element
                 parent_node = nodes[i-1] # The actual previous node in list
                 if parent_node.type in class_like_types:

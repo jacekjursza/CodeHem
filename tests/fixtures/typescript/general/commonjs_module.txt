@@ -1,0 +1,12 @@
+## function_name: processData
+## start_line: 1
+## end_line: 8
+
+function processData(input) {
+    if (!input || !Array.isArray(input)) {
+        throw new Error('Invalid input');
+    }
+    return input.map(item => item.toString().toUpperCase());
+}
+
+module.exports = { processData };

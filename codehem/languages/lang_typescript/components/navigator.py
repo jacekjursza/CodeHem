@@ -120,33 +120,53 @@ class TypeScriptSyntaxTreeNavigator(BaseSyntaxTreeNavigator):
             # Create a tree-sitter query
             query = self.language.query(query_string)
             
-            # Store captures in structured format
+            # Execute the query and get matches
+            # Handle both tree objects and node objects
+            if hasattr(tree, 'root_node'):
+                # It's a tree object
+                captures = query.captures(tree.root_node)
+            else:
+                # It's a node object
+                captures = query.captures(tree)
+            
+            # Process captures into structured format  
             result = []
-            current_match = {}
-            
-            # Define the callback function
-            def capture_callback(match, capture_index, node):
-                nonlocal current_match
-                # Get the capture name from the query
-                capture_name = query.capture_names[capture_index]
+            if captures:
+                # Determine if this is a "flat" query (single capture type with multiple nodes)
+                # vs "hierarchical" query (multiple capture types that should be grouped)
+                is_flat_query = len(captures) == 1 and any(len(nodes) > 1 for nodes in captures.values())
                 
-                # If the capture name ends with a number, this indicates a new match
-                if capture_name.rstrip('0123456789') != capture_name:
-                    # Store the previous match if it's not empty
-                    if current_match:
-                        result.append(current_match.copy())
-                        current_match.clear()
-                
-                # Add the node to the current match
-                current_match[capture_name.rstrip('0123456789')] = node
-                return True  # Continue matching
-            
-            # Execute the query with the callback
-            query.matches(tree.root_node, capture_callback)
-            
-            # Add the last match if it's not empty
-            if current_match:
-                result.append(current_match)
+                if is_flat_query:
+                    # Flat query: create one match per node
+                    for capture_name, nodes in captures.items():
+                        for node in nodes:
+                            result.append({capture_name: node})
+                else:
+                    # Hierarchical query: check if multiple captures have multiple nodes
+                    # If so, we need to create multiple matches with corresponding nodes
+                    max_nodes = max(len(nodes) for nodes in captures.values())
+                    multi_capture_multi_node = max_nodes > 1 and len(captures) > 1
+                    
+                    if multi_capture_multi_node:
+                        # Create multiple matches with corresponding nodes
+                        for i in range(max_nodes):
+                            match_dict = {}
+                            for capture_name, nodes in captures.items():
+                                if i < len(nodes):
+                                    match_dict[capture_name] = nodes[i]
+                            
+                            if match_dict:
+                                result.append(match_dict)
+                    else:
+                        # Simple hierarchical query: group all captures together
+                        match_dict = {}
+                        for capture_name, nodes in captures.items():
+                            # Take the first node for each capture name
+                            if nodes:
+                                match_dict[capture_name] = nodes[0]
+                        
+                        if match_dict:
+                            result.append(match_dict)
             
             logger.debug(f"execute_query: Found {len(result)} matches")
             return result

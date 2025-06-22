@@ -1,0 +1,13 @@
+## function_name: defaultExport
+## start_line: 1
+## end_line: 9
+
+export default function defaultExport(data: any): boolean {
+    return !!data;
+}
+
+export const namedExport = (value: number) => value * 2;
+
+export { DataService } from './data-service';
+
+export * as Utils from './utils';

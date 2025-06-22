@@ -1,0 +1,28 @@
+## class_name: DataService
+## method_name: fetchUser
+## property_name: baseUrl
+## start_line: 1
+## end_line: 19
+
+class DataService<T> implements IRepository<T> {
+    private baseUrl: string;
+    public readonly timeout: number = 5000;
+    
+    constructor(baseUrl: string) {
+        this.baseUrl = baseUrl;
+    }
+    
+    @cache(300)
+    async fetchUser(id: string): Promise<T | null> {
+        const response = await fetch(`${this.baseUrl}/users/${id}`);
+        return response.ok ? response.json() : null;
+    }
+    
+    protected logRequest(method: string, url: string): void {
+        console.log(`${method} ${url}`);
+    }
+    
+    static createInstance(baseUrl: string): DataService<any> {
+        return new DataService(baseUrl);
+    }
+}

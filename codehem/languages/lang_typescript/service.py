@@ -343,6 +343,25 @@ class TypeScriptLanguageService(LanguageService):
                       dedented_lines.append('') # Preserve blank lines
             return '\n'.join(dedented_lines)
 
+    def extract(self, code: str) -> 'CodeElementsResult':
+        """Extract code elements using the TypeScript orchestrator instead of template extractors."""
+        print(f'=== TypeScript service extract method called ===')
+        logger.debug(f'TypeScript service: Starting extraction using component-based orchestrator')
+        try:
+            # Create orchestrator with post-processor
+            post_processor = TypeScriptPostProcessor()
+            orchestrator = TypeScriptExtractionOrchestrator(post_processor)
+            
+            # Use orchestrator to extract elements
+            result = orchestrator.extract_all(code)
+            print(f'=== TypeScript orchestrator found {len(result.elements)} elements ===')
+            logger.debug(f'TypeScript service: Completed extraction. Found {len(result.elements)} top-level elements.')
+            return result
+        except Exception as e:
+            logger.error(f'TypeScript service: Error during extraction: {e}', exc_info=True)
+            from codehem.models.code_element import CodeElementsResult # Local import
+            return CodeElementsResult(elements=[]) # Return empty result
+
     def get_text_by_xpath_internal(self, code: str, xpath_nodes: List['CodeElementXPathNode']) -> Optional[str]:
         """Internal implementation for getting text based on parsed XPath nodes for TS/JS."""
         logger.debug(f'get_text_by_xpath_internal: Starting for XPath: {XPathParser.to_string(xpath_nodes)}')

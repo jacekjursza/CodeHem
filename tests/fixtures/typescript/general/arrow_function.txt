@@ -1,0 +1,7 @@
+## function_name: processData
+## start_line: 1
+## end_line: 3
+
+const processData = async (data: string[]): Promise<number> => {
+    return data.length;
+};

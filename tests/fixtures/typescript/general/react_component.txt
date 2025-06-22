@@ -1,0 +1,20 @@
+## component_name: UserProfile
+## class_name: UserProfile
+## start_line: 3
+## end_line: 11
+
+import React from 'react';
+
+interface UserProfileProps {
+    name: string;
+    email: string;
+}
+
+const UserProfile: React.FC<UserProfileProps> = ({ name, email }) => {
+    return (
+        <div>
+            <h1>{name}</h1>
+            <p>{email}</p>
+        </div>
+    );
+};

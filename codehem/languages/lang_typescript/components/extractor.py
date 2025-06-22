@@ -67,7 +67,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
         """
         
         try:
-            result = self._navigator.execute_query(tree, code_bytes, query_str)
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
             functions = []
             
             for match in result:
@@ -75,12 +75,12 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                 
                 # Handle normal function declarations
                 if 'func_name' in match and 'func_decl' in match:
-                    func_name = self._navigator.get_node_text(match['func_name'], code_bytes).decode('utf-8')
+                    func_name = self.navigator.get_node_text(match['func_name'], code_bytes).decode('utf-8')
                     func_node = match['func_decl']
                     params_node = match['params']
                     body_node = match['body']
                     
-                    func_range = self._navigator.get_node_range(func_node)
+                    func_range = self.navigator.get_node_range(func_node)
                     
                     func_data = {
                         'name': func_name,
@@ -89,18 +89,18 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                             'start': {'line': func_range[0], 'column': 0},
                             'end': {'line': func_range[1], 'column': 0}
                         },
-                        'content': self._navigator.get_node_text(func_node, code_bytes).decode('utf-8'),
+                        'content': self.navigator.get_node_text(func_node, code_bytes).decode('utf-8'),
                         'parameters': self._extract_parameters(params_node, code_bytes, False)
                     }
                     
                 # Handle exported function declarations
                 elif 'exported_func_name' in match and 'exported_func' in match:
-                    func_name = self._navigator.get_node_text(match['exported_func_name'], code_bytes).decode('utf-8')
+                    func_name = self.navigator.get_node_text(match['exported_func_name'], code_bytes).decode('utf-8')
                     func_node = match['exported_func']
                     params_node = match['exported_params']
                     body_node = match['exported_body']
                     
-                    func_range = self._navigator.get_node_range(func_node)
+                    func_range = self.navigator.get_node_range(func_node)
                     
                     func_data = {
                         'name': func_name,
@@ -109,19 +109,19 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                             'start': {'line': func_range[0], 'column': 0},
                             'end': {'line': func_range[1], 'column': 0}
                         },
-                        'content': self._navigator.get_node_text(func_node, code_bytes).decode('utf-8'),
+                        'content': self.navigator.get_node_text(func_node, code_bytes).decode('utf-8'),
                         'parameters': self._extract_parameters(params_node, code_bytes, False),
                         'additional_data': {'is_exported': True}
                     }
                 
                 # Handle arrow functions
                 elif 'func_name' in match and 'arrow_func' in match:
-                    func_name = self._navigator.get_node_text(match['func_name'], code_bytes).decode('utf-8')
+                    func_name = self.navigator.get_node_text(match['func_name'], code_bytes).decode('utf-8')
                     func_node = match['arrow_func']
                     params_node = match['params']
                     body_node = match['body']
                     
-                    func_range = self._navigator.get_node_range(func_node)
+                    func_range = self.navigator.get_node_range(func_node)
                     
                     func_data = {
                         'name': func_name,
@@ -130,7 +130,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                             'start': {'line': func_range[0], 'column': 0},
                             'end': {'line': func_range[1], 'column': 0}
                         },
-                        'content': self._navigator.get_node_text(func_node, code_bytes).decode('utf-8'),
+                        'content': self.navigator.get_node_text(func_node, code_bytes).decode('utf-8'),
                         'parameters': self._extract_parameters(params_node, code_bytes, False),
                         'additional_data': {'is_arrow_function': True}
                     }
@@ -170,7 +170,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
         """
         
         try:
-            result = self._navigator.execute_query(tree, code_bytes, query_str)
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
             classes = []
             
             for match in result:
@@ -178,11 +178,11 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                 
                 # Handle normal class declarations
                 if 'class_name' in match and 'class_decl' in match:
-                    class_name = self._navigator.get_node_text(match['class_name'], code_bytes).decode('utf-8')
+                    class_name = self.navigator.get_node_text(match['class_name'], code_bytes).decode('utf-8')
                     class_node = match['class_decl']
                     body_node = match['body']
                     
-                    class_range = self._navigator.get_node_range(class_node)
+                    class_range = self.navigator.get_node_range(class_node)
                     
                     class_data = {
                         'name': class_name,
@@ -191,16 +191,16 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                             'start': {'line': class_range[0], 'column': 0},
                             'end': {'line': class_range[1], 'column': 0}
                         },
-                        'content': self._navigator.get_node_text(class_node, code_bytes).decode('utf-8')
+                        'content': self.navigator.get_node_text(class_node, code_bytes).decode('utf-8')
                     }
                 
                 # Handle exported class declarations
                 elif 'exported_class_name' in match and 'exported_class' in match:
-                    class_name = self._navigator.get_node_text(match['exported_class_name'], code_bytes).decode('utf-8')
+                    class_name = self.navigator.get_node_text(match['exported_class_name'], code_bytes).decode('utf-8')
                     class_node = match['exported_class']
                     body_node = match['exported_body']
                     
-                    class_range = self._navigator.get_node_range(class_node)
+                    class_range = self.navigator.get_node_range(class_node)
                     
                     class_data = {
                         'name': class_name,
@@ -209,7 +209,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                             'start': {'line': class_range[0], 'column': 0},
                             'end': {'line': class_range[1], 'column': 0}
                         },
-                        'content': self._navigator.get_node_text(class_node, code_bytes).decode('utf-8'),
+                        'content': self.navigator.get_node_text(class_node, code_bytes).decode('utf-8'),
                         'additional_data': {'is_exported': True}
                     }
                 
@@ -242,40 +242,50 @@ class TypeScriptElementExtractor(BaseElementExtractor):
           name: (type_identifier) @class_name
           body: (class_body
             (method_definition
-              name: (property_identifier) @method_name
-              parameters: (formal_parameters) @params
-              body: (statement_block) @body))) @method_def
+              name: (property_identifier) @method_name) @method_def))
         """
         
         try:
-            result = self._navigator.execute_query(tree, code_bytes, query_str)
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
             methods = []
             
+            # Extract class name from the first match that has it
+            current_class_name = None
             for match in result:
-                if 'class_name' in match and 'method_name' in match and 'method_def' in match:
-                    current_class_name = self._navigator.get_node_text(match['class_name'], code_bytes).decode('utf-8')
-                    
-                    # Filter by class name if specified
-                    if class_name and current_class_name != class_name:
-                        continue
-                    
-                    method_name = self._navigator.get_node_text(match['method_name'], code_bytes).decode('utf-8')
+                if 'class_name' in match:
+                    current_class_name = self.navigator.get_node_text(match['class_name'], code_bytes).decode('utf-8')
+                    break
+            
+            # Filter by class name if specified
+            if class_name and current_class_name and current_class_name != class_name:
+                return methods
+            
+            for match in result:
+                if 'method_name' in match and 'method_def' in match:
+                    method_name = self.navigator.get_node_text(match['method_name'], code_bytes).decode('utf-8')
                     method_node = match['method_def']
-                    params_node = match['params']
-                    body_node = match['body']
                     
-                    method_range = self._navigator.get_node_range(method_node)
+                    # Find parameters and body within the method node
+                    params_node = None
+                    body_node = None
+                    for child in method_node.children:
+                        if child.type == 'formal_parameters':
+                            params_node = child
+                        elif child.type == 'statement_block':
+                            body_node = child
+                    
+                    method_range = self.navigator.get_node_range(method_node)
                     
                     method_data = {
                         'name': method_name,
-                        'class_name': current_class_name,
+                        'class_name': current_class_name or 'Unknown',
                         'type': CodeElementType.METHOD.value,
                         'range': {
                             'start': {'line': method_range[0], 'column': 0},
                             'end': {'line': method_range[1], 'column': 0}
                         },
-                        'content': self._navigator.get_node_text(method_node, code_bytes).decode('utf-8'),
-                        'parameters': self._extract_parameters(params_node, code_bytes, True)
+                        'content': self.navigator.get_node_text(method_node, code_bytes).decode('utf-8'),
+                        'parameters': self._extract_parameters(params_node, code_bytes, True) if params_node else []
                     }
                     
                     methods.append(method_data)
@@ -300,33 +310,46 @@ class TypeScriptElementExtractor(BaseElementExtractor):
         """
         logger.debug("Extracting TypeScript properties")
         
+        # Query for all public field definitions and get class context separately
         query_str = """
-        (class_declaration
-          name: (type_identifier) @class_name
-          body: (class_body
-            (public_field_definition
-              name: (property_identifier) @prop_name
-              type: (type_annotation)? @type_annotation
-              value: (_)? @value))) @prop_def
+        (public_field_definition
+          name: (property_identifier) @prop_name
+          type: (type_annotation)? @type_annotation
+          value: (_)? @value) @prop_def
         """
         
         try:
-            result = self._navigator.execute_query(tree, code_bytes, query_str)
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
             properties = []
             
             for match in result:
-                if 'class_name' in match and 'prop_name' in match and 'prop_def' in match:
-                    class_name = self._navigator.get_node_text(match['class_name'], code_bytes).decode('utf-8')
-                    prop_name = self._navigator.get_node_text(match['prop_name'], code_bytes).decode('utf-8')
+                if 'prop_name' in match and 'prop_def' in match:
+                    prop_name = self.navigator.get_node_text(match['prop_name'], code_bytes).decode('utf-8')
                     prop_node = match['prop_def']
                     
-                    prop_range = self._navigator.get_node_range(prop_node)
+                    # Find the parent class of this property
+                    class_node = self.navigator.find_parent_of_type(prop_node, 'class_declaration')
+                    if not class_node:
+                        continue
+                    
+                    # Get class name
+                    class_query = "(class_declaration name: (type_identifier) @class_name)"
+                    class_result = self.navigator.execute_query(class_node, code_bytes, class_query)
+                    
+                    class_name = None
+                    if class_result and 'class_name' in class_result[0]:
+                        class_name = self.navigator.get_node_text(class_result[0]['class_name'], code_bytes).decode('utf-8')
+                    
+                    if not class_name:
+                        continue
+                    
+                    prop_range = self.navigator.get_node_range(prop_node)
                     
                     # Extract type annotation if available
                     value_type = None
                     if 'type_annotation' in match and match['type_annotation'] is not None:
                         type_node = match['type_annotation']
-                        type_text = self._navigator.get_node_text(type_node, code_bytes).decode('utf-8')
+                        type_text = self.navigator.get_node_text(type_node, code_bytes).decode('utf-8')
                         # Remove the leading colon if present
                         value_type = type_text.lstrip(':').strip()
                     
@@ -334,7 +357,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                     value = None
                     if 'value' in match and match['value'] is not None:
                         value_node = match['value']
-                        value = self._navigator.get_node_text(value_node, code_bytes).decode('utf-8')
+                        value = self.navigator.get_node_text(value_node, code_bytes).decode('utf-8')
                     
                     property_data = {
                         'name': prop_name,
@@ -344,7 +367,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                             'start': {'line': prop_range[0], 'column': 0},
                             'end': {'line': prop_range[1], 'column': 0}
                         },
-                        'content': self._navigator.get_node_text(prop_node, code_bytes).decode('utf-8'),
+                        'content': self.navigator.get_node_text(prop_node, code_bytes).decode('utf-8'),
                         'value_type': value_type,
                         'additional_data': {}
                     }
@@ -379,29 +402,28 @@ class TypeScriptElementExtractor(BaseElementExtractor):
           name: (type_identifier) @class_name
           body: (class_body
             (public_field_definition
-              (static_modifier)
               name: (property_identifier) @static_prop_name
               type: (type_annotation)? @type_annotation
               value: (_)? @value))) @static_prop_def
         """
         
         try:
-            result = self._navigator.execute_query(tree, code_bytes, query_str)
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
             static_properties = []
             
             for match in result:
                 if 'class_name' in match and 'static_prop_name' in match and 'static_prop_def' in match:
-                    class_name = self._navigator.get_node_text(match['class_name'], code_bytes).decode('utf-8')
-                    prop_name = self._navigator.get_node_text(match['static_prop_name'], code_bytes).decode('utf-8')
+                    class_name = self.navigator.get_node_text(match['class_name'], code_bytes).decode('utf-8')
+                    prop_name = self.navigator.get_node_text(match['static_prop_name'], code_bytes).decode('utf-8')
                     prop_node = match['static_prop_def']
                     
-                    prop_range = self._navigator.get_node_range(prop_node)
+                    prop_range = self.navigator.get_node_range(prop_node)
                     
                     # Extract type annotation if available
                     value_type = None
                     if 'type_annotation' in match and match['type_annotation'] is not None:
                         type_node = match['type_annotation']
-                        type_text = self._navigator.get_node_text(type_node, code_bytes).decode('utf-8')
+                        type_text = self.navigator.get_node_text(type_node, code_bytes).decode('utf-8')
                         # Remove the leading colon if present
                         value_type = type_text.lstrip(':').strip()
                     
@@ -409,7 +431,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                     value = None
                     if 'value' in match and match['value'] is not None:
                         value_node = match['value']
-                        value = self._navigator.get_node_text(value_node, code_bytes).decode('utf-8')
+                        value = self.navigator.get_node_text(value_node, code_bytes).decode('utf-8')
                     
                     property_data = {
                         'name': prop_name,
@@ -419,7 +441,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                             'start': {'line': prop_range[0], 'column': 0},
                             'end': {'line': prop_range[1], 'column': 0}
                         },
-                        'content': self._navigator.get_node_text(prop_node, code_bytes).decode('utf-8'),
+                        'content': self.navigator.get_node_text(prop_node, code_bytes).decode('utf-8'),
                         'value_type': value_type,
                         'additional_data': {'is_static': True}
                     }
@@ -455,7 +477,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
         """
         
         try:
-            result = self._navigator.execute_query(tree, code_bytes, query_str)
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
             imports = []
             
             import_nodes = []
@@ -465,8 +487,8 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                     import_nodes.append(import_node)
             
             for import_node in import_nodes:
-                import_range = self._navigator.get_node_range(import_node)
-                import_text = self._navigator.get_node_text(import_node, code_bytes).decode('utf-8')
+                import_range = self.navigator.get_node_range(import_node)
+                import_text = self.navigator.get_node_text(import_node, code_bytes).decode('utf-8')
                 
                 import_data = {
                     'name': self._get_import_name(import_text),
@@ -487,6 +509,84 @@ class TypeScriptElementExtractor(BaseElementExtractor):
             logger.error(f"Error extracting TypeScript imports: {e}", exc_info=True)
             return []
     
+    def extract_interfaces(self, tree: Any, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract interface declarations from TypeScript code.
+        
+        Args:
+            tree: The parsed syntax tree
+            code_bytes: The original code bytes
+            
+        Returns:
+            List of dictionaries containing interface data
+        """
+        logger.debug("Extracting TypeScript interfaces")
+        
+        query_str = """
+        (interface_declaration
+          name: (type_identifier) @interface_name
+          body: (interface_body) @body) @interface_decl
+          
+        (export_statement
+          (interface_declaration
+            name: (type_identifier) @exported_interface_name
+            body: (interface_body) @exported_body)) @exported_interface
+        """
+        
+        try:
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
+            interfaces = []
+            
+            for match in result:
+                interface_data = {}
+                
+                # Handle normal interface declarations
+                if 'interface_name' in match and 'interface_decl' in match:
+                    interface_name = self.navigator.get_node_text(match['interface_name'], code_bytes).decode('utf-8')
+                    interface_node = match['interface_decl']
+                    body_node = match['body']
+                    
+                    interface_range = self.navigator.get_node_range(interface_node)
+                    
+                    interface_data = {
+                        'name': interface_name,
+                        'type': CodeElementType.INTERFACE.value,
+                        'range': {
+                            'start': {'line': interface_range[0], 'column': 0},
+                            'end': {'line': interface_range[1], 'column': 0}
+                        },
+                        'content': self.navigator.get_node_text(interface_node, code_bytes).decode('utf-8')
+                    }
+                
+                # Handle exported interface declarations
+                elif 'exported_interface_name' in match and 'exported_interface' in match:
+                    interface_name = self.navigator.get_node_text(match['exported_interface_name'], code_bytes).decode('utf-8')
+                    interface_node = match['exported_interface']
+                    body_node = match['exported_body']
+                    
+                    interface_range = self.navigator.get_node_range(interface_node)
+                    
+                    interface_data = {
+                        'name': interface_name,
+                        'type': CodeElementType.INTERFACE.value,
+                        'range': {
+                            'start': {'line': interface_range[0], 'column': 0},
+                            'end': {'line': interface_range[1], 'column': 0}
+                        },
+                        'content': self.navigator.get_node_text(interface_node, code_bytes).decode('utf-8'),
+                        'additional_data': {'is_exported': True}
+                    }
+                
+                if interface_data:
+                    interfaces.append(interface_data)
+            
+            logger.debug(f"Found {len(interfaces)} TypeScript interfaces")
+            return interfaces
+            
+        except Exception as e:
+            logger.error(f"Error extracting TypeScript interfaces: {e}", exc_info=True)
+            return []
+
     def extract_decorators(self, tree: Any, code_bytes: bytes) -> List[Dict]:
         """
         Extract decorators from TypeScript code.
@@ -503,21 +603,26 @@ class TypeScriptElementExtractor(BaseElementExtractor):
         query_str = """
         (decorator
           "@" @at_symbol
-          (identifier) @decorator_name
-          (arguments)? @args) @decorator
+          (call_expression
+            function: (identifier) @decorator_name
+            arguments: (arguments)? @args)) @decorator
+            
+        (decorator
+          "@" @at_symbol  
+          (identifier) @decorator_name) @decorator
         """
         
         try:
-            result = self._navigator.execute_query(tree, code_bytes, query_str)
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
             decorators = []
             
             for match in result:
                 if 'decorator' in match and 'decorator_name' in match:
                     decorator_node = match['decorator']
-                    decorator_name = self._navigator.get_node_text(match['decorator_name'], code_bytes).decode('utf-8')
+                    decorator_name = self.navigator.get_node_text(match['decorator_name'], code_bytes).decode('utf-8')
                     
-                    decorator_range = self._navigator.get_node_range(decorator_node)
-                    decorator_text = self._navigator.get_node_text(decorator_node, code_bytes).decode('utf-8')
+                    decorator_range = self.navigator.get_node_range(decorator_node)
+                    decorator_text = self.navigator.get_node_text(decorator_node, code_bytes).decode('utf-8')
                     
                     # Try to determine the parent element
                     parent_node = self._find_decorator_parent(decorator_node, tree, code_bytes)
@@ -529,7 +634,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                     args = None
                     if 'args' in match and match['args'] is not None:
                         args_node = match['args']
-                        args = self._navigator.get_node_text(args_node, code_bytes).decode('utf-8')
+                        args = self.navigator.get_node_text(args_node, code_bytes).decode('utf-8')
                     
                     decorator_data = {
                         'name': decorator_name,
@@ -553,6 +658,242 @@ class TypeScriptElementExtractor(BaseElementExtractor):
             
         except Exception as e:
             logger.error(f"Error extracting TypeScript decorators: {e}", exc_info=True)
+            return []
+    
+    def extract_enums(self, tree: Any, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract enum declarations from TypeScript code.
+        
+        Args:
+            tree: The parsed syntax tree
+            code_bytes: The original code bytes
+            
+        Returns:
+            List of dictionaries containing enum data
+        """
+        logger.debug("Extracting TypeScript enums")
+        
+        query_str = """
+        (enum_declaration
+          (identifier) @enum_name
+          (enum_body) @body) @enum_decl
+          
+        (export_statement
+          (enum_declaration
+            (identifier) @exported_enum_name
+            (enum_body) @exported_body)) @exported_enum
+        """
+        
+        try:
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
+            enums = []
+            
+            for match in result:
+                enum_data = {}
+                
+                # Handle normal enum declarations
+                if 'enum_name' in match and 'enum_decl' in match:
+                    enum_name = self.navigator.get_node_text(match['enum_name'], code_bytes).decode('utf-8')
+                    enum_node = match['enum_decl']
+                    body_node = match['body']
+                    
+                    enum_range = self.navigator.get_node_range(enum_node)
+                    
+                    enum_data = {
+                        'name': enum_name,
+                        'type': CodeElementType.ENUM.value,
+                        'range': {
+                            'start': {'line': enum_range[0], 'column': 0},
+                            'end': {'line': enum_range[1], 'column': 0}
+                        },
+                        'content': self.navigator.get_node_text(enum_node, code_bytes).decode('utf-8')
+                    }
+                
+                # Handle exported enum declarations
+                elif 'exported_enum_name' in match and 'exported_enum' in match:
+                    enum_name = self.navigator.get_node_text(match['exported_enum_name'], code_bytes).decode('utf-8')
+                    enum_node = match['exported_enum']
+                    body_node = match['exported_body']
+                    
+                    enum_range = self.navigator.get_node_range(enum_node)
+                    
+                    enum_data = {
+                        'name': enum_name,
+                        'type': CodeElementType.ENUM.value,
+                        'range': {
+                            'start': {'line': enum_range[0], 'column': 0},
+                            'end': {'line': enum_range[1], 'column': 0}
+                        },
+                        'content': self.navigator.get_node_text(enum_node, code_bytes).decode('utf-8'),
+                        'additional_data': {'is_exported': True}
+                    }
+                
+                if enum_data:
+                    enums.append(enum_data)
+            
+            logger.debug(f"Found {len(enums)} TypeScript enums")
+            return enums
+            
+        except Exception as e:
+            logger.error(f"Error extracting TypeScript enums: {e}", exc_info=True)
+            return []
+    
+    def extract_type_aliases(self, tree: Any, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract type alias declarations from TypeScript code.
+        
+        Args:
+            tree: The parsed syntax tree
+            code_bytes: The original code bytes
+            
+        Returns:
+            List of dictionaries containing type alias data
+        """
+        logger.debug("Extracting TypeScript type aliases")
+        
+        query_str = """
+        (type_alias_declaration
+          name: (type_identifier) @type_name
+          value: (_) @value) @type_alias
+          
+        (export_statement
+          (type_alias_declaration
+            name: (type_identifier) @exported_type_name
+            value: (_) @exported_value)) @exported_type_alias
+        """
+        
+        try:
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
+            type_aliases = []
+            
+            for match in result:
+                type_data = {}
+                
+                # Handle normal type alias declarations
+                if 'type_name' in match and 'type_alias' in match:
+                    type_name = self.navigator.get_node_text(match['type_name'], code_bytes).decode('utf-8')
+                    type_node = match['type_alias']
+                    value_node = match['value']
+                    
+                    type_range = self.navigator.get_node_range(type_node)
+                    
+                    type_data = {
+                        'name': type_name,
+                        'type': CodeElementType.TYPE_ALIAS.value,
+                        'range': {
+                            'start': {'line': type_range[0], 'column': 0},
+                            'end': {'line': type_range[1], 'column': 0}
+                        },
+                        'content': self.navigator.get_node_text(type_node, code_bytes).decode('utf-8'),
+                        'value': self.navigator.get_node_text(value_node, code_bytes).decode('utf-8')
+                    }
+                
+                # Handle exported type alias declarations
+                elif 'exported_type_name' in match and 'exported_type_alias' in match:
+                    type_name = self.navigator.get_node_text(match['exported_type_name'], code_bytes).decode('utf-8')
+                    type_node = match['exported_type_alias']
+                    value_node = match['exported_value']
+                    
+                    type_range = self.navigator.get_node_range(type_node)
+                    
+                    type_data = {
+                        'name': type_name,
+                        'type': CodeElementType.TYPE_ALIAS.value,
+                        'range': {
+                            'start': {'line': type_range[0], 'column': 0},
+                            'end': {'line': type_range[1], 'column': 0}
+                        },
+                        'content': self.navigator.get_node_text(type_node, code_bytes).decode('utf-8'),
+                        'value': self.navigator.get_node_text(value_node, code_bytes).decode('utf-8'),
+                        'additional_data': {'is_exported': True}
+                    }
+                
+                if type_data:
+                    type_aliases.append(type_data)
+            
+            logger.debug(f"Found {len(type_aliases)} TypeScript type aliases")
+            return type_aliases
+            
+        except Exception as e:
+            logger.error(f"Error extracting TypeScript type aliases: {e}", exc_info=True)
+            return []
+    
+    def extract_namespaces(self, tree: Any, code_bytes: bytes) -> List[Dict]:
+        """
+        Extract namespace declarations from TypeScript code.
+        
+        Args:
+            tree: The parsed syntax tree
+            code_bytes: The original code bytes
+            
+        Returns:
+            List of dictionaries containing namespace data
+        """
+        logger.debug("Extracting TypeScript namespaces")
+        
+        query_str = """
+        (internal_module
+          (identifier) @namespace_name
+          (statement_block) @body) @namespace_decl
+          
+        (export_statement
+          (internal_module
+            (identifier) @exported_namespace_name
+            (statement_block) @exported_body)) @exported_namespace
+        """
+        
+        try:
+            result = self.navigator.execute_query(tree, code_bytes, query_str)
+            namespaces = []
+            
+            for match in result:
+                namespace_data = {}
+                
+                # Handle normal namespace declarations
+                if 'namespace_name' in match and 'namespace_decl' in match:
+                    namespace_name = self.navigator.get_node_text(match['namespace_name'], code_bytes).decode('utf-8')
+                    namespace_node = match['namespace_decl']
+                    body_node = match['body']
+                    
+                    namespace_range = self.navigator.get_node_range(namespace_node)
+                    
+                    namespace_data = {
+                        'name': namespace_name,
+                        'type': CodeElementType.NAMESPACE.value,
+                        'range': {
+                            'start': {'line': namespace_range[0], 'column': 0},
+                            'end': {'line': namespace_range[1], 'column': 0}
+                        },
+                        'content': self.navigator.get_node_text(namespace_node, code_bytes).decode('utf-8')
+                    }
+                
+                # Handle exported namespace declarations
+                elif 'exported_namespace_name' in match and 'exported_namespace' in match:
+                    namespace_name = self.navigator.get_node_text(match['exported_namespace_name'], code_bytes).decode('utf-8')
+                    namespace_node = match['exported_namespace']
+                    body_node = match['exported_body']
+                    
+                    namespace_range = self.navigator.get_node_range(namespace_node)
+                    
+                    namespace_data = {
+                        'name': namespace_name,
+                        'type': CodeElementType.NAMESPACE.value,
+                        'range': {
+                            'start': {'line': namespace_range[0], 'column': 0},
+                            'end': {'line': namespace_range[1], 'column': 0}
+                        },
+                        'content': self.navigator.get_node_text(namespace_node, code_bytes).decode('utf-8'),
+                        'additional_data': {'is_exported': True}
+                    }
+                
+                if namespace_data:
+                    namespaces.append(namespace_data)
+            
+            logger.debug(f"Found {len(namespaces)} TypeScript namespaces")
+            return namespaces
+            
+        except Exception as e:
+            logger.error(f"Error extracting TypeScript namespaces: {e}", exc_info=True)
             return []
     
     def _extract_parameters(self, params_node: Any, code_bytes: bytes, is_method: bool = False) -> List[Dict]:
@@ -585,7 +926,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                 value: (_)? @default_value)) @optional_param
             """
             
-            result = self._navigator.execute_query(params_node, code_bytes, query_str)
+            result = self.navigator.execute_query(params_node, code_bytes, query_str)
             parameters = []
             
             for match in result:
@@ -593,7 +934,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                 
                 # Handle required parameters
                 if 'param_name' in match and 'required_param' in match:
-                    param_name = self._navigator.get_node_text(match['param_name'], code_bytes).decode('utf-8')
+                    param_name = self.navigator.get_node_text(match['param_name'], code_bytes).decode('utf-8')
                     param_node = match['required_param']
                     
                     param_data = {
@@ -604,13 +945,13 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                     # Extract type annotation if available
                     if 'type_annotation' in match and match['type_annotation'] is not None:
                         type_node = match['type_annotation']
-                        type_text = self._navigator.get_node_text(type_node, code_bytes).decode('utf-8')
+                        type_text = self.navigator.get_node_text(type_node, code_bytes).decode('utf-8')
                         # Remove the leading colon if present
                         param_data['type'] = type_text.lstrip(':').strip()
                 
                 # Handle optional parameters
                 elif 'opt_param_name' in match and 'optional_param' in match:
-                    param_name = self._navigator.get_node_text(match['opt_param_name'], code_bytes).decode('utf-8')
+                    param_name = self.navigator.get_node_text(match['opt_param_name'], code_bytes).decode('utf-8')
                     param_node = match['optional_param']
                     
                     param_data = {
@@ -621,14 +962,14 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                     # Extract type annotation if available
                     if 'opt_type_annotation' in match and match['opt_type_annotation'] is not None:
                         type_node = match['opt_type_annotation']
-                        type_text = self._navigator.get_node_text(type_node, code_bytes).decode('utf-8')
+                        type_text = self.navigator.get_node_text(type_node, code_bytes).decode('utf-8')
                         # Remove the leading colon if present
                         param_data['type'] = type_text.lstrip(':').strip()
                     
                     # Extract default value if available
                     if 'default_value' in match and match['default_value'] is not None:
                         value_node = match['default_value']
-                        param_data['default'] = self._navigator.get_node_text(value_node, code_bytes).decode('utf-8')
+                        param_data['default'] = self.navigator.get_node_text(value_node, code_bytes).decode('utf-8')
                 
                 if param_data:
                     parameters.append(param_data)
@@ -682,7 +1023,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
         """
         try:
             # The parent element should be the sibling of the decorator
-            decorator_line = self._navigator.get_node_range(decorator_node)[0]
+            decorator_line = self.navigator.get_node_range(decorator_node)[0]
             
             # Define potential parent types
             parent_types = [
@@ -691,18 +1032,20 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                 'public_field_definition'
             ]
             
-            # Query for potential parents
-            query_str = " ".join([f"({parent_type}) @parent" for parent_type in parent_types])
-            
-            result = self._navigator.execute_query(tree, code_bytes, query_str)
+            # Query for potential parents - run separate queries to avoid conflicts
+            all_parents = []
+            for parent_type in parent_types:
+                query_str = f"({parent_type}) @parent"
+                result = self.navigator.execute_query(tree, code_bytes, query_str)
+                all_parents.extend(result)
             
             closest_parent = None
             min_distance = float('inf')
             
-            for match in result:
+            for match in all_parents:
                 if 'parent' in match:
                     parent_node = match['parent']
-                    parent_range = self._navigator.get_node_range(parent_node)
+                    parent_range = self.navigator.get_node_range(parent_node)
                     
                     # The parent should be after the decorator
                     if parent_range[0] > decorator_line:
@@ -739,8 +1082,33 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                 query_str = "(class_declaration name: (type_identifier) @class_name)"
                 
             elif node_type == 'method_definition':
-                # Query for method name
+                # For method definitions, we need to get the class name too
+                # First get the method name
                 query_str = "(method_definition name: (property_identifier) @method_name)"
+                result = self.navigator.execute_query(parent_node, code_bytes, query_str)
+                
+                method_name = None
+                for match in result:
+                    if 'method_name' in match and match['method_name']:
+                        method_name = self.navigator.get_node_text(match['method_name'], code_bytes).decode('utf-8')
+                        break
+                
+                if not method_name:
+                    return None
+                
+                # Find the parent class
+                class_node = self.navigator.find_parent_of_type(parent_node, 'class_declaration')
+                if class_node:
+                    class_query = "(class_declaration name: (type_identifier) @class_name)"
+                    class_result = self.navigator.execute_query(class_node, code_bytes, class_query)
+                    
+                    for match in class_result:
+                        if 'class_name' in match and match['class_name']:
+                            class_name = self.navigator.get_node_text(match['class_name'], code_bytes).decode('utf-8')
+                            return f"{class_name}.{method_name}"
+                
+                # If no class found, just return method name
+                return method_name
                 
             elif node_type == 'public_field_definition':
                 # Query for property name
@@ -749,7 +1117,8 @@ class TypeScriptElementExtractor(BaseElementExtractor):
             else:
                 return None
             
-            result = self._navigator.execute_query(parent_node, code_bytes, query_str)
+            # This code only executes for class_declaration and public_field_definition
+            result = self.navigator.execute_query(parent_node, code_bytes, query_str)
             
             for match in result:
                 name_key = None
@@ -760,7 +1129,7 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                 
                 if name_key and match[name_key]:
                     name_node = match[name_key]
-                    return self._navigator.get_node_text(name_node, code_bytes).decode('utf-8')
+                    return self.navigator.get_node_text(name_node, code_bytes).decode('utf-8')
             
             return None
             
