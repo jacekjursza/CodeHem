@@ -3,8 +3,8 @@
   "METHOD": {"tree_sitter_query": "(function_definition name: (identifier) @method_name) @method_def"},
   "FUNCTION": {"tree_sitter_query": "(function_definition name: (identifier) @function_name) @function_def"},
   "IMPORT": {"tree_sitter_query": "(import_statement) @import_simple\n(import_from_statement) @import_from", "custom_extract": true},
-  "PROPERTY_GETTER": {"tree_sitter_query": "(decorated_definition) @getter_def"},
-  "PROPERTY_SETTER": {"tree_sitter_query": "(decorated_definition) @setter_def"},
+  "PROPERTY_GETTER": {"tree_sitter_query": "(decorated_definition\n  (decorator\n    (identifier) @decorator_name\n    (#eq? @decorator_name \"property\"))\n  (function_definition\n    name: (identifier) @property_name)) @property_def"},
+  "PROPERTY_SETTER": {"tree_sitter_query": "(decorated_definition\n  (decorator\n    (attribute\n      object: (identifier) @property_name\n      attribute: (identifier) @setter_keyword\n      (#eq? @setter_keyword \"setter\")))\n  (function_definition\n    name: (identifier) @function_name\n    (#eq? @function_name @property_name))) @property_setter_def"},
   "STATIC_PROPERTY": {"tree_sitter_query": "(class_definition\n  body: (block) @class_block)"},
   "DECORATOR": {"tree_sitter_query": "(decorator) @decorator_node"}
 }
