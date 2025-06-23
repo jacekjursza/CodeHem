@@ -46,7 +46,7 @@ from codehem.core.input_validation import (
 )
 
 
-class TestEnum(Enum):
+class SampleEnum(Enum):
     """Test enum for validation tests."""
     ONE = 1
     TWO = 2
@@ -122,19 +122,19 @@ class BasicValidatorsTest(unittest.TestCase):
     def test_validate_enum_value(self):
         """Test validate_enum_value function."""
         # Valid cases
-        validate_enum_value(TestEnum.ONE, TestEnum, "param")
-        validate_enum_value(1, TestEnum, "param")
-        validate_enum_value(None, TestEnum, "param")
+        validate_enum_value(SampleEnum.ONE, SampleEnum, "param")
+        validate_enum_value(1, SampleEnum, "param")
+        validate_enum_value(None, SampleEnum, "param")
 
         # Invalid cases
         with self.assertRaises(InvalidParameterError):
-            validate_enum_value(4, TestEnum, "param")
+            validate_enum_value(4, SampleEnum, "param")
         with self.assertRaises(InvalidParameterError):
-            validate_enum_value("FOUR", TestEnum, "param")
+            validate_enum_value("FOUR", SampleEnum, "param")
         
         # Check error message
         try:
-            validate_enum_value(4, TestEnum, "param")
+            validate_enum_value(4, SampleEnum, "param")
         except InvalidParameterError as e:
             self.assertIn("param", str(e))
             self.assertIn("1", str(e))
