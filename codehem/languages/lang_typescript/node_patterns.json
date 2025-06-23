@@ -10,10 +10,11 @@
     "BODY_START": "{"
   },
   "interface": {
-    "tree_sitter_query": "\n(interface_declaration\n  name: (type_identifier) @interface_name\n  body: (interface_body) @interface_body\n) @interface_def\n\n(export_statement\n  declaration: (interface_declaration\n    name: (type_identifier) @interface_name\n    body: (interface_body) @interface_body\n  ) @interface_def_exported\n)\n",
+    "tree_sitter_query": "\n(interface_declaration\n  name: (type_identifier) @interface_name\n  type_parameters: (type_parameters)? @type_parameters\n  body: (interface_body) @interface_body\n) @interface_def\n\n(export_statement\n  declaration: (interface_declaration\n    name: (type_identifier) @interface_name\n    type_parameters: (type_parameters)? @type_parameters\n    body: (interface_body) @interface_body\n  ) @interface_def_exported\n)\n",
     "INTERFACE_NODE": "interface_declaration",
     "NAME_NODE": "type_identifier",
     "BODY_NODE": "interface_body",
+    "TYPE_PARAMETERS_NODE": "type_parameters",
     "INTERFACE_PATTERN": "(?:export\\s+)?interface",
     "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*",
     "EXTENDS_PATTERN": "(?:\\s+extends\\s+[\\w.,\\s<>]+)?",
@@ -97,7 +98,7 @@
     "ARGS_PATTERN": "(?:\\([^)]*\\))?"
   },
   "type_alias": {
-    "tree_sitter_query": "\n(type_alias_declaration\n  name: (type_identifier) @type_name\n  value: (_) @type_value\n) @type_alias_def\n\n(export_statement\n  declaration: (type_alias_declaration\n    name: (type_identifier) @type_name\n    value: (_) @type_value\n  ) @type_alias_def_exported\n)\n",
+    "tree_sitter_query": "\n(type_alias_declaration\n  name: (type_identifier) @type_name\n  type: (_) @type_value\n) @type_alias_def\n\n(export_statement\n  declaration: (type_alias_declaration\n    name: (type_identifier) @type_name\n    type: (_) @type_value\n  ) @type_alias_def_exported\n)\n",
     "TYPE_NODE": "type_alias_declaration",
     "NAME_NODE": "type_identifier",
     "VALUE_NODE": "_",
@@ -105,17 +106,17 @@
     "IDENTIFIER_PATTERN": "[a-zA-Z_$][a-zA-Z0-9_$]*"
   },
   "enum": {
-    "tree_sitter_query": "\n(enum_declaration\n  name: (identifier) @enum_name\n  body: (enum_body) @enum_body\n) @enum_def\n\n(export_statement\n  declaration: (enum_declaration\n    name: (identifier) @enum_name\n    body: (enum_body) @enum_body\n  ) @enum_def_exported\n)\n",
+    "tree_sitter_query": "\n(enum_declaration\n  name: [\n    (identifier) @enum_name\n    (type_identifier) @enum_name\n  ]\n  body: (enum_body) @enum_body\n) @enum_def\n\n(export_statement\n  declaration: (enum_declaration\n    name: [\n      (identifier) @enum_name\n      (type_identifier) @enum_name\n    ]\n    body: (enum_body) @enum_body\n  ) @enum_def_exported\n)\n",
     "ENUM_NODE": "enum_declaration",
-    "NAME_NODE": "identifier",
+    "NAME_NODE": ["identifier", "type_identifier"],
     "BODY_NODE": "enum_body",
     "ENUM_PATTERN": "(?:export\\s+)?enum"
   },
   "namespace": {
-    "tree_sitter_query": "\n(module\n  name: [\n    (identifier) @namespace_name\n    (string) @namespace_name_string\n  ] @namespace_name_capture\n  body: (module_body | statement_block)? @namespace_body\n) @namespace_def\n\n(export_statement\n  declaration: (module\n    name: [ (identifier) @namespace_name (string) @namespace_name_string ] @namespace_name_capture\n    body: (module_body | statement_block)? @namespace_body\n  ) @namespace_def_exported\n)\n\n(ambient_declaration\n  (module\n     name: [ (identifier) @namespace_name (string) @namespace_name_string ] @namespace_name_capture\n     body: (module_body | statement_block)? @namespace_body\n  )\n) @ambient_namespace_def\n",
-    "NAMESPACE_NODE": "module",
+    "tree_sitter_query": "\n(module\n  name: [\n    (identifier) @namespace_name\n    (string) @namespace_name_string\n  ] @namespace_name_capture\n  body: (module_body | statement_block)? @namespace_body\n) @namespace_def\n\n(namespace_declaration\n  name: (identifier) @namespace_name\n  body: (statement_block) @namespace_body\n) @namespace_def\n\n(export_statement\n  declaration: (module\n    name: [ (identifier) @namespace_name (string) @namespace_name_string ] @namespace_name_capture\n    body: (module_body | statement_block)? @namespace_body\n  ) @namespace_def_exported\n)\n\n(export_statement\n  declaration: (namespace_declaration\n    name: (identifier) @namespace_name\n    body: (statement_block) @namespace_body\n  ) @namespace_def_exported\n)\n\n(ambient_declaration\n  (module\n     name: [ (identifier) @namespace_name (string) @namespace_name_string ] @namespace_name_capture\n     body: (module_body | statement_block)? @namespace_body\n  )\n) @ambient_namespace_def\n",
+    "NAMESPACE_NODE": ["module", "namespace_declaration"],
     "NAME_NODE": "identifier",
-    "BODY_NODE": "module_body",
+    "BODY_NODE": ["module_body", "statement_block"],
     "NAMESPACE_PATTERN": "(?:export\\s+)?(?:namespace|module)"
   }
 }

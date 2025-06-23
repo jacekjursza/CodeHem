@@ -28,18 +28,18 @@ class TypeScriptNamespaceExtractor(TemplateExtractor):
             node_for_range = node
 
             if capture_name in ['namespace_def', 'namespace_def_exported', 'ambient_namespace_def']:
-                if node.type == 'module': # TS uses 'module' for namespaces
+                if node.type in ['module', 'namespace_declaration']: # TS uses both 'module' and 'namespace_declaration'
                     definition_node = node
                 elif node.type in ['export_statement', 'ambient_declaration']:
                     decl = node.child_by_field_name('declaration')
-                    if decl and decl.type == 'module':
+                    if decl and decl.type in ['module', 'namespace_declaration']:
                         definition_node = decl
                     else: continue
                 else:
                     logger.warning(f"Capture '{capture_name}' on unexpected node type: {node.type}")
                     continue
             elif capture_name in ['namespace_name', 'namespace_name_string', 'namespace_body']:
-                 parent_def = ast_handler.find_parent_of_type(node, 'module')
+                 parent_def = ast_handler.find_parent_of_type(node, ['module', 'namespace_declaration'])
                  if parent_def:
                       definition_node = parent_def
                       # Check if exported or ambient for range

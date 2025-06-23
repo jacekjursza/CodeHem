@@ -84,10 +84,11 @@ class Workspace:
     ) -> object:
         abs_path = self.root / file_path
         hem = CodeHem.from_file_path(str(abs_path))
-        text = hem.load_file(str(abs_path))
-        if original_hash is None:
-            original_hash = hem.get_element_hash(text, xpath)
         with self._file_lock(abs_path):
+            # Load file content inside the lock to avoid race conditions
+            text = hem.load_file(str(abs_path))
+            if original_hash is None:
+                original_hash = hem.get_element_hash(text, xpath)
             try:
                 result = hem.apply_patch(
                     text,

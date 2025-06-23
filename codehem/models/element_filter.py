@@ -105,6 +105,12 @@ class ElementFilter:
                        element.type in [CodeElementType.PROPERTY_GETTER, CodeElementType.PROPERTY_SETTER, CodeElementType.STATIC_PROPERTY]:
                         type_match = True
                         logger.debug(f"  -> Allowing match for PROPERTY type on element {element.name} ({element.type.value})")
+                    
+                    # Handle class-like type flexibility: allow class inference to match enum, interface, namespace, function
+                    elif target_type == CodeElementType.CLASS.value and \
+                         element.type in [CodeElementType.ENUM, CodeElementType.INTERFACE, CodeElementType.TYPE_ALIAS, CodeElementType.NAMESPACE, CodeElementType.FUNCTION]:
+                        type_match = True
+                        logger.debug(f"  -> Allowing match for CLASS type on element {element.name} ({element.type.value})")
 
                     # Ensure specific property requests match specific types ONLY
                     elif target_type == CodeElementType.PROPERTY_GETTER.value:

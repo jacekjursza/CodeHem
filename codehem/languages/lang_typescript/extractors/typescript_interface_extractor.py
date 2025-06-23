@@ -32,7 +32,7 @@ class TypeScriptInterfaceExtractor(TemplateExtractor):
             if capture_name in ['interface_def', 'interface_def_exported']:
                 node_for_range = node
                 current_def_node = node if node.type == 'interface_declaration' else node.child_by_field_name('declaration')
-            elif capture_name == 'interface_name':
+            elif capture_name in ['interface_name', 'type_parameters', 'interface_body']:
                 parent_decl = ast_handler.find_parent_of_type(node, 'interface_declaration')
                 if parent_decl:
                     current_def_node = parent_decl
@@ -46,6 +46,8 @@ class TypeScriptInterfaceExtractor(TemplateExtractor):
                     node_map[node_id]['range_node'] = node_for_range
                 if capture_name == 'interface_name':
                     node_map[node_id]['name_node'] = node
+                elif capture_name == 'type_parameters':
+                    node_map[node_id]['type_parameters_node'] = node
 
         logger.debug(f"TS Interface Extractor: Built node map with {len(node_map)} potential interfaces.") # ADDED LOG
 

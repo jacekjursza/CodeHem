@@ -73,7 +73,7 @@ class TypeScriptTypeAliasExtractor(TemplateExtractor):
             definition_node = data['definition_node']
             node_for_range = data['node_for_range']
             name_node = data.get('name_node') or ast_handler.find_child_by_field_name(definition_node, 'name')
-            value_node = data.get('value_node') or ast_handler.find_child_by_field_name(definition_node, 'value') # TS uses 'value' field
+            value_node = data.get('value_node') or ast_handler.find_child_by_field_name(definition_node, 'type') # TS uses 'type' field
 
             if not name_node:
                 logger.warning(f"Could not find name for type alias definition node id {node_id}")
