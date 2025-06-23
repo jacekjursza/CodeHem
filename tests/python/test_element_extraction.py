@@ -129,8 +129,7 @@ def test_extract_imports(codehem):
             imports = element
             break
 
-    if imports is None:
-        pytest.skip("Import extraction not implemented")
+    assert imports is not None, "Import extraction should be implemented"
 
     # Test if ANY of the expected imports are found, not necessarily all
     expected_imports = example.metadata.get('imports', '').split(',')

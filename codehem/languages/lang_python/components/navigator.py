@@ -114,17 +114,18 @@ class PythonSyntaxTreeNavigator(BaseSyntaxTreeNavigator):
         """
         try:
             query = Query(PY_LANGUAGE, query_string)
-            # Tree-sitter changed API - now requires a callback function
             results = []
             
-            def capture_callback(match, capture_index, node):
-                # Create a match record
-                capture_name = query.capture_names[capture_index]
-                results.append((node, capture_name))
-                return True  # Continue matching
-            
-            # Execute the query with the callback
-            query.matches(tree, capture_callback)
+            # Execute the query and process matches
+            matches = query.matches(tree)
+            for match in matches:
+                # match is a tuple: (pattern_index, captures_dict)
+                pattern_index, captures_dict = match
+                
+                # Process each capture in the match
+                for capture_name, nodes in captures_dict.items():
+                    for node in nodes:
+                        results.append((node, capture_name))
             
             return results
         except QueryError as e:

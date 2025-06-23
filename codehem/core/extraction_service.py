@@ -89,6 +89,34 @@ class ExtractionService:
         if not self.language_service:
             logger.error(f"No language_service for '{self.language_code}' when trying to extract '{element_type}'.")
             return []
+        
+        # Check if the language service has an orchestrator (new architecture)
+        # Only use orchestrator for import extraction since other types need proper post-processing
+        orchestrator = None
+        if element_type == 'import' and hasattr(self.language_service, 'get_orchestrator'):
+            try:
+                orchestrator = self.language_service.get_orchestrator()
+            except Exception as e:
+                logger.debug(f"Failed to get orchestrator from language service: {e}")
+        
+        if orchestrator and element_type == 'import':
+            # Use new orchestrator-based extraction only for imports
+            logger.debug(f"Using orchestrator-based extraction for imports in {self.language_code}")
+            try:
+                # Parse the code first
+                tree, code_bytes = orchestrator.parser.parse(code)
+                
+                # Extract imports using orchestrator
+                results = orchestrator.extractor.extract_imports(tree, code_bytes)
+                    
+                logger.debug(f"Orchestrator extracted {len(results)} import elements")
+                return results
+                
+            except Exception as e:
+                logger.error(f"Error during orchestrator-based import extraction: {e}", exc_info=True)
+                return []
+        
+        # Use legacy extractor-based extraction for all other types
         extractor_instance = self.language_service.get_extractor(element_type)
         if not extractor_instance:
             logger.warning(f"No extractor found for '{element_type}' in language '{self.language_code}'.")
