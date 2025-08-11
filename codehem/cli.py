@@ -90,6 +90,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="CodeHem command-line interface")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--quiet", action="store_true", help="Reduce logs to errors only")
     sub = parser.add_subparsers(dest="command")
 
     detect_p = sub.add_parser("detect", help="Detect language and show stats")
@@ -109,12 +110,23 @@ def main() -> None:
     patch_p.add_argument("--dry-run", action="store_true", help="Preview diff only")
 
     extract_p = sub.add_parser("extract", help="Extract code elements to JSON")
-    extract_p.add_argument("file", help="Source file path")
-    extract_p.add_argument("--output", help="Output file")
-    extract_p.add_argument("--raw-json", action="store_true", help="Output raw JSON")
+    extract_p.add_argument("file", help="Source file or directory path")
+    extract_p.add_argument("--output", help="Output file (for aggregated results if --recursive)")
+    extract_p.add_argument("--raw-json", action="store_true", help="Output raw JSON (no progress UI)")
+    extract_p.add_argument("--summary", action="store_true", help="Only output counts (classes/functions/methods)")
+    extract_p.add_argument("--recursive", action="store_true", help="Scan directory recursively (requires path to be a directory)")
 
     args = parser.parse_args()
-    logging.basicConfig(level=logging.DEBUG if args.debug else logging.WARNING)
+    # Determine logging level
+    if getattr(args, "debug", False):
+        log_level = logging.DEBUG
+    elif getattr(args, "quiet", False):
+        log_level = logging.ERROR
+    elif getattr(args, "verbose", False):
+        log_level = logging.INFO
+    else:
+        log_level = logging.WARNING
+    logging.basicConfig(level=log_level)
 
     if args.command == "detect":
         _detect(args.file, args.raw_json, console)
@@ -122,58 +134,122 @@ def main() -> None:
         _patch(args.target, args.xpath, args.file, args.mode, args.dry_run, console)
     elif args.command == "extract":
         if not os.path.exists(args.file):
-            console.print(f"[bold red]File not found:[/bold red] {args.file}")
+            console.print(f"[bold red]Path not found:[/bold red] {args.file}")
             sys.exit(1)
 
-        def _extract_to_json_dict(file_path: str) -> Dict[str, Any]:
-            content = CodeHem.load_file(file_path)
-            hem = CodeHem.from_raw_code(content)
+        def _to_dict(el: Any) -> Dict[str, Any]:
+            if hasattr(el, "model_dump"):
+                return el.model_dump()
+            if hasattr(el, "dict"):
+                return el.dict()
+            return dict(getattr(el, "__dict__", {}))
+
+        def _sanitize(obj: Any) -> Any:
+            if isinstance(obj, dict):
+                clean: Dict[str, Any] = {}
+                for k, v in obj.items():
+                    if k == "node":
+                        continue  # drop tree-sitter node references
+                    clean[k] = _sanitize(v)
+                return clean
+            if isinstance(obj, list):
+                return [_sanitize(x) for x in obj]
+            if isinstance(obj, (str, int, float, bool)) or obj is None:
+                return obj
+            try:
+                json.dumps(obj)
+                return obj
+            except Exception:
+                return str(obj)
+
+        def _counts(elements_obj) -> Dict[str, int]:
+            # Compute basic counts (walks nested children for methods)
+            try:
+                classes = 0
+                functions = 0
+                methods = 0
+
+                for e in elements_obj.elements:
+                    et = getattr(e, "type", None)
+                    ev = et.value if et else None
+                    if ev == "class":
+                        classes += 1
+                        # count methods among children
+                        try:
+                            for ch in getattr(e, "children", []) or []:
+                                ctype = getattr(ch, "type", None)
+                                if ctype and getattr(ctype, "value", None) == "method":
+                                    methods += 1
+                        except Exception:
+                            pass
+                    elif ev == "function":
+                        functions += 1
+                    elif ev == "method":
+                        methods += 1
+                return {"classes": classes, "functions": functions, "methods": methods}
+            except Exception:
+                return {"classes": 0, "functions": 0, "methods": 0}
+
+        def _extract_file(path: str) -> Dict[str, Any]:
+            content = CodeHem.load_file(path)
+            try:
+                hem = CodeHem.from_raw_code(content)
+            except Exception:
+                return {"path": path, "error": "unsupported_or_detection_failed"}
             elements = hem.extract(content)
-
-            # Ensure JSON-serializable output. First dump to dicts, then sanitize recursively.
-            def _to_dict(el: Any) -> Dict[str, Any]:
-                if hasattr(el, "model_dump"):
-                    return el.model_dump()
-                if hasattr(el, "dict"):
-                    return el.dict()
-                return dict(getattr(el, "__dict__", {}))
-
-            def _sanitize(obj: Any) -> Any:
-                if isinstance(obj, dict):
-                    clean: Dict[str, Any] = {}
-                    for k, v in obj.items():
-                        if k == "node":
-                            continue  # drop tree-sitter node references
-                        clean[k] = _sanitize(v)
-                    return clean
-                if isinstance(obj, list):
-                    return [_sanitize(x) for x in obj]
-                if isinstance(obj, (str, int, float, bool)) or obj is None:
-                    return obj
-                try:
-                    json.dumps(obj)
-                    return obj
-                except Exception:
-                    return str(obj)
-
-            raw_list = [_to_dict(e) for e in elements.elements]
-            return {"elements": _sanitize(raw_list)}
-
-        # Suppress progress UI when producing machine-readable output
-        if args.raw_json or args.output:
-            elements_dict = _extract_to_json_dict(args.file)
-            if args.output:
-                with open(args.output, "w", encoding="utf8") as f:
-                    json.dump(elements_dict, f, indent=2)
+            if args.summary:
+                return {"path": path, "summary": _counts(elements)}
             else:
-                print(json.dumps(elements_dict, indent=2))
+                raw_list = [_to_dict(e) for e in elements.elements]
+                return {"path": path, "elements": _sanitize(raw_list)}
+
+        output_data: Dict[str, Any]
+        if args.recursive and os.path.isdir(args.file):
+            collected = []
+            for root, _, files in os.walk(args.file):
+                for fname in files:
+                    fpath = os.path.join(root, fname)
+                    try:
+                        result = _extract_file(fpath)
+                        # Skip files where detection failed
+                        if "error" in result:
+                            continue
+                        collected.append(result)
+                    except Exception:
+                        continue
+            if args.summary:
+                total = {"classes": 0, "functions": 0, "methods": 0}
+                for item in collected:
+                    s = item.get("summary", {})
+                    for k in total:
+                        total[k] += int(s.get(k, 0))
+                output_data = {"files": collected, "total": total}
+            else:
+                output_data = {"files": collected}
         else:
-            with Progress() as progress:
-                task = progress.add_task("[green]Extracting...", total=3)
-                progress.update(task, advance=1, description="[green]Creating instance...")
-                elements_dict = _extract_to_json_dict(args.file)
-                progress.update(task, advance=2, description="[green]Done")
-                console.print_json(data=elements_dict)
+            # Single file mode
+            if args.summary:
+                # No progress for summary
+                output_data = _extract_file(args.file)
+            elif args.raw_json or args.output:
+                output_data = _extract_file(args.file)
+            else:
+                # Progress UI for interactive single-file extraction
+                with Progress() as progress:
+                    task = progress.add_task("[green]Extracting...", total=3)
+                    progress.update(task, advance=1, description="[green]Creating instance...")
+                    output_data = _extract_file(args.file)
+                    progress.update(task, advance=2, description="[green]Done")
+
+        # Emit results
+        if args.output:
+            with open(args.output, "w", encoding="utf8") as f:
+                json.dump(output_data, f, indent=2)
+        else:
+            if args.raw_json or args.summary or args.recursive:
+                print(json.dumps(output_data, indent=2))
+            else:
+                console.print_json(data=output_data)
     else:
         parser.print_help()
 
