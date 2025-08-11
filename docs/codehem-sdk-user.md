@@ -146,3 +146,109 @@ CLI `extract` (recursive) emits either NDJSON (one object per line) or an aggreg
 - Unsupported files raise `ValueError` on language detection (`from_file_path` / `from_raw_code`).
 - If an XPath does not match, `get_text_by_xpath` returns `None`; `apply_patch` raises `ElementNotFoundError`.
 - Hash mismatches in `apply_patch` raise `WriteConflictError` when the fragment changed since hashing.
+
+## FAQ
+
+- Performance tips:
+  - Reuse a `CodeHem("python")` or `CodeHem("typescript")` instance across multiple files to amortize parser setup.
+  - For large trees, prefer the CLI `extract --recursive --summary` to pre-compute counts and shortlist targets.
+  - Suppress verbose logs by default; enable debug only for diagnostics.
+  - When scanning a repository programmatically, consider `CodeHem.open_workspace(root)` to index once and query many times.
+
+- Common XPath patterns (TypeScript/JavaScript):
+  - Class method: `MyClass.compute` or `MyClass.compute[method]`
+  - Getter/setter (may normalize as `method`): `MyClass.value[property_getter]`, `MyClass.value[property_setter]`
+  - Interface: `IUser[interface]`
+  - Type alias: `Result[type_alias]`
+  - Enum: `Status[enum]`
+
+## TypeScript/JavaScript Example (via Python SDK)
+
+```python
+from codehem import CodeHem
+
+code_ts = """
+export interface IUser { id: string; name: string }
+export class Greeter {
+  greet(name: string) { return `Hello, ${name}` }
+}
+export function fmt(x: number): string { return `${x}` }
+"""
+
+hem = CodeHem("typescript")  # also handles JavaScript
+elements = hem.extract(code_ts)
+
+classes = [e for e in elements.elements if e.type.value == "class"]
+funcs = [e for e in elements.elements if e.type.value == "function"]
+interfaces = [e for e in elements.elements if e.type.value == "interface"]
+print([c.name for c in classes], [f.name for f in funcs], [i.name for i in interfaces])
+
+# XPath examples
+print(hem.get_text_by_xpath(code_ts, "Greeter.greet[body]"))
+```
+
+## Minimal JSON Schema (informal)
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codehem.dev/schemas/elements.json",
+  "title": "CodeHem Elements Payload",
+  "type": "object",
+  "properties": {
+    "elements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/CodeElement" }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "elements": { "type": "array", "items": { "$ref": "#/$defs/CodeElement" } },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "classes": { "type": "integer" },
+              "functions": { "type": "integer" },
+              "methods": { "type": "integer" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["path"],
+        "additionalProperties": true
+      }
+    }
+  },
+  "$defs": {
+    "Range": {
+      "type": "object",
+      "properties": {
+        "start_line": { "type": "integer" },
+        "start_column": { "type": ["integer", "null"] },
+        "end_line": { "type": "integer" },
+        "end_column": { "type": ["integer", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "CodeElement": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "name": { "type": "string" },
+        "content": { "type": "string" },
+        "range": { "$ref": "#/$defs/Range" },
+        "parent_name": { "type": ["string", "null"] },
+        "value_type": { "type": ["string", "null"] },
+        "additional_data": { "type": "object" },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/CodeElement" } }
+      },
+      "required": ["type", "name"],
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
+```
