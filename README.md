@@ -165,7 +165,9 @@ codehem patch --file fix.diff --xpath "MyClass.calc[method]" --dry-run
 
 Run `codehem --help` for the full CLI.
 
-See [docs/QuickStart-LLM](docs/QuickStart-LLM.md) for a JSON-driven workflow.
+See also:
+- SDK user guide (Python): [docs/codehem-sdk-user.md](docs/codehem-sdk-user.md)
+- JSON workflow quickstart: [docs/QuickStart-LLM.md](docs/QuickStart-LLM.md)
 
 ---
 

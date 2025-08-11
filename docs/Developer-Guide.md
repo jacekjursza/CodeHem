@@ -2,6 +2,8 @@
 
 This comprehensive guide explains how to extend CodeHem, use its APIs, and develop language plugins.
 
+See also for end users of the Python library: [docs/codehem-sdk-user.md](./codehem-sdk-user.md).
+
 ## Table of Contents
 1. [Core API Reference](#core-api-reference)
 2. [Plugin Development](#plugin-development)
