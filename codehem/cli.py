@@ -115,6 +115,20 @@ def main() -> None:
     extract_p.add_argument("--raw-json", action="store_true", help="Output raw JSON (no progress UI)")
     extract_p.add_argument("--summary", action="store_true", help="Only output counts (classes/functions/methods)")
     extract_p.add_argument("--recursive", action="store_true", help="Scan directory recursively (requires path to be a directory)")
+    extract_p.add_argument(
+        "--ext",
+        action="append",
+        help="Limit to files with given extension(s); repeat or use comma-separated (e.g., --ext .py --ext .ts,.tsx)",
+    )
+    extract_p.add_argument(
+        "--ndjson",
+        action="store_true",
+        help="Emit one JSON object per line for each file (recursive mode)",
+    )
+    extract_p.add_argument(
+        "--out-dir",
+        help="Write per-file JSON outputs under this directory (recursive mode)",
+    )
 
     args = parser.parse_args()
     # Determine logging level
@@ -205,10 +219,26 @@ def main() -> None:
 
         output_data: Dict[str, Any]
         if args.recursive and os.path.isdir(args.file):
+            # Prepare extension filters
+            exts: set[str] = set()
+            if args.ext:
+                parts: list[str] = []
+                for item in args.ext:
+                    parts.extend([p.strip() for p in item.split(',') if p.strip()])
+                for p in parts:
+                    p = p.lower()
+                    if not p.startswith('.'):  # normalize
+                        p = '.' + p
+                    exts.add(p)
+
+            root_dir = os.path.abspath(args.file)
             collected = []
             for root, _, files in os.walk(args.file):
                 for fname in files:
                     fpath = os.path.join(root, fname)
+                    # Filter by extension if provided
+                    if exts and os.path.splitext(fname)[1].lower() not in exts:
+                        continue
                     try:
                         result = _extract_file(fpath)
                         # Skip files where detection failed
@@ -217,7 +247,34 @@ def main() -> None:
                         collected.append(result)
                     except Exception:
                         continue
-            if args.summary:
+            # Handle output modes for recursive
+            if args.out_dir:
+                out_root = os.path.abspath(args.out_dir)
+                os.makedirs(out_root, exist_ok=True)
+                for item in collected:
+                    rel = os.path.relpath(item["path"], root_dir)
+                    rel_json = rel + (".summary.json" if args.summary else ".json")
+                    out_path = os.path.join(out_root, rel_json)
+                    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+                    with open(out_path, "w", encoding="utf8") as f:
+                        json.dump(item, f, indent=2)
+                # When writing to out-dir, also print or save aggregate index if requested
+                if args.output:
+                    with open(args.output, "w", encoding="utf8") as f:
+                        json.dump({"files": collected}, f, indent=2)
+                output_data = {"files": collected}
+            elif args.ndjson:
+                # NDJSON to stdout or file
+                if args.output:
+                    with open(args.output, "w", encoding="utf8") as f:
+                        for item in collected:
+                            f.write(json.dumps(item) + "\n")
+                    output_data = {"written": len(collected), "format": "ndjson", "path": args.output}
+                else:
+                    for item in collected:
+                        print(json.dumps(item))
+                    output_data = {"written": len(collected), "format": "ndjson"}
+            elif args.summary:
                 total = {"classes": 0, "functions": 0, "methods": 0}
                 for item in collected:
                     s = item.get("summary", {})
@@ -242,14 +299,16 @@ def main() -> None:
                     progress.update(task, advance=2, description="[green]Done")
 
         # Emit results
-        if args.output:
-            with open(args.output, "w", encoding="utf8") as f:
-                json.dump(output_data, f, indent=2)
-        else:
-            if args.raw_json or args.summary or args.recursive:
-                print(json.dumps(output_data, indent=2))
+        # Emit final results if not already streamed via ndjson or out-dir
+        if not (args.recursive and (args.ndjson or args.out_dir)):
+            if args.output:
+                with open(args.output, "w", encoding="utf8") as f:
+                    json.dump(output_data, f, indent=2)
             else:
-                console.print_json(data=output_data)
+                if args.raw_json or args.summary or args.recursive:
+                    print(json.dumps(output_data, indent=2))
+                else:
+                    console.print_json(data=output_data)
     else:
         parser.print_help()
 
