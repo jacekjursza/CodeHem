@@ -1,10 +1,35 @@
 {
-  "CLASS": {"tree_sitter_query": "(class_definition name: (identifier) @class_name) @class_def"},
-  "METHOD": {"tree_sitter_query": "(function_definition name: (identifier) @method_name) @method_def"},
-  "FUNCTION": {"tree_sitter_query": "(function_definition name: (identifier) @function_name) @function_def"},
-  "IMPORT": {"tree_sitter_query": "(import_statement) @import_simple\n(import_from_statement) @import_from", "custom_extract": true},
-  "PROPERTY_GETTER": {"tree_sitter_query": "(decorated_definition\n  (decorator\n    (identifier) @decorator_name\n    (#eq? @decorator_name \"property\"))\n  (function_definition\n    name: (identifier) @property_name)) @property_def"},
-  "PROPERTY_SETTER": {"tree_sitter_query": "(decorated_definition\n  (decorator\n    (attribute\n      object: (identifier) @property_name\n      attribute: (identifier) @setter_keyword\n      (#eq? @setter_keyword \"setter\")))\n  (function_definition\n    name: (identifier) @function_name\n    (#eq? @function_name @property_name))) @property_setter_def"},
-  "STATIC_PROPERTY": {"tree_sitter_query": "(class_definition\n  body: (block) @class_block)"},
-  "DECORATOR": {"tree_sitter_query": "(decorator) @decorator_node"}
+  "CLASS": {
+    "tree_sitter_query": "(class_definition name: (identifier) @class_name) @class_def",
+    "regexp_pattern": "(?ms)^[\\t ]*class\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?:\\([^)]*\\))?\\s*:\\s*\\n(?:(?:[\\t ].*\\n)+)"
+  },
+  "METHOD": {
+    "tree_sitter_query": "(function_definition name: (identifier) @method_name) @method_def",
+    "regexp_pattern": "(?ms)^[\\t ]+def\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\([^)]*\\)\\s*:\\s*\\n(?:(?:[\\t ]+.*\\n)+)"
+  },
+  "FUNCTION": {
+    "tree_sitter_query": "(function_definition name: (identifier) @function_name) @function_def",
+    "regexp_pattern": "(?ms)^(?:[\\t ]*@[^\n]+\\n)*[\\t ]*def\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\([^)]*\\)\\s*:\\s*\\n(?:(?:[\\t ].*\\n)+)"
+  },
+  "IMPORT": {
+    "tree_sitter_query": "(import_statement) @import_simple\n(import_from_statement) @import_from",
+    "custom_extract": true,
+    "regexp_pattern": "(?m)^(?:from[\\t ]+[A-Za-z0-9_\\.]+[\\t ]+import[\\t ]+[^\n]+|import[\\t ]+[^\n]+)"
+  },
+  "PROPERTY_GETTER": {
+    "tree_sitter_query": "(decorated_definition\n  (decorator\n    (identifier) @decorator_name\n    (#eq? @decorator_name \"property\"))\n  (function_definition\n    name: (identifier) @property_name)) @property_def",
+    "regexp_pattern": "(?ms)^[\\t ]*@property[^\n]*\\n[\\t ]*def[\\t ]+([A-Za-z_][A-Za-z0-9_]*)\\s*\\([^)]*\\)\\s*:\\s*\\n(?:(?:[\\t ]+.*\\n)+)"
+  },
+  "PROPERTY_SETTER": {
+    "tree_sitter_query": "(decorated_definition\n  (decorator\n    (attribute\n      object: (identifier) @property_name\n      attribute: (identifier) @setter_keyword\n      (#eq? @setter_keyword \"setter\")))\n  (function_definition\n    name: (identifier) @function_name\n    (#eq? @function_name @property_name))) @property_setter_def",
+    "regexp_pattern": "(?ms)^[\\t ]*@([A-Za-z_][A-Za-z0-9_]*)\\.setter[^\n]*\\n[\\t ]*def[\\t ]+\\1\\s*\\([^)]*\\)\\s*:\\s*\\n(?:(?:[\\t ]+.*\\n)+)"
+  },
+  "STATIC_PROPERTY": {
+    "tree_sitter_query": "(class_definition\n  body: (block) @class_block)",
+    "regexp_pattern": "(?m)^[\\t ]{4,}([A-Za-z_][A-Za-z0-9_]*)[\\t ]*(?::[\\t ]*[^=\n]+)?[\\t ]*=[\\t ]*(.+)$"
+  },
+  "DECORATOR": {
+    "tree_sitter_query": "(decorator) @decorator_node",
+    "regexp_pattern": "(?m)^[\\t ]*@([A-Za-z_][A-Za-z0-9_\\.]*)?(?:\\([^)]*\\))?"
+  }
 }

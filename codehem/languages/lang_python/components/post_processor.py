@@ -296,9 +296,28 @@ class PythonPostProcessor(LanguagePostProcessor):
                     elif prop_name:
                         logger.debug(f"process_classes: Skipping static property '{prop_name}' as a member with the same name already exists.")
                 
+                # Process instance properties (attributes set on self in __init__)
+                processed_instance_props = {}
+                instance_props_for_this_class = [p for p in property_lookup.get(class_name, [])
+                                                 if isinstance(p, dict) and p.get('type') == CodeElementType.PROPERTY.value]
+                instance_props_for_this_class.sort(key=lambda p:
+                    p.get('range', {}).get('start', {}).get('line', 0)
+                )
+
+                for prop_data in instance_props_for_this_class:
+                    prop_name = prop_data.get('name')
+                    # Skip if a member with same name exists (e.g., a property getter)
+                    if prop_name and not any(key[1] == prop_name for key in processed_members.keys()):
+                        processed_prop = self._process_instance_property(prop_data, class_element)
+                        if processed_prop:
+                            processed_instance_props[processed_prop.name] = processed_prop
+                    elif prop_name:
+                        logger.debug(f"process_classes: Skipping instance property '{prop_name}' as a member with the same name already exists.")
+
                 # Add all children to the class
                 class_element.children.extend(list(processed_members.values()))
                 class_element.children.extend(list(processed_static_props.values()))
+                class_element.children.extend(list(processed_instance_props.values()))
                 
                 # Sort children by line number for consistent order
                 class_element.children.sort(key=lambda child: 
@@ -311,6 +330,29 @@ class PythonPostProcessor(LanguagePostProcessor):
                 logger.error(f"process_classes: Failed to process class '{class_name}': {e}", exc_info=True)
         
         return processed_classes
+
+    def _process_instance_property(self, prop_data: Dict, parent_class_element: CodeElement) -> Optional[CodeElement]:
+        """Process raw instance property data into a CodeElement object."""
+        prop_name = prop_data.get("name", "unknown_property")
+        parent_name = parent_class_element.name
+
+        logger.debug(f"_process_instance_property: Processing instance property: {prop_name} in class {parent_name}")
+
+        if not isinstance(prop_data, dict):
+            logger.warning(f"_process_instance_property: Invalid prop_data format: {type(prop_data)}")
+            return None
+
+        # Ensure type is set correctly
+        prop_data["type"] = CodeElementType.PROPERTY.value
+
+        try:
+            # Create CodeElement from raw data
+            element = CodeElement.from_dict(prop_data)
+            element.parent_name = parent_name
+            return element
+        except (ValidationError, Exception) as e:
+            logger.error(f"_process_instance_property: Failed to process instance property '{prop_name}' in class '{parent_name}': {e}", exc_info=True)
+            return None
     
     def _process_parameters(self, element: CodeElement, params_data: List[Dict]) -> List[CodeElement]:
         """

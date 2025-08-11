@@ -124,29 +124,55 @@ def main() -> None:
         if not os.path.exists(args.file):
             console.print(f"[bold red]File not found:[/bold red] {args.file}")
             sys.exit(1)
-        with Progress() as progress:
-            task = progress.add_task("[green]Extracting...", total=3)
-            content = CodeHem.load_file(args.file)
-            progress.update(task, advance=1, description="[green]Creating instance...")
+
+        def _extract_to_json_dict(file_path: str) -> Dict[str, Any]:
+            content = CodeHem.load_file(file_path)
             hem = CodeHem.from_raw_code(content)
-            progress.update(task, advance=1, description="[green]Parsing...")
             elements = hem.extract(content)
-            progress.update(task, advance=1, description="[green]Done")
-            elements_dict = {
-                "elements": [e.dict(exclude={"range.node"}) for e in elements.elements]
-            }
+
+            # Ensure JSON-serializable output. First dump to dicts, then sanitize recursively.
+            def _to_dict(el: Any) -> Dict[str, Any]:
+                if hasattr(el, "model_dump"):
+                    return el.model_dump()
+                if hasattr(el, "dict"):
+                    return el.dict()
+                return dict(getattr(el, "__dict__", {}))
+
+            def _sanitize(obj: Any) -> Any:
+                if isinstance(obj, dict):
+                    clean: Dict[str, Any] = {}
+                    for k, v in obj.items():
+                        if k == "node":
+                            continue  # drop tree-sitter node references
+                        clean[k] = _sanitize(v)
+                    return clean
+                if isinstance(obj, list):
+                    return [_sanitize(x) for x in obj]
+                if isinstance(obj, (str, int, float, bool)) or obj is None:
+                    return obj
+                try:
+                    json.dumps(obj)
+                    return obj
+                except Exception:
+                    return str(obj)
+
+            raw_list = [_to_dict(e) for e in elements.elements]
+            return {"elements": _sanitize(raw_list)}
+
+        # Suppress progress UI when producing machine-readable output
+        if args.raw_json or args.output:
+            elements_dict = _extract_to_json_dict(args.file)
             if args.output:
                 with open(args.output, "w", encoding="utf8") as f:
                     json.dump(elements_dict, f, indent=2)
-                console.print(
-                    Panel(
-                        f"[bold green]Success![/bold green] Extracted elements saved to [blue]{args.output}[/blue]",
-                        expand=False,
-                    )
-                )
-            elif args.raw_json:
-                print(json.dumps(elements_dict, indent=2))
             else:
+                print(json.dumps(elements_dict, indent=2))
+        else:
+            with Progress() as progress:
+                task = progress.add_task("[green]Extracting...", total=3)
+                progress.update(task, advance=1, description="[green]Creating instance...")
+                elements_dict = _extract_to_json_dict(args.file)
+                progress.update(task, advance=2, description="[green]Done")
                 console.print_json(data=elements_dict)
     else:
         parser.print_help()

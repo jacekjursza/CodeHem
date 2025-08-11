@@ -298,20 +298,29 @@ class CodeHem:
         Returns:
             CodeElementsResult containing extracted elements
         """
-        # Special handling for TypeScript and JavaScript to use component-based orchestrator
-        if self.language_service and self.language_service.language_code in ['typescript', 'javascript']:
-            logger.debug('CodeHem: Using TypeScript orchestrator for extraction')
+        # Special handling to use component-based orchestrators where available
+        if self.language_service and self.language_service.language_code in ['typescript', 'javascript', 'python']:
+            lang = self.language_service.language_code
+            logger.debug(f'CodeHem: Using {lang.capitalize()} orchestrator for extraction')
             try:
-                from codehem.languages.lang_typescript.components.orchestrator import TypeScriptExtractionOrchestrator
-                from codehem.languages.lang_typescript.components.post_processor import TypeScriptPostProcessor
-                
-                post_processor = TypeScriptPostProcessor()
-                orchestrator = TypeScriptExtractionOrchestrator(post_processor)
+                if lang in ['typescript', 'javascript']:
+                    from codehem.languages.lang_typescript.components.orchestrator import TypeScriptExtractionOrchestrator
+                    from codehem.languages.lang_typescript.components.post_processor import TypeScriptPostProcessor
+
+                    post_processor = TypeScriptPostProcessor()
+                    orchestrator = TypeScriptExtractionOrchestrator(post_processor)
+                else:  # python
+                    from codehem.languages.lang_python.components.orchestrator import PythonExtractionOrchestrator
+                    from codehem.languages.lang_python.components.post_processor import PythonPostProcessor
+
+                    post_processor = PythonPostProcessor()
+                    orchestrator = PythonExtractionOrchestrator(post_processor)
+
                 result = orchestrator.extract_all(code)
-                logger.debug(f'CodeHem: TypeScript orchestrator found {len(result.elements)} elements')
+                logger.debug(f'CodeHem: {lang.capitalize()} orchestrator found {len(result.elements)} elements')
                 return result
             except Exception as e:
-                logger.error(f'CodeHem: Error with TypeScript orchestrator, falling back to extraction service: {e}', exc_info=True)
+                logger.error(f'CodeHem: Error with {lang.capitalize()} orchestrator, falling back to extraction service: {e}', exc_info=True)
                 # Fall back to regular extraction service
         
         # Default behavior for other languages

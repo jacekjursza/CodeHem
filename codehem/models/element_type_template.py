@@ -49,7 +49,8 @@ class ElementTypeTemplate:
                 else:
                     missing_keys = ts_keys_needed - set(specific_placeholders.keys())
                     if missing_keys:
-                        logger.error(f'Formatting TreeSitter pattern for {self.element_type.value}: Missing specific placeholders {missing_keys} in provided map ({list(specific_placeholders.keys())[:5]}...). Template: {repr(tree_sitter_query_template)}')
+                        # Lower severity: missing placeholders is expected when a language supplies direct queries
+                        logger.debug(f'Formatting TreeSitter pattern for {self.element_type.value}: Missing placeholders {missing_keys}; will fall back to direct definitions if provided. Template: {repr(tree_sitter_query_template)}')
                         formatted_ts_query = None # Indicate failure
                     else:
                         formatting_dict = {k: specific_placeholders[k] for k in ts_keys_needed}
@@ -71,7 +72,7 @@ class ElementTypeTemplate:
                 else:
                     missing_keys = rx_keys_needed - set(specific_placeholders.keys())
                     if missing_keys:
-                        logger.error(f'Formatting Regex pattern for {self.element_type.value}: Missing specific placeholders {missing_keys} in provided map ({list(specific_placeholders.keys())[:5]}...). Template: {repr(regexp_pattern_template)}')
+                        logger.debug(f'Formatting Regex pattern for {self.element_type.value}: Missing placeholders {missing_keys}; will fall back to direct definitions if provided. Template: {repr(regexp_pattern_template)}')
                         formatted_regexp = None
                     else:
                         formatting_dict = {k: specific_placeholders[k] for k in rx_keys_needed}
@@ -102,7 +103,8 @@ class ElementTypeTemplate:
                 'custom_extract': custom_extract_final
             }
         else:
-            logger.error(f'Pattern formatting failed for {self.element_type.value}. TS Template OK: {ts_ok}, RX Template OK: {rx_ok}')
+            # Lower severity: template formatting may legitimately fail when language supplies direct patterns
+            logger.debug(f'Pattern formatting not applied for {self.element_type.value}. TS OK: {ts_ok}, RX OK: {rx_ok}')
             return None # Explicitly return None if formatting failed
 
 # --- Base Templates (Restore tree_sitter_pattern defaults with placeholders) ---
@@ -187,10 +189,16 @@ def create_element_type_descriptor(
         final_attrs['regexp_pattern'] = formatted_attrs_from_template['regexp_pattern']
         logger.debug(f"Using 'regexp_pattern' formatted from base template for {language_code}/{element_type.value}")
     else:
+        # If we already have a valid tree-sitter query, lack of regex is not an issue.
+        has_ts = final_attrs.get('tree_sitter_query') is not None
         if base_template and base_template.regexp_pattern:
-             logger.warning(f"Failed to format or find direct 'regexp_pattern' for {language_code}/{element_type.value}.")
+            (logger.debug if has_ts else logger.warning)(
+                f"Failed to format or find direct 'regexp_pattern' for {language_code}/{element_type.value}."
+            )
         else:
-             logger.debug(f"No 'regexp_pattern' defined in placeholders or base template for {language_code}/{element_type.value}.")
+            logger.debug(
+                f"No 'regexp_pattern' defined in placeholders or base template for {language_code}/{element_type.value}."
+            )
         final_attrs['regexp_pattern'] = None
 
     # Handle custom_extract flag (Placeholder definition takes precedence over template)

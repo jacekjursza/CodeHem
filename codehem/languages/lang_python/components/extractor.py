@@ -181,18 +181,22 @@ class PythonElementExtractor(BaseElementExtractor):
             query_string = f'''
             (class_definition
                 name: (identifier) @class_name (#eq? @class_name "{class_name}")
-                body: (block
-                    (function_definition) @method_def
-                )
+                body: (block (function_definition) @method_def)
+            )
+            (class_definition
+                name: (identifier) @class_name (#eq? @class_name "{class_name}")
+                body: (block (decorated_definition (function_definition) @method_def))
             )
             '''
         else:
             query_string = '''
             (class_definition
                 name: (identifier) @class_name
-                body: (block
-                    (function_definition) @method_def
-                )
+                body: (block (function_definition) @method_def)
+            )
+            (class_definition
+                name: (identifier) @class_name
+                body: (block (decorated_definition (function_definition) @method_def))
             )
             '''
         
@@ -432,7 +436,109 @@ class PythonElementExtractor(BaseElementExtractor):
         except Exception as e:
             logger.error(f'Error extracting Python properties: {e}', exc_info=True)
         
+        # Also extract instance attributes set in __init__ (e.g., self.foo = value)
+        try:
+            instance_props = self._extract_instance_attributes(tree, code_bytes)
+            properties.extend(instance_props)
+        except Exception as e:
+            logger.error(f'Error extracting Python instance attributes: {e}', exc_info=True)
+
         return properties
+
+    def _extract_instance_attributes(self, tree: Node, code_bytes: bytes) -> List[Dict]:
+        """Extract instance attributes assigned in __init__ methods within classes."""
+        instance_props: List[Dict] = []
+
+        # Query all classes with their __init__ definitions
+        init_query = r'''
+        (class_definition
+            name: (identifier) @class_name
+            body: (block
+                (function_definition
+                    name: (identifier) @method_name (#eq? @method_name "__init__")
+                    body: (block) @init_block
+                )
+            )
+        ) @class_def
+        '''
+
+        matches = self.navigator.execute_query(tree, code_bytes, init_query)
+
+        # Build a list of (class_name, init_block_node) pairs
+        init_blocks: List[Tuple[str, Node]] = []
+        for node, capture in matches:
+            if capture == 'init_block':
+                # Find the class name for this block by walking up
+                class_node = self.navigator.find_parent_of_type(node, 'class_definition')
+                class_name = None
+                if class_node:
+                    name_node = self.navigator.find_child_by_field_name(class_node, 'name')
+                    if name_node:
+                        class_name = self.navigator.get_node_text(name_node, code_bytes)
+                if class_name:
+                    init_blocks.append((class_name, node))
+
+        seen: set[tuple[str, str, int]] = set()
+        for class_name, init_block in init_blocks:
+            # Iterate over statements inside the init block
+            for i in range(init_block.named_child_count):
+                stmt = init_block.named_child(i)
+                node_for_range = stmt
+                target_assignment = None
+
+                # Many assignments are wrapped in expression_statement
+                inner = stmt.named_child(0) if stmt.type == 'expression_statement' and stmt.named_child_count > 0 else None
+                if inner and inner.type in ('assignment', 'typed_assignment'):
+                    target_assignment = inner
+                elif stmt.type in ('assignment', 'typed_assignment'):
+                    target_assignment = stmt
+
+                if not target_assignment:
+                    continue
+
+                left = target_assignment.child_by_field_name('left')
+                if left is None:
+                    continue
+                # We only care about attributes on self: self.attr
+                if left.type == 'attribute':
+                    obj_node = left.child_by_field_name('object')
+                    attr_node = left.child_by_field_name('attribute')
+                    if not obj_node or not attr_node:
+                        continue
+                    obj_text = self.navigator.get_node_text(obj_node, code_bytes)
+                    if obj_text != 'self':
+                        continue
+                    prop_name = self.navigator.get_node_text(attr_node, code_bytes)
+                else:
+                    continue
+
+                # Determine type hint if present (typed_assignment or type field)
+                type_node = target_assignment.child_by_field_name('type')
+                value_type = self.navigator.get_node_text(type_node, code_bytes) if type_node else None
+
+                # Build property info
+                start_line, end_line = self.navigator.get_node_range(node_for_range)
+                key = (class_name, prop_name, start_line)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                prop_info = {
+                    'type': CodeElementType.PROPERTY.value,
+                    'name': prop_name,
+                    'content': self.navigator.get_node_text(node_for_range, code_bytes),
+                    'range': {
+                        'start': {'line': start_line, 'column': 0},
+                        'end': {'line': end_line, 'column': 0}
+                    },
+                    'parent_name': class_name,
+                    'value_type': value_type,
+                    'node': node_for_range
+                }
+                instance_props.append(prop_info)
+
+        logger.debug(f'Extracted {len(instance_props)} Python instance attributes')
+        return instance_props
     
     def extract_static_properties(self, tree: Node, code_bytes: bytes) -> List[Dict]:
         """

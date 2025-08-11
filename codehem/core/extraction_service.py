@@ -287,41 +287,97 @@ class ExtractionService:
         Now includes PROPERTY and DECORATOR types.
         """
         logger.info(f'Starting raw extraction of all elements for {self.language_code}')
-        results = {'imports': self.extract_imports(code)}
-        # Extract imports
-        logger.debug(f"Raw extracted {len(results.get('imports', []))} import elements.")
-        # Extract standalone functions
-        results['functions'] = self.extract_functions(code)
-        logger.debug(f"Raw extracted {len(results.get('functions', []))} functions.")
-        # Extract classes (and potentially interfaces depending on language service)
-        results['classes'] = self.extract_classes(code)
-        logger.debug(f"Raw extracted {len(results.get('classes', []))} classes.")
-        # Extract members (methods, getters, setters)
-        all_members = self.extract_methods(code, class_name=None)
-        results['members'] = all_members
-        logger.debug(f'Raw extracted {len(all_members)} potential class members (methods/getters/setters).')
-        # Extract regular properties (fields) - ADDED
-        props = self._get_raw_extractor_results(code, CodeElementType.PROPERTY.value)
-        results['properties'] = props
-        logger.debug(f'Raw extracted {len(props)} regular properties.')
-        # Extract static properties (class variables)
-        static_props = self._get_raw_extractor_results(code, CodeElementType.STATIC_PROPERTY.value)
-        results['static_properties'] = static_props
-        logger.debug(f'Raw extracted {len(static_props)} static properties.')
-        # Extract decorators - ADDED
-        decorators = self._get_raw_extractor_results(code, CodeElementType.DECORATOR.value)
-        results['decorators'] = decorators
-        logger.debug(f'Raw extracted {len(decorators)} decorators.')
 
+        # Respect language-supported element types to avoid noisy warnings
+        supported = set()
+        try:
+            supported = set(self.language_service.supported_element_types)
+        except Exception:
+            supported = set(e.value for e in CodeElementType)
 
-        results['interfaces'] = self._get_raw_extractor_results(code, CodeElementType.INTERFACE.value)
-        logger.debug(f"Raw extracted {len(results.get('interfaces', []))} interfaces.")
-        results['enums'] = self._get_raw_extractor_results(code, CodeElementType.ENUM.value)
-        logger.debug(f"Raw extracted {len(results.get('enums', []))} enums.")
-        results['type_aliases'] = self._get_raw_extractor_results(code, CodeElementType.TYPE_ALIAS.value)
-        logger.debug(f"Raw extracted {len(results.get('type_aliases', []))} type aliases.")
-        results['namespaces'] = self._get_raw_extractor_results(code, CodeElementType.NAMESPACE.value)
-        logger.debug(f"Raw extracted {len(results.get('namespaces', []))} namespaces.")
+        results: Dict[str, List[Dict]] = {}
+
+        # Imports
+        if CodeElementType.IMPORT.value in supported:
+            results['imports'] = self.extract_imports(code)
+            logger.debug(f"Raw extracted {len(results.get('imports', []))} import elements.")
+        else:
+            results['imports'] = []
+
+        # Functions
+        if CodeElementType.FUNCTION.value in supported:
+            results['functions'] = self.extract_functions(code)
+            logger.debug(f"Raw extracted {len(results.get('functions', []))} functions.")
+        else:
+            results['functions'] = []
+
+        # Classes
+        if CodeElementType.CLASS.value in supported:
+            results['classes'] = self.extract_classes(code)
+            logger.debug(f"Raw extracted {len(results.get('classes', []))} classes.")
+        else:
+            results['classes'] = []
+
+        # Members (methods/getters/setters)
+        if any(t in supported for t in [
+            CodeElementType.METHOD.value,
+            CodeElementType.PROPERTY_GETTER.value,
+            CodeElementType.PROPERTY_SETTER.value,
+        ]):
+            all_members = self.extract_methods(code, class_name=None)
+            results['members'] = all_members
+            logger.debug(f'Raw extracted {len(all_members)} potential class members (methods/getters/setters).')
+        else:
+            results['members'] = []
+
+        # Regular properties (fields)
+        if CodeElementType.PROPERTY.value in supported:
+            props = self._get_raw_extractor_results(code, CodeElementType.PROPERTY.value)
+            results['properties'] = props
+            logger.debug(f'Raw extracted {len(props)} regular properties.')
+        else:
+            results['properties'] = []
+
+        # Static properties
+        if CodeElementType.STATIC_PROPERTY.value in supported:
+            static_props = self._get_raw_extractor_results(code, CodeElementType.STATIC_PROPERTY.value)
+            results['static_properties'] = static_props
+            logger.debug(f'Raw extracted {len(static_props)} static properties.')
+        else:
+            results['static_properties'] = []
+
+        # Decorators
+        if CodeElementType.DECORATOR.value in supported:
+            decorators = self._get_raw_extractor_results(code, CodeElementType.DECORATOR.value)
+            results['decorators'] = decorators
+            logger.debug(f'Raw extracted {len(decorators)} decorators.')
+        else:
+            results['decorators'] = []
+
+        # Interfaces / Enums / Type Aliases / Namespaces
+        if CodeElementType.INTERFACE.value in supported:
+            results['interfaces'] = self._get_raw_extractor_results(code, CodeElementType.INTERFACE.value)
+            logger.debug(f"Raw extracted {len(results.get('interfaces', []))} interfaces.")
+        else:
+            results['interfaces'] = []
+
+        if CodeElementType.ENUM.value in supported:
+            results['enums'] = self._get_raw_extractor_results(code, CodeElementType.ENUM.value)
+            logger.debug(f"Raw extracted {len(results.get('enums', []))} enums.")
+        else:
+            results['enums'] = []
+
+        if CodeElementType.TYPE_ALIAS.value in supported:
+            results['type_aliases'] = self._get_raw_extractor_results(code, CodeElementType.TYPE_ALIAS.value)
+            logger.debug(f"Raw extracted {len(results.get('type_aliases', []))} type aliases.")
+        else:
+            results['type_aliases'] = []
+
+        if CodeElementType.NAMESPACE.value in supported:
+            results['namespaces'] = self._get_raw_extractor_results(code, CodeElementType.NAMESPACE.value)
+            logger.debug(f"Raw extracted {len(results.get('namespaces', []))} namespaces.")
+        else:
+            results['namespaces'] = []
 
         logger.info(f'Completed raw extraction for {self.language_code}. Collected types: {list(results.keys())}')
         return results

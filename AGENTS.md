@@ -1,141 +1,60 @@
-# AGENTS.md – Architecture & Orientation
+# Repository Guidelines
 
-> **Audience**: autonomous agents / LLMs joining the project.
-> **Purpose**: understand what this codebase does, how it is laid out, and the architectural principles we protect.
-> **Context**: you start each task in a blank VM; local indexes are cheap to rebuild, global knowledge is not – hence this primer.
+## Overview
+CodeHem is a syntax‑aware, multi‑language engine for structure‑aware queries, extraction, and safe patching of source code. It uses tree‑sitter for parsing and language plugins for specifics; the core guarantees consistent operations and element‑boundary correctness.
 
----
+- Detects language; extracts classes/functions/methods to JSON for tooling.
+- Finds elements via XPath‑like paths; returns text/ranges; computes hashes.
+- Applies patches (replace/append/prepend) with dry‑run diffs and hash conflict checks.
+- Languages: Python, TypeScript, JavaScript; extend via `codehem/languages/<lang>/`.
+- CLI examples:
+  - `python -m codehem.cli detect path/to/file.py`
+  - `python -m codehem.cli extract path/to/file.ts --raw-json`
+  - `python -m codehem.cli patch app.py --xpath "MyClass.do_work" --file new_body.txt --mode replace --dry-run`
 
-## 1 · Idea in One Sentence
+## Project Structure & Module Organization
+- Package root: `codehem/`.
+- Core: `codehem/core/` (extraction_service, manipulation_service, registry, workspace, utils).
+- Languages: `codehem/languages/<lang>/` (e.g., `lang_python/`, `lang_typescript/`) with `service.py`, detectors, type handlers.
+- Models: `codehem/models/` (element types, ranges, XPath helpers).
+- CLI & entry: `codehem/cli.py`, `codehem/main.py`.
+- Tests & Docs: `tests/` (unit/integration), `docs/` (guides, diagrams).
 
-**CodeHem** is a *syntax‑aware, language‑agnostic* engine that lets higher‑level tools query, patch and refactor source code while guaranteeing syntactic validity.  Tree‑sitter provides the AST; plug‑in modules provide language specifics; a small core provides uniform operations.
+## Build, Test, and Development Commands
+- CLI help: `python -m codehem.cli --help` or `python codehem/cli.py --help`.
+- Run tests: `pytest -q` | target a file: `pytest tests/test_patch_api.py -q`.
+- Lint: `ruff check .` | autofix: `ruff check . --fix`.
+- Format: `black .`.
+- Pre‑commit (if configured): `pre-commit run -a`.
 
----
+## Coding Style & Naming Conventions
+- Python 3.11, type‑annotated, 4‑space indent.
+- Tools: `ruff` + `black`; public methods include doctest‑ready examples.
+- Logging: stdlib `logging` (DEBUG noisy, default WARNING).
+- Naming: `*LanguageService`, `*PostProcessor`, `*Detector`; `NODE_PATTERNS` maps element types → queries.
+- Tests mirror modules (e.g., `tests/python/` ↔ `codehem/languages/lang_python/`).
 
-## 2 · Roadmap at a Glance *(May 2025)*
+## Testing Guidelines
+- Framework: `pytest`; keep tests focused and deterministic.
+- Coverage targets: `codehem/core/` ≥ 95%, language code ≥ 80%.
+- Locations: `tests/core/`, `tests/python/`, `tests/typescript/`; fixtures in `tests/fixtures/`.
 
-| Sprint | Status         | Focus                                                               |
-| ------ | -------------- | ------------------------------------------------------------------- |
-| 1      | ✅ done         | API clean‑up, remove prints, unify error handling                   |
-| 2      | ✅ done         | AST & XPath cache, lazy loading                                     |
-| 3      | ✅ done         | Plugin architecture (entry‑points), JS alias, cookiecutter template |
-| 4      | ✅ done         | DRY formatter/manipulator refactor |
-| 5      | ✅ done         | Patch API (`apply_patch`, `get_element_hash`) |
-| 6      | ✅ done         | Builder helpers, short XPath, JSON results |
-| 7      | ✅ done         | Workspace index, locks, thread‑safety                               |
-| 8      | ✅ done         | Docs, CLI polish, first public release 1.0 |
+## Commit & Pull Request Guidelines
+- Commits: one topic per commit; imperative mood (“core: cache XPath lookups”); keep diffs minimal.
+- PRs: clear description (what/why), linked issues, updated tests/docs, and screenshots for CLI UX changes.
+- Quality gate: lint, format, and tests must pass; maintain coverage thresholds.
 
-Anything beyond Sprint 3 is subject to change; check issues before diving into those areas.
+## Architecture & Agent Tips
+- Syntax‑aware first: route edits through extraction/manipulation plus formatters; avoid regex beyond detectors.
+- Plugin ≥ rewrite: extend via `codehem/languages/<lang>/` and entry‑points.
+- Prefer evolving `NODE_PATTERNS` before new extractors; keep language modules thin.
+- For new languages, start from `codehem-lang-template` and mirror structure above.
 
----
-
-## 3 · High‑Level Architecture
-
-```
-           ┌──────────────┐   query / patch   ┌────────────────┐
- Agent/CLI │  CodeHem API │  ───────────────► │ LanguageService │◄── plugins (entry‑points)
-           └─────┬────────┘                   └────────┬───────┘
-                 │                                        │
-                 │ (delegates)                            │
-                 ▼                                        ▼
-      ┌────────────────────┐                    ┌──────────────────┐
-      │ ExtractionService  │   builds          │ ManipulationSvc   │  writes + diffs
-      └────────────────────┘   CodeElements    └──────────────────┘
-                 │                                        │
-                 └───> tree‑sitter parser & AST  <────────┘
-```
-
-* **Core** (`core/`) is 100 % language‑agnostic.
-* **LanguageService** (
-  `languages/<lang>/service.py`) registers extractors, manipulators, formatter, detector.
-* **Plugins** are discovered at runtime via Python entry‑points (`codehem.languages`).
-
----
-
-## 4 · Repository Layout (top level)
-
-```
-repo‑root/
-├── core/
-│   ├── extraction.py      # AST → CodeElement tree
-│   ├── manipulation.py    # patch orchestration, diff helpers
-│   ├── workspace.py       # repo‑wide index & cache (Sprint 7)
-│   └── utils/             # hashing, locks, logging, misc
-├── languages/
-│   ├── python/            # PythonLanguageService, formatter, manipulator
-│   └── typescript/        # TypeScriptService (alias js)
-├── registry.py            # plugin discovery & lazy import
-├── cli.py                 # `codehem` entry‑point (Sprint 8 polish)
-├── tests/                 # pytest unit & integration suite
-└── docs/                  # architecture, guides, diagrams
-```
-
-Inside each language folder:
-
-```
-languages/<lang>/
-├── service.py      # declares NODE_PATTERNS, file extensions, detector regex
-├── formatter.py    # derives from BraceFormatter / IndentFormatter
-├── manipulator/
-│   ├── class_.py   # optional overrides for tricky constructs
-│   └── ...
-└── tests/          # language‑specific cases
-```
-
----
-
-## 5 · Naming & Module Conventions
-
-| Suffix / Pattern     | Responsibility                                          |
-| -------------------- | ------------------------------------------------------- |
-| `*LanguageService`   | glue object: holds tree‑sitter grammar, config, helpers |
-| `*Formatter`         | whitespace, braces, trailing newline rules              |
-| `*Manipulator`       | text insertion/replacement; calls formatter             |
-| `NODE_PATTERNS` dict | maps `CodeElementType` → tree‑sitter query              |
-| Tests mirror modules | `test_python_formatter.py` ↔ `python/formatter.py`      |
-
-### Coding style
-
-* **Python 3.11**, typed; `ruff + black` enforced by pre‑commit.
-* Public methods carry full docstrings; examples use triple‑backticks for doctest‑ready snippets.
-* Logging via stdlib `logging`; DEBUG noisy, default WARNING.
-
-### Error hierarchy (core/utils/errors.py)
-
-```
-CodeHemError
- ├─ ElementNotFoundError
- ├─ WriteConflictError   # will appear Sprint 7
- └─ UnsupportedLanguageError
-```
-
----
-
-## 6 · Architectural Principles We Protect
-
-1. **Syntax‑aware first** – every modification must go through a parser; regex hacks live only in detectors.
-2. **Plugin ≥ Rewrite** – add language logic via entry‑point, not `if lang == 'x'`.
-3. **Minimal duplication** – common behaviour moves to abstract base or template; language modules stay thin.
-4. **Patch atomicity** – once Patch API lands, writes require hash match & lockfile.
-5. **Tests before merge** – CI gate demands ≥ 95 % coverage on `core/`, ≥ 80 % on per‑language code.
-
----
-
-## 7 · Adding or Modifying Code
-
-* Extend **NODE\_PATTERNS** instead of writing a new extractor when possible.
-* Use the **cookiecutter‑template** (`codehem-lang-template`) for new languages; it wires service, formatter, tests.
-* Keep commits focused; prefer 1 feature or bugfix per PR – helps future agents do bisects.
-
----
-
-## 8 · Further Reading
-
-* `docs/Developer‑Guide.md` – in‑depth walkthrough of CodeHem API (once Sprint 8 ships).
-* `tests/fixtures/` – curated real‑world code pieces used in regression tests.
-* `ROADMAP.md` (tbd) – living document reflecting sprint progress.
-* `ROADMAP/NextTask.md` – pointer to the next ticket to pick up.
-
----
-
-Welcome to CodeHem!  Skim this file before opening your first module; ten minutes here saves hundreds of tokens later.
+## Key References
+- `docs/Developer-Guide.md`: API walkthrough and usage patterns.
+- `docs/Plugin-Development-Tutorial.md`: create/extend a language service.
+- `docs/component_interfaces.md`: contracts for services and components.
+- `docs/input_validation.md` and `codehem/core/input_validation.py`: validation rules.
+- `docs/Troubleshooting-Guide.md`: common failures and fixes.
+- `docs/architecture.puml`: system diagram; `docs/roadmap.md`: planned work.
+- `codehem/core/README.md`: core responsibilities and modules.
