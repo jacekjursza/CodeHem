@@ -486,10 +486,51 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                     import_node = match['import']
                     import_nodes.append(import_node)
             
+            import re
             for import_node in import_nodes:
                 import_range = self.navigator.get_node_range(import_node)
                 import_text = self.navigator.get_node_text(import_node, code_bytes).decode('utf-8')
-                
+                # Parse module and aliases
+                module_name = None
+                side_effect = False
+                m_from = re.search(r"from\s+['\"]([^'\"]+)['\"]", import_text)
+                if m_from:
+                    module_name = m_from.group(1)
+                else:
+                    m_se = re.match(r"\s*import\s+['\"]([^'\"]+)['\"]", import_text)
+                    if m_se:
+                        module_name = m_se.group(1)
+                        side_effect = True
+                # Default alias
+                default_alias = None
+                m_def = re.match(r"\s*import\s+([A-Za-z_$][\w$]*)\s*(?:,|from)\s*", import_text)
+                if m_def and not re.search(r"import\s*\*\s*as\s+", import_text):
+                    default_alias = m_def.group(1)
+                # Namespace alias
+                ns_alias = None
+                m_ns = re.search(r"import\s*\*\s*as\s+([A-Za-z_$][\w$]*)", import_text)
+                if m_ns:
+                    ns_alias = m_ns.group(1)
+                # Named specifiers
+                from_aliases = []
+                names = []
+                m_named = re.search(r"\{([^}]*)\}", import_text)
+                if m_named:
+                    inner = m_named.group(1)
+                    for part in [p.strip() for p in inner.split(',') if p.strip()]:
+                        if ' as ' in part:
+                            nm, al = [x.strip() for x in part.split(' as ', 1)]
+                            from_aliases.append({'name': nm, 'alias': al})
+                            names.append(nm)
+                        else:
+                            from_aliases.append({'name': part, 'alias': part})
+                            names.append(part)
+                aliases = []
+                if ns_alias and module_name:
+                    aliases.append({'module': module_name, 'alias': ns_alias})
+                if default_alias and module_name:
+                    aliases.append({'module': module_name, 'alias': default_alias})
+
                 import_data = {
                     'name': self._get_import_name(import_text),
                     'type': CodeElementType.IMPORT.value,
@@ -497,9 +538,16 @@ class TypeScriptElementExtractor(BaseElementExtractor):
                         'start': {'line': import_range[0], 'column': 0},
                         'end': {'line': import_range[1], 'column': 0}
                     },
-                    'content': import_text
+                    'content': import_text,
+                    'additional_data': {
+                        'module': module_name,
+                        'side_effect': side_effect,
+                        'aliases': aliases,
+                        'from_aliases': from_aliases,
+                        'names': names,
+                    }
                 }
-                
+
                 imports.append(import_data)
             
             logger.debug(f"Found {len(imports)} TypeScript imports")
