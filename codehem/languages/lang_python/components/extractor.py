@@ -752,6 +752,24 @@ class PythonElementExtractor(BaseElementExtractor):
                     start_line, end_line = self.navigator.get_node_range(node)
                     
                     # Create import info
+                    # Parse aliases from content, e.g., "import a as b, c, d as e"
+                    aliases = []
+                    try:
+                        line = content.strip()
+                        # Remove leading 'import'
+                        if line.startswith('import '):
+                            parts = [p.strip() for p in line[len('import '):].split(',') if p.strip()]
+                            for p in parts:
+                                # p could be 'pkg.sub as ps' or 'pkg'
+                                if ' as ' in p:
+                                    mod, al = p.split(' as ', 1)
+                                    aliases.append({'module': mod.strip(), 'alias': al.strip()})
+                                else:
+                                    root = p.split('.')[0]
+                                    aliases.append({'module': p, 'alias': root})
+                    except Exception:
+                        aliases = []
+
                     import_info = {
                         'type': CodeElementType.IMPORT.value,
                         'name': ', '.join(modules) if modules else 'import',
@@ -760,7 +778,7 @@ class PythonElementExtractor(BaseElementExtractor):
                             'start': {'line': start_line, 'column': 0},
                             'end': {'line': end_line, 'column': 0}
                         },
-                        'additional_data': {'modules': modules},
+                        'additional_data': {'modules': modules, 'aliases': aliases},
                         'node': node
                     }
                     
@@ -787,6 +805,39 @@ class PythonElementExtractor(BaseElementExtractor):
                     # Get range
                     start_line, end_line = self.navigator.get_node_range(node)
                     
+                    # Parse aliases from content, e.g., "from pkg.sub import a as b, c as d, e"
+                    from_aliases = []
+                    rel_level = 0
+                    try:
+                        line = content.strip()
+                        # Count leading dots after 'from '
+                        if line.startswith('from '):
+                            rest = line[len('from '):]
+                            # relative import if startswith '.'
+                            dots = 0
+                            for ch in rest:
+                                if ch == '.':
+                                    dots += 1
+                                else:
+                                    break
+                            rel_level = dots
+                            # Extract import list section after ' import '
+                            if ' import ' in rest:
+                                names_part = rest.split(' import ', 1)[1]
+                                # strip parentheses if any
+                                names_part = names_part.strip()
+                                if names_part.startswith('(') and names_part.endswith(')'):
+                                    names_part = names_part[1:-1]
+                                parts = [p.strip() for p in names_part.split(',') if p.strip()]
+                                for p in parts:
+                                    if ' as ' in p:
+                                        nm, al = p.split(' as ', 1)
+                                        from_aliases.append({'name': nm.strip(), 'alias': al.strip()})
+                                    else:
+                                        from_aliases.append({'name': p, 'alias': p})
+                    except Exception:
+                        from_aliases = []
+
                     # Create import info
                     import_info = {
                         'type': CodeElementType.IMPORT.value,
@@ -798,7 +849,9 @@ class PythonElementExtractor(BaseElementExtractor):
                         },
                         'additional_data': {
                             'module': module_name,
-                            'names': names
+                            'names': names,
+                            'from_aliases': from_aliases,
+                            'relative_level': rel_level
                         },
                         'node': node
                     }
