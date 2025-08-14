@@ -197,3 +197,4 @@ node_modules/
 tasks.json
 tasks/ 
 /.uenv/
+.pip_tmp/
