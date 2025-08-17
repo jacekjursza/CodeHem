@@ -1,0 +1,6 @@
+{
+  "import": {
+    "tree_sitter_query": "(import_statement) @import_statement",
+    "custom_extract": true
+  }
+}
