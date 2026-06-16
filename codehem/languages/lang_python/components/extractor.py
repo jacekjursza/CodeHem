@@ -235,14 +235,23 @@ class PythonElementExtractor(BaseElementExtractor):
                     # Get return info
                     return_info = self._extract_return_info(node, code_bytes)
                     
-                    # Check if this is a property decorator
+                    # Check if this is a property decorator and collect all
+                    # decorators attached to the method (the post-processor reads
+                    # method_info['decorators'] to attach them as child elements).
                     is_property = False
                     is_setter = False
+                    decorators = []
                     decorated_def = self.navigator.find_parent_of_type(node, 'decorated_definition')
                     if decorated_def:
                         for child in decorated_def.children:
                             if child.type == 'decorator':
                                 decorator_text = self.navigator.get_node_text(child, code_bytes)
+                                # Decorator name = text after '@', stripped of any call args.
+                                decorator_name = decorator_text.lstrip('@').split('(')[0].strip()
+                                decorators.append({
+                                    'name': decorator_name,
+                                    'content': decorator_text.strip(),
+                                })
                                 if decorator_text.strip() == '@property':
                                     is_property = True
                                 elif '.setter' in decorator_text:
@@ -271,6 +280,7 @@ class PythonElementExtractor(BaseElementExtractor):
                         'parent_name': parent_name,
                         'parameters': parameters,
                         'return_info': return_info,
+                        'decorators': decorators,
                         'node': node,
                         'range_node': range_node
                     }
