@@ -107,13 +107,13 @@ def build_package(venv_info):
         return False
 
 def check_setup_py():
-    """Check if setup.py exists and contains required configuration."""
-    if not os.path.exists("setup.py"):
-        print("ERROR: setup.py file not found!")
-        print("Please create a setup.py file with your package configuration.")
+    """Check if the project metadata file (pyproject.toml) exists."""
+    if not os.path.exists("pyproject.toml"):
+        print("ERROR: pyproject.toml file not found!")
+        print("Please create a pyproject.toml with your package configuration.")
         return False
 
-    print("setup.py found!")
+    print("pyproject.toml found!")
     return True
 
 def check_dependencies(venv_info):
