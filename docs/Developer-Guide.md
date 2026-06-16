@@ -302,7 +302,7 @@ This creates a skeleton plugin with all necessary components.
 
 #### 2. Define Entry Points
 
-In your plugin's `setup.py` or `pyproject.toml`:
+In your plugin's `pyproject.toml`:
 
 ```toml
 [project.entry-points."codehem.languages"]

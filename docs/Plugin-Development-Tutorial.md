@@ -91,42 +91,42 @@ codehem_lang_java/
 │   ├── __init__.py
 │   ├── test_java_basic.py
 │   └── fixtures/
-├── setup.py
+├── pyproject.toml
 └── README.md
 ```
 
 ### Step 2: Configure Entry Points
 
-Edit `setup.py` to register your plugin:
+Edit `pyproject.toml` to register your plugin:
 
-```python
-from setuptools import setup, find_packages
+```toml
+[build-system]
+requires = ["setuptools>=77.0.1", "wheel"]
+build-backend = "setuptools.build_meta"
 
-setup(
-    name="codehem-lang-java",
-    version="0.1.0",
-    packages=find_packages(),
-    install_requires=[
-        "codehem>=1.0.0",
-        "tree-sitter-java>=0.20.0",
-    ],
-    entry_points={
-        "codehem.languages": [
-            "java = codehem_lang_java:JavaLanguageService",
-        ],
-    },
-    author="Your Name",
-    author_email="your.email@example.com",
-    description="Java language support for CodeHem",
-    long_description=open("README.md").read(),
-    long_description_content_type="text/markdown",
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "Intended Audience :: Developers",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8+",
-    ],
-)
+[project]
+name = "codehem-lang-java"
+version = "0.1.0"
+description = "Java language support for CodeHem"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" },
+]
+dependencies = [
+    "codehem>=1.0.0",
+    "tree-sitter-java>=0.20.0",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+]
+
+# This is how CodeHem discovers your plugin — the entry-point group name
+# must be exactly "codehem.languages".
+[project.entry-points."codehem.languages"]
+java = "codehem_lang_java:JavaLanguageService"
 ```
 
 ## Core Components Implementation
@@ -1245,31 +1245,27 @@ pytest tests/ --cov=codehem_lang_java --cov-report=html
 
 ### Step 1: Package Configuration
 
-Ensure your `setup.py` is properly configured:
+Ensure your `pyproject.toml` is properly configured:
 
-```python
-setup(
-    name="codehem-lang-java",
-    version="1.0.0",
-    packages=find_packages(),
-    install_requires=[
-        "codehem>=1.0.0",
-        "tree-sitter-java>=0.20.0",
-    ],
-    entry_points={
-        "codehem.languages": [
-            "java = codehem_lang_java:JavaLanguageService",
-        ],
-    },
-    # ... other metadata
-)
+```toml
+[project]
+name = "codehem-lang-java"
+version = "1.0.0"
+dependencies = [
+    "codehem>=1.0.0",
+    "tree-sitter-java>=0.20.0",
+]
+# ... other metadata
+
+[project.entry-points."codehem.languages"]
+java = "codehem_lang_java:JavaLanguageService"
 ```
 
 ### Step 2: Build and Publish
 
 ```bash
-# Build the package
-python setup.py sdist bdist_wheel
+# Build the package (requires the `build` package: pip install build)
+python -m build
 
 # Upload to PyPI (test first)
 twine upload --repository testpypi dist/*
