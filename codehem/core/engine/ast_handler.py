@@ -9,7 +9,7 @@ from typing import Tuple, List, Any, Optional, Dict, Callable
 from codehem.core.utils.hashing import sha1_code
 
 
-from tree_sitter import Node, Query
+from tree_sitter import Node, Query, QueryCursor
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,11 @@ class ASTHandler:
         """
         try:
             query = Query(self.language, query_string)
-            raw_captures = query.captures(root, lambda n: self.get_node_text(n, code_bytes))
+            # tree-sitter >=0.25: Query.captures() was removed; captures now run
+            # through a QueryCursor and return a dict[str, list[Node]] (already
+            # handled by process_captures). The old per-capture text callback is
+            # gone — node text is resolved downstream via get_node_text().
+            raw_captures = QueryCursor(query).captures(root)
             return self.process_captures(raw_captures)
         except Exception as e:
             logger.error(

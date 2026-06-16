@@ -8,6 +8,8 @@ responsible for navigating and executing queries on TypeScript syntax trees.
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from tree_sitter import Query, QueryCursor
+
 from codehem.core.components.interfaces import ISyntaxTreeNavigator
 from codehem.core.components.base_implementations import BaseSyntaxTreeNavigator
 from codehem.core.engine.languages import LANGUAGES
@@ -117,17 +119,22 @@ class TypeScriptSyntaxTreeNavigator(BaseSyntaxTreeNavigator):
         logger.debug(f"execute_query: Executing TypeScript query: {query_string[:100]}...")
         
         try:
-            # Create a tree-sitter query
-            query = self.language.query(query_string)
-            
-            # Execute the query and get matches
-            # Handle both tree objects and node objects
+            # Create a tree-sitter query.
+            # tree-sitter >=0.25: Language.query() is deprecated in favour of the
+            # Query() constructor.
+            query = Query(self.language, query_string)
+
+            # Execute the query and get matches.
+            # tree-sitter >=0.25: captures() moved off Query onto QueryCursor;
+            # it still returns a dict[str, list[Node]], so the processing below
+            # is unchanged. Handle both tree objects and node objects.
+            cursor = QueryCursor(query)
             if hasattr(tree, 'root_node'):
                 # It's a tree object
-                captures = query.captures(tree.root_node)
+                captures = cursor.captures(tree.root_node)
             else:
                 # It's a node object
-                captures = query.captures(tree)
+                captures = cursor.captures(tree)
             
             # Process captures into structured format  
             result = []

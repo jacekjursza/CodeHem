@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=77.0.1", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "CodeHem"
+version = "1.0.0"
+description = "A language-agnostic library for code querying and manipulation"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Jacek Jursza", email = "jacek.jursza@gmail.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+# Loosened from exact pins (==) to lower-bound ranges so the project builds on
+# modern interpreters (e.g. Python 3.14). The original 2025 pins shipped native
+# wheels — pydantic-core/tree-sitter — that have no cp314 build and fail to
+# compile from source under PyO3 < 3.14.
+dependencies = [
+    "tree-sitter>=0.24.0",
+    "tree-sitter-javascript>=0.23.1",
+    "tree-sitter-python>=0.23.6",
+    "tree-sitter-typescript>=0.23.2",
+    "typing_extensions>=4.12.2",
+    "rich>=13.9.4",
+    "pydantic>=2.10.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+    "twine",
+    "build",
+    "wheel",
+]
+
+[project.urls]
+Homepage = "https://github.com/jacekjursza/CodeHem"
+
+[project.scripts]
+codehem = "codehem.cli:main"
+
+# Declared in the README but missing from the old setup.py packaging — this is
+# the entry-point group third-party language plugins (codehem-lang-*) register
+# against. CodeHem discovers languages through it.
+[project.entry-points."codehem.languages"]
+# (built-in languages are bundled; external plugins register here, e.g.)
+# java = "codehem_lang_java:JavaLanguageService"
+
+[tool.setuptools.packages.find]
+include = ["codehem*"]
+
+# Language pattern assets must ship inside the wheel — without these the package
+# installs but CodeHem can't load its tree-sitter query patterns. Carried over
+# from the old setup.py (include_package_data + package_data) / MANIFEST.in.
+[tool.setuptools.package-data]
+codehem = ["languages/*/node_patterns.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

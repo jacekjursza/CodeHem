@@ -8,7 +8,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from tree_sitter import Query, Node, QueryError
+from tree_sitter import Query, Node, QueryError, QueryCursor
 
 from codehem.core.components.base_implementations import BaseSyntaxTreeNavigator
 from codehem.models.enums import CodeElementType
@@ -116,8 +116,10 @@ class PythonSyntaxTreeNavigator(BaseSyntaxTreeNavigator):
             query = Query(PY_LANGUAGE, query_string)
             results = []
             
-            # Execute the query and process matches
-            matches = query.matches(tree)
+            # Execute the query and process matches.
+            # tree-sitter >=0.25: matches() moved off Query onto QueryCursor;
+            # the result shape (pattern_index, captures_dict) is unchanged.
+            matches = QueryCursor(query).matches(tree)
             for match in matches:
                 # match is a tuple: (pattern_index, captures_dict)
                 pattern_index, captures_dict = match
